@@ -1,0 +1,32 @@
+[Unit]
+Description=Autonomous Trading Company - Futures Worker
+Documentation=https://github.com/atlasbuilds/autonomous-trading-company
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=atlasbuilds
+Group=atlasbuilds
+WorkingDirectory=/Users/atlasbuilds/clawd/autonomous-trading-company
+ExecStart=/usr/local/bin/npx ts-node workers/futures-worker/index.ts
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=futures-worker
+
+# Environment
+Environment=NODE_ENV=production
+EnvironmentFile=-/Users/atlasbuilds/clawd/autonomous-trading-company/.env
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/Users/atlasbuilds/clawd
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

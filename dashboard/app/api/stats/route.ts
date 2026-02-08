@@ -1,0 +1,106 @@
+import { NextResponse } from 'next/server';
+
+// Mock data - in production, connect to database
+export async function GET() {
+  return NextResponse.json({
+    stats: {
+      portfolioValue: 2847.52,
+      pnl24h: 127.45,
+      pnl24hPct: 4.68,
+      winRate: 64.5,
+      openPositions: 2,
+      totalTrades: 35,
+      activeAgents: 6,
+      conversationsToday: 5,
+      memoriesCreated: 12,
+    },
+    positions: [
+      {
+        id: 'pos_001',
+        token: 'BONK',
+        market: 'crypto',
+        entryPrice: 0.00002,
+        currentPrice: 0.0000215,
+        size: 11500000,
+        unrealizedPnl: 17.25,
+        pnlPct: 7.5,
+      },
+      {
+        id: 'pos_002',
+        token: 'SPY 500C',
+        market: 'options',
+        entryPrice: 2.50,
+        currentPrice: 2.85,
+        size: 2,
+        unrealizedPnl: 70.00,
+        pnlPct: 14.0,
+      },
+    ],
+    recentMemories: [
+      {
+        id: 'mem_001',
+        agent_id: 'growth',
+        type: 'pattern',
+        content: 'KOL accumulation signals precede 30-50% moves within 2-4 hours',
+        confidence: 0.78,
+        tags: ['kol', 'timing', 'crypto'],
+        promoted: true,
+        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'mem_002',
+        agent_id: 'sage',
+        type: 'lesson',
+        content: 'Avoid chasing pumps after 50%+ move in <1 hour',
+        confidence: 0.72,
+        tags: ['risk', 'timing', 'entry'],
+        promoted: false,
+        created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'mem_003',
+        agent_id: 'atlas',
+        type: 'strategy',
+        content: 'Scale in 3 tranches (30/30/40) outperforms all-in entries by 15%',
+        confidence: 0.85,
+        tags: ['position-sizing', 'scaling', 'entry'],
+        promoted: true,
+        created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'mem_004',
+        agent_id: 'intel',
+        type: 'insight',
+        content: 'SOL ecosystem tokens correlate 0.85+ during market moves',
+        confidence: 0.68,
+        tags: ['correlation', 'sol', 'crypto'],
+        promoted: false,
+        created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: 'mem_005',
+        agent_id: 'observer',
+        type: 'preference',
+        content: 'Prefer 1DTE options over 0DTE for overnight holds',
+        confidence: 0.65,
+        tags: ['options', '0dte', 'risk'],
+        promoted: false,
+        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ],
+    marketPerformance: {
+      crypto: { winRate: 65, trades: 12, pnl: 145.30 },
+      options: { winRate: 58, trades: 8, pnl: 87.20 },
+      futures: { winRate: 72, trades: 15, pnl: 312.45 },
+    },
+    systemHealth: {
+      heartbeat: { status: 'ok', lastRun: new Date(Date.now() - 3 * 60 * 1000).toISOString() },
+      workers: {
+        crypto: { status: 'ok', lastPoll: new Date(Date.now() - 20 * 1000).toISOString() },
+        options: { status: 'ok', lastPoll: new Date(Date.now() - 15 * 1000).toISOString() },
+        futures: { status: 'ok', lastPoll: new Date(Date.now() - 18 * 1000).toISOString() },
+      },
+      sse: { status: 'ok', connections: 1 },
+    },
+  });
+}

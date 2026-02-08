@@ -1,0 +1,25 @@
+{
+  "name": "atc-memory-system",
+  "version": "1.0.0",
+  "description": "Memory and Learning System for Autonomous Trading Company",
+  "main": "index.ts",
+  "scripts": {
+    "test": "ts-node test-system.ts",
+    "build": "tsc",
+    "dev": "ts-node test-system.ts"
+  },
+  "keywords": [
+    "trading",
+    "ai",
+    "memory",
+    "learning",
+    "autonomous"
+  ],
+  "author": "Autonomous Trading Company",
+  "license": "Proprietary",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0"
+  }
+}

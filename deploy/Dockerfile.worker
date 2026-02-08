@@ -1,0 +1,28 @@
+# Dockerfile for Worker Processes
+FROM node:20-alpine
+
+# Install dependencies
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source
+COPY . .
+
+# Build TypeScript
+RUN npm run build 2>/dev/null || echo "No build script, using ts-node"
+
+# Set default worker type
+ENV WORKER_TYPE=crypto
+
+# Start script
+COPY deploy/start-worker.sh /start.sh
+RUN chmod +x /start.sh
+
+CMD ["/start.sh"]
