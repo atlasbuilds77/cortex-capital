@@ -131,6 +131,13 @@ export async function GET() {
           webull: ACCOUNT_BALANCES.webull,
           topstep: ACCOUNT_BALANCES.topstep,
           total: parseFloat(totalAccountValue.toFixed(2)),
+          // Funded amounts
+          topstepFunded: 50000,
+          // P&L by account
+          futuresPnL: ACCOUNT_BALANCES.topstep - 50000,
+          optionsPnL: 0, // TODO: Track starting balance
+          cryptoPnL: 0, // TODO: Track starting balance
+          totalPnL: (ACCOUNT_BALANCES.topstep - 50000) + 0 + 0,
         },
         pnl24h: 0, // TODO: Calculate from portfolio_history
         pnl24hPct: 0,

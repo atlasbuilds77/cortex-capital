@@ -17,6 +17,11 @@ interface Stats {
     webull: number;
     topstep: number;
     total: number;
+    topstepFunded: number;
+    futuresPnL: number;
+    optionsPnL: number;
+    cryptoPnL: number;
+    totalPnL: number;
   };
 }
 
@@ -89,31 +94,78 @@ export default function StatsPanel() {
           {stats.pnl24h >= 0 ? '▲' : '▼'} ${Math.abs(stats.pnl24h).toFixed(2)} ({stats.pnl24hPct.toFixed(2)}%)
         </div>
         
-        {/* Account Balances Breakdown */}
+        {/* Account Breakdown by Market */}
         {stats.accountBalances && (
-          <div className="mt-4 pt-4 border-t border-slate-700">
-            <div className="text-xs text-slate-400 mb-2">Account Balances</div>
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-slate-300">Crypto</span>
-                </div>
-                <span className="font-mono">${stats.accountBalances.crypto.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+          <div className="mt-4 pt-4 border-t border-slate-700 space-y-3">
+            {/* Futures Account */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-xs text-slate-400">FUTURES (TopstepX)</span>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-500" />
-                  <span className="text-slate-300">Webull</span>
-                </div>
-                <span className="font-mono">${stats.accountBalances.webull.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <div className="flex justify-between items-center pl-4">
+                <span className="text-sm text-slate-300">Funded</span>
+                <span className="font-mono text-sm">${stats.accountBalances.topstepFunded.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                  <span className="text-slate-300">TopstepX</span>
+              <div className="flex justify-between items-center pl-4">
+                <span className="text-sm text-slate-300">Current</span>
+                <span className="font-mono text-sm">${stats.accountBalances.topstep.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center pl-4">
+                <span className={`text-sm ${stats.accountBalances.futuresPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>P&L</span>
+                <span className={`font-mono text-sm ${stats.accountBalances.futuresPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {stats.accountBalances.futuresPnL >= 0 ? '+' : ''}{stats.accountBalances.futuresPnL < 0 ? '-' : ''}${Math.abs(stats.accountBalances.futuresPnL).toLocaleString()}
+                </span>
+              </div>
+            </div>
+            
+            {/* Options Account */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-purple-500" />
+                <span className="text-xs text-slate-400">OPTIONS (Webull)</span>
+              </div>
+              <div className="flex justify-between items-center pl-4">
+                <span className="text-sm text-slate-300">Balance</span>
+                <span className="font-mono text-sm">${stats.accountBalances.webull.toLocaleString()}</span>
+              </div>
+              {stats.accountBalances.optionsPnL !== 0 && (
+                <div className="flex justify-between items-center pl-4">
+                  <span className={`text-sm ${stats.accountBalances.optionsPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>P&L</span>
+                  <span className={`font-mono text-sm ${stats.accountBalances.optionsPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {stats.accountBalances.optionsPnL >= 0 ? '+' : ''}{stats.accountBalances.optionsPnL < 0 ? '-' : ''}${Math.abs(stats.accountBalances.optionsPnL).toLocaleString()}
+                  </span>
                 </div>
-                <span className="font-mono">${stats.accountBalances.topstep.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              )}
+            </div>
+            
+            {/* Crypto Account */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 rounded-full bg-amber-500" />
+                <span className="text-xs text-slate-400">CRYPTO (Solana)</span>
+              </div>
+              <div className="flex justify-between items-center pl-4">
+                <span className="text-sm text-slate-300">Balance</span>
+                <span className="font-mono text-sm">${stats.accountBalances.crypto.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              </div>
+              {stats.accountBalances.cryptoPnL !== 0 && (
+                <div className="flex justify-between items-center pl-4">
+                  <span className={`text-sm ${stats.accountBalances.cryptoPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>P&L</span>
+                  <span className={`font-mono text-sm ${stats.accountBalances.cryptoPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {stats.accountBalances.cryptoPnL >= 0 ? '+' : ''}{stats.accountBalances.cryptoPnL < 0 ? '-' : ''}${Math.abs(stats.accountBalances.cryptoPnL).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Total P&L */}
+            <div className="pt-3 border-t border-slate-700">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-300">Total P&L (All Accounts)</span>
+                <span className={`font-mono text-lg font-bold ${stats.accountBalances.totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {stats.accountBalances.totalPnL >= 0 ? '+' : ''}{stats.accountBalances.totalPnL < 0 ? '-' : ''}${Math.abs(stats.accountBalances.totalPnL).toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
