@@ -12,6 +12,12 @@ interface Stats {
   activeAgents: number;
   conversationsToday: number;
   memoriesCreated: number;
+  accountBalances?: {
+    crypto: number;
+    webull: number;
+    topstep: number;
+    total: number;
+  };
 }
 
 interface Position {
@@ -82,6 +88,36 @@ export default function StatsPanel() {
         <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full mt-2 text-sm ${pnlBg} ${pnlColor}`}>
           {stats.pnl24h >= 0 ? '▲' : '▼'} ${Math.abs(stats.pnl24h).toFixed(2)} ({stats.pnl24hPct.toFixed(2)}%)
         </div>
+        
+        {/* Account Balances Breakdown */}
+        {stats.accountBalances && (
+          <div className="mt-4 pt-4 border-t border-slate-700">
+            <div className="text-xs text-slate-400 mb-2">Account Balances</div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-slate-300">Crypto</span>
+                </div>
+                <span className="font-mono">${stats.accountBalances.crypto.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-purple-500" />
+                  <span className="text-slate-300">Webull</span>
+                </div>
+                <span className="font-mono">${stats.accountBalances.webull.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-slate-300">TopstepX</span>
+                </div>
+                <span className="font-mono">${stats.accountBalances.topstep.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Quick Stats */}

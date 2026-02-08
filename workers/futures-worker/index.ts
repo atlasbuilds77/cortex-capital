@@ -395,6 +395,15 @@ async function start(): Promise<void> {
   console.log(`[FuturesWorker] Account: ${ACCOUNT}`);
   console.log(`[FuturesWorker] Polling every ${POLL_INTERVAL}ms`);
   
+  // Initialize database
+  try {
+    await db.initDb();
+    console.log('[FuturesWorker] Database ready');
+  } catch (error) {
+    console.error('[FuturesWorker] Database initialization failed:', error);
+    process.exit(1);
+  }
+  
   // Check relay health on startup
   const healthy = await checkRelayHealth();
   if (healthy) {

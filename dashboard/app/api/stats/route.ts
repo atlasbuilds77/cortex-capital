@@ -1,8 +1,30 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+// Real account balances (static for now, can be queried live later)
+const ACCOUNT_BALANCES = {
+  crypto: 112, // $112 (1.29 SOL)
+  webull: 2532, // $2,532
+  topstep: 48840, // $48,840
+};
+
+async function getCryptoBalance(): Promise<number> {
+  try {
+    const connection = new Connection('https://api.mainnet-beta.solana.com');
+    const wallet = new PublicKey('CtvyPxtiHqkjVKuq7WXpvuS7QwUjfmkicX9BProaYrPo');
+    const balance = await connection.getBalance(wallet);
+    const solBalance = balance / LAMPORTS_PER_SOL;
+    // Approximate SOL price at $87
+    return solBalance * 87;
+  } catch (error) {
+    console.error('Failed to fetch crypto balance:', error);
+    return ACCOUNT_BALANCES.crypto; // Fallback to static
+  }
+}
 
 export async function GET() {
   try {
@@ -93,11 +115,23 @@ export async function GET() {
       ? (parseFloat(tradeStats.wins) / parseFloat(tradeStats.total_trades)) * 100 
       : 0;
     
-    const portfolioValue = parseFloat(portfolioStats?.total_unrealized_pnl || '0');
+    // Get real crypto balance (live query)
+    const cryptoBalance = await getCryptoBalance();
+    
+    // Calculate total portfolio value (account balances + unrealized P&L)
+    const totalAccountValue = cryptoBalance + ACCOUNT_BALANCES.webull + ACCOUNT_BALANCES.topstep;
+    const unrealizedPnL = parseFloat(portfolioStats?.total_unrealized_pnl || '0');
+    const portfolioValue = totalAccountValue + unrealizedPnL;
     
     return NextResponse.json({
       stats: {
         portfolioValue: parseFloat(portfolioValue.toFixed(2)),
+        accountBalances: {
+          crypto: parseFloat(cryptoBalance.toFixed(2)),
+          webull: ACCOUNT_BALANCES.webull,
+          topstep: ACCOUNT_BALANCES.topstep,
+          total: parseFloat(totalAccountValue.toFixed(2)),
+        },
         pnl24h: 0, // TODO: Calculate from portfolio_history
         pnl24hPct: 0,
         winRate: parseFloat(winRate.toFixed(1)),

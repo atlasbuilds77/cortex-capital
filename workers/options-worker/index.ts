@@ -90,20 +90,22 @@ async function tradierRequest(
   return new Promise((resolve, reject) => {
     const url = new URL(`${creds.tradier.base_url}${endpoint}`);
     
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${creds.tradier.token}`,
+      'Accept': 'application/json',
+    };
+    
+    if (body && method === 'POST') {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    }
+    
     const options: https.RequestOptions = {
       hostname: url.hostname,
       port: 443,
       path: url.pathname,
       method,
-      headers: {
-        'Authorization': `Bearer ${creds.tradier.token}`,
-        'Accept': 'application/json',
-      },
+      headers,
     };
-    
-    if (body && method === 'POST') {
-      options.headers!['Content-Type'] = 'application/x-www-form-urlencoded';
-    }
     
     const req = https.request(options, (res) => {
       let data = '';
@@ -389,6 +391,15 @@ async function start(): Promise<void> {
   console.log(`[OptionsWorker] Stop loss: ${STOP_LOSS * 100}%`);
   console.log(`[OptionsWorker] Scaling levels: ${SCALING_LEVELS.map(l => l * 100 + '%').join(', ')}`);
   console.log(`[OptionsWorker] Polling every ${POLL_INTERVAL}ms`);
+  
+  // Initialize database
+  try {
+    await db.initDb();
+    console.log('[OptionsWorker] Database ready');
+  } catch (error) {
+    console.error('[OptionsWorker] Database initialization failed:', error);
+    process.exit(1);
+  }
   
   // Initial poll
   await pollLoop();
