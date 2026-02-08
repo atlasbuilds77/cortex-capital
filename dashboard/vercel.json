@@ -1,11 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
-    {
-      "path": "/api/heartbeat",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "functions": {
     "app/api/events/route.ts": {
       "maxDuration": 60

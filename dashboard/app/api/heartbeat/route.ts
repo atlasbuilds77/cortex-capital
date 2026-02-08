@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // Vercel cron endpoint for heartbeat
 // Configured via vercel.json: "crons": [{ "path": "/api/heartbeat", "schedule": "*/5 * * * *" }]
 

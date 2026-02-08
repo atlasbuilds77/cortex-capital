@@ -25,6 +25,30 @@ body {
   image-rendering: crisp-edges;
 }
 
+/* Isometric office animations */
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
 /* Speech bubble */
 .speech-bubble {
   position: relative;

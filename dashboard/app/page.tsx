@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import OfficeView from './components/OfficeView';
+import IsometricOffice from './components/IsometricOffice';
 import LiveFeed from './components/LiveFeed';
 import MissionBoard from './components/MissionBoard';
 import MemoryWall from './components/MemoryWall';
@@ -109,7 +109,7 @@ export default function Dashboard() {
         {/* Main Panel (8 cols) */}
         <div className="col-span-8">
           <ErrorBoundary>
-            {activeTab === 'office' && <OfficeView events={events} />}
+            {activeTab === 'office' && <IsometricOffice />}
             {activeTab === 'feed' && <LiveFeed events={events} />}
             {activeTab === 'missions' && <MissionBoard />}
             {activeTab === 'memory' && <MemoryWall />}

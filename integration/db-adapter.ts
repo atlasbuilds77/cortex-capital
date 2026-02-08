@@ -161,6 +161,7 @@ class InMemoryDb implements DbClient {
 class PostgresDb implements DbClient {
   private pool: Pool;
   private isInitialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor(connectionString: string) {
     // Lazy require to avoid issues if pg not installed
@@ -176,7 +177,7 @@ class PostgresDb implements DbClient {
       });
       
       // Test connection on startup
-      this.pool.query('SELECT 1')
+      this.initPromise = this.pool.query('SELECT 1')
         .then(() => {
           this.isInitialized = true;
           console.log('[PostgresDb] Connection pool initialized');
@@ -193,6 +194,12 @@ class PostgresDb implements DbClient {
     } catch (error) {
       console.error('pg module not found, falling back to in-memory');
       throw error;
+    }
+  }
+
+  async waitForInit(): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise;
     }
   }
 
@@ -246,6 +253,13 @@ export function getDb(): DbClient {
     }
   }
   return _db;
+}
+
+export async function initDb(): Promise<void> {
+  const db = getDb();
+  if (db instanceof PostgresDb) {
+    await db.waitForInit();
+  }
 }
 
 // ==================== PROPOSAL QUERIES ====================

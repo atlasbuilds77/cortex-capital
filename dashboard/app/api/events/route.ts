@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // In production, this would connect to a real database/pub-sub system
 // For now, we simulate events for demo purposes
 

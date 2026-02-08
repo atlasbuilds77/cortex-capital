@@ -162,7 +162,7 @@ async function executeSwap(quote: JupiterQuote): Promise<string> {
       },
       body: JSON.stringify({
         quoteResponse: quote,
-        userPublicKey: wallet.publicKey.toBase58(),
+        userPublicKey: wallet!.publicKey.toBase58(),
         dynamicComputeUnitLimit: true,
         prioritizationFeeLamports: 'auto',
       }),
@@ -176,7 +176,7 @@ async function executeSwap(quote: JupiterQuote): Promise<string> {
   // Deserialize, sign, and send
   const swapTxBuf = Buffer.from(swapResponse.swapTransaction, 'base64');
   const transaction = VersionedTransaction.deserialize(swapTxBuf);
-  transaction.sign([wallet]);
+  transaction.sign([wallet!]);
   
   const rawTx = transaction.serialize();
   const txid = await connection!.sendRawTransaction(rawTx, {
@@ -352,6 +352,8 @@ async function start(): Promise<void> {
   
   try {
     initialize();
+    await db.initDb();
+    log.info('Database ready');
   } catch (error) {
     console.error('[CryptoWorker] Initialization failed:', error);
     process.exit(1);

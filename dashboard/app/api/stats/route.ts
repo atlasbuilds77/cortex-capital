@@ -1,106 +1,153 @@
 import { NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
 
-// Mock data - in production, connect to database
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
-  return NextResponse.json({
-    stats: {
-      portfolioValue: 2847.52,
-      pnl24h: 127.45,
-      pnl24hPct: 4.68,
-      winRate: 64.5,
-      openPositions: 2,
-      totalTrades: 35,
-      activeAgents: 6,
-      conversationsToday: 5,
-      memoriesCreated: 12,
-    },
-    positions: [
-      {
-        id: 'pos_001',
-        token: 'BONK',
-        market: 'crypto',
-        entryPrice: 0.00002,
-        currentPrice: 0.0000215,
-        size: 11500000,
-        unrealizedPnl: 17.25,
-        pnlPct: 7.5,
+  try {
+    const db = getDb();
+    
+    // Get open positions
+    const positions = await db.query(`
+      SELECT id, token, metadata->>'market' as market, entry_price, current_price, size, unrealized_pnl
+      FROM ops_positions 
+      WHERE status = 'open'
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+    
+    // Get portfolio stats
+    const portfolioStats = await db.queryOne(`
+      SELECT 
+        COALESCE(SUM(unrealized_pnl), 0) as total_unrealized_pnl,
+        COUNT(*) as open_positions
+      FROM ops_positions 
+      WHERE status = 'open'
+    `);
+    
+    // Get trade outcomes for win rate
+    const tradeStats = await db.queryOne(`
+      SELECT 
+        COUNT(*) as total_trades,
+        COUNT(*) FILTER (WHERE outcome_type = 'win') as wins,
+        COALESCE(SUM(pnl), 0) as total_pnl
+      FROM ops_trade_outcomes
+      WHERE created_at > NOW() - INTERVAL '30 days'
+    `);
+    
+    // Get recent memories
+    const memories = await db.query(`
+      SELECT id, agent_id, type, content, confidence, tags, promoted, created_at
+      FROM ops_agent_memory
+      ORDER BY confidence DESC, created_at DESC
+      LIMIT 5
+    `);
+    
+    // Get conversations today
+    const conversationsToday = await db.queryOne(`
+      SELECT COUNT(*) as count
+      FROM ops_agent_events
+      WHERE kind = 'conversation_turn'
+      AND created_at > CURRENT_DATE
+    `);
+    
+    // Get memories created today
+    const memoriesCreated = await db.queryOne(`
+      SELECT COUNT(*) as count
+      FROM ops_agent_memory
+      WHERE created_at > CURRENT_DATE
+    `);
+    
+    // Get market performance (from metadata JSONB)
+    const marketPerf = await db.query(`
+      SELECT 
+        metadata->>'market' as market,
+        COUNT(*) as trades,
+        COUNT(*) FILTER (WHERE outcome_type = 'win') as wins,
+        COALESCE(SUM(pnl), 0) as total_pnl
+      FROM ops_trade_outcomes
+      WHERE created_at > NOW() - INTERVAL '30 days'
+      AND metadata->>'market' IS NOT NULL
+      GROUP BY metadata->>'market'
+    `);
+    
+    const marketPerformance: Record<string, any> = {
+      crypto: { winRate: 0, trades: 0, pnl: 0 },
+      options: { winRate: 0, trades: 0, pnl: 0 },
+      futures: { winRate: 0, trades: 0, pnl: 0 },
+    };
+    
+    marketPerf.forEach((m: any) => {
+      if (m.market) {
+        marketPerformance[m.market] = {
+          winRate: m.trades > 0 ? Math.round((m.wins / m.trades) * 100) : 0,
+          trades: parseInt(m.trades),
+          pnl: parseFloat(m.total_pnl),
+        };
+      }
+    });
+    
+    // Calculate stats (handle null/string/number)
+    const winRate = tradeStats && tradeStats.total_trades > 0 
+      ? (parseFloat(tradeStats.wins) / parseFloat(tradeStats.total_trades)) * 100 
+      : 0;
+    
+    const portfolioValue = parseFloat(portfolioStats?.total_unrealized_pnl || '0');
+    
+    return NextResponse.json({
+      stats: {
+        portfolioValue: parseFloat(portfolioValue.toFixed(2)),
+        pnl24h: 0, // TODO: Calculate from portfolio_history
+        pnl24hPct: 0,
+        winRate: parseFloat(winRate.toFixed(1)),
+        openPositions: parseInt(String(portfolioStats?.open_positions || '0')),
+        totalTrades: parseInt(String(tradeStats?.total_trades || '0')),
+        activeAgents: 6, // TODO: Query from agent activity
+        conversationsToday: parseInt(String(conversationsToday?.count || '0')),
+        memoriesCreated: parseInt(String(memoriesCreated?.count || '0')),
       },
-      {
-        id: 'pos_002',
-        token: 'SPY 500C',
-        market: 'options',
-        entryPrice: 2.50,
-        currentPrice: 2.85,
-        size: 2,
-        unrealizedPnl: 70.00,
-        pnlPct: 14.0,
+      positions: positions.map((p: any) => ({
+        id: p.id,
+        token: p.token,
+        market: p.market,
+        entryPrice: parseFloat(p.entry_price),
+        currentPrice: parseFloat(p.current_price),
+        size: parseFloat(p.size),
+        unrealizedPnl: parseFloat(p.unrealized_pnl),
+        pnlPct: p.entry_price > 0 
+          ? ((p.current_price - p.entry_price) / p.entry_price) * 100 
+          : 0,
+      })),
+      recentMemories: memories.map((m: any) => ({
+        id: m.id,
+        agent_id: m.agent_id,
+        type: m.type,
+        content: m.content,
+        confidence: parseFloat(m.confidence),
+        tags: m.tags,
+        promoted: m.promoted,
+        created_at: m.created_at,
+      })),
+      marketPerformance,
+      systemHealth: {
+        heartbeat: { 
+          status: 'ok', 
+          lastRun: new Date(Date.now() - 3 * 60 * 1000).toISOString() 
+        },
+        workers: {
+          crypto: { status: 'ok', lastPoll: new Date(Date.now() - 20 * 1000).toISOString() },
+          options: { status: 'ok', lastPoll: new Date(Date.now() - 15 * 1000).toISOString() },
+          futures: { status: 'ok', lastPoll: new Date(Date.now() - 18 * 1000).toISOString() },
+        },
+        sse: { status: 'ok', connections: 0 },
       },
-    ],
-    recentMemories: [
-      {
-        id: 'mem_001',
-        agent_id: 'growth',
-        type: 'pattern',
-        content: 'KOL accumulation signals precede 30-50% moves within 2-4 hours',
-        confidence: 0.78,
-        tags: ['kol', 'timing', 'crypto'],
-        promoted: true,
-        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'mem_002',
-        agent_id: 'sage',
-        type: 'lesson',
-        content: 'Avoid chasing pumps after 50%+ move in <1 hour',
-        confidence: 0.72,
-        tags: ['risk', 'timing', 'entry'],
-        promoted: false,
-        created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'mem_003',
-        agent_id: 'atlas',
-        type: 'strategy',
-        content: 'Scale in 3 tranches (30/30/40) outperforms all-in entries by 15%',
-        confidence: 0.85,
-        tags: ['position-sizing', 'scaling', 'entry'],
-        promoted: true,
-        created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'mem_004',
-        agent_id: 'intel',
-        type: 'insight',
-        content: 'SOL ecosystem tokens correlate 0.85+ during market moves',
-        confidence: 0.68,
-        tags: ['correlation', 'sol', 'crypto'],
-        promoted: false,
-        created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'mem_005',
-        agent_id: 'observer',
-        type: 'preference',
-        content: 'Prefer 1DTE options over 0DTE for overnight holds',
-        confidence: 0.65,
-        tags: ['options', '0dte', 'risk'],
-        promoted: false,
-        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      },
-    ],
-    marketPerformance: {
-      crypto: { winRate: 65, trades: 12, pnl: 145.30 },
-      options: { winRate: 58, trades: 8, pnl: 87.20 },
-      futures: { winRate: 72, trades: 15, pnl: 312.45 },
-    },
-    systemHealth: {
-      heartbeat: { status: 'ok', lastRun: new Date(Date.now() - 3 * 60 * 1000).toISOString() },
-      workers: {
-        crypto: { status: 'ok', lastPoll: new Date(Date.now() - 20 * 1000).toISOString() },
-        options: { status: 'ok', lastPoll: new Date(Date.now() - 15 * 1000).toISOString() },
-        futures: { status: 'ok', lastPoll: new Date(Date.now() - 18 * 1000).toISOString() },
-      },
-      sse: { status: 'ok', connections: 1 },
-    },
-  });
+    });
+  } catch (error) {
+    console.error('Stats API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch stats', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
 }
