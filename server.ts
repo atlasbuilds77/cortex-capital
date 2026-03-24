@@ -13,6 +13,7 @@ import { query } from './integrations/database';
 import { authRoutes } from './routes/auth';
 import { paymentRoutes } from './routes/payments';
 import { oauthRoutes } from './routes/oauth';
+import { discordTierOverride } from './routes/discord-tier-override';
 import discussionRoutes from './routes/discussions';
 import tradeRoutes from './routes/trades';
 import cortexFishtankRoutes from './routes/cortex-fishtank';
@@ -1275,6 +1276,7 @@ async function start() {
     server.register(authRoutes);
     server.register(paymentRoutes);
     server.register(oauthRoutes);
+    server.register(discordTierOverride);
     server.register(discussionRoutes);
     server.register(tradeRoutes);
     server.register(cortexFishtankRoutes);
