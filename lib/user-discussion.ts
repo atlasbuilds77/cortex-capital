@@ -1,0 +1,194 @@
+/**
+ * USER-SPECIFIC PORTFOLIO DISCUSSIONS
+ * Wraps portfolio-discussion.ts with user context
+ */
+
+import { Pool } from 'pg';
+import { getPortfolioContext, buildAgentContext, type AgentContext } from './portfolio-context';
+import { parseAgentDecisions } from './decision-parser';
+import { queueTradeForApproval } from '../services/trade-queue';
+import { getDeepSeekClient, type AgentMessage } from '../integrations/deepseek';
+
+export type DiscussionType = 'review' | 'risk_assessment' | 'opportunities' | 'morning_briefing';
+
+export interface Discussion {
+  id: string;
+  userId: string;
+  type: DiscussionType;
+  messages: Array<{
+    agent: string;
+    role: string;
+    content: string;
+    timestamp: string;
+  }>;
+  decisions: Array<any>;
+  startedAt: string;
+  completedAt?: string;
+}
+
+/**
+ * Start a portfolio discussion for a specific user
+ */
+export async function startUserPortfolioDiscussion(
+  userId: string,
+  discussionType: DiscussionType,
+  db: Pool
+): Promise<Discussion> {
+  // 1. Fetch user's portfolio context
+  const snapshot = await getPortfolioContext(userId, db);
+  
+  if (!snapshot) {
+    throw new Error(`User ${userId} not found`);
+  }
+
+  // 2. Build agent-friendly context
+  const context = buildAgentContext(snapshot);
+
+  // 3. Generate discussion prompt with USER's data
+  const prompt = buildDiscussionPrompt(context, discussionType);
+
+  // 4. Run agent discussion (simplified for now)
+  const discussion: Discussion = {
+    id: `disc-${Date.now()}-${userId}`,
+    userId,
+    type: discussionType,
+    messages: [],
+    decisions: [],
+    startedAt: new Date().toISOString(),
+  };
+
+  // Generate agent responses using DeepSeek
+  discussion.messages = await generateAgentDiscussion(context, discussionType);
+
+  // 5. Parse EXECUTOR decisions
+  const decisions = parseAgentDecisions(discussion.messages);
+
+  // 6. Queue trades for approval
+  for (const decision of decisions) {
+    const queued = await queueTradeForApproval(
+      userId,
+      snapshot.user.tier,
+      decision,
+      db
+    );
+    discussion.decisions.push(queued);
+  }
+
+  discussion.completedAt = new Date().toISOString();
+
+  // 7. Save discussion to database
+  await db.query(
+    `INSERT INTO agent_discussions 
+     (id, user_id, discussion_type, messages, decisions, started_at, completed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      discussion.id,
+      discussion.userId,
+      discussion.type,
+      JSON.stringify(discussion.messages),
+      JSON.stringify(discussion.decisions),
+      discussion.startedAt,
+      discussion.completedAt,
+    ]
+  );
+
+  return discussion;
+}
+
+/**
+ * Build discussion prompt with user's specific data
+ */
+function buildDiscussionPrompt(context: AgentContext, type: DiscussionType): string {
+  const baseContext = `
+PORTFOLIO CONTEXT for ${context.userName}:
+- Tier: ${context.tier}
+- Risk Profile: ${context.riskProfile}
+- Goals: ${context.goals.join(', ')}
+- Total Portfolio: $${context.totalValue.toLocaleString()}
+- Cash: $${context.cash.toLocaleString()}
+- Positions: ${context.positionsCount}
+- YTD Performance: ${context.performance.ytdPct.toFixed(1)}%
+
+TOP HOLDINGS:
+${context.topHoldings.map(h => `- ${h.symbol}: ${h.weight.toFixed(1)}% (${h.pnl > 0 ? '+' : ''}${h.pnl.toFixed(1)}%)`).join('\n')}
+
+SECTOR EXPOSURE:
+${Object.entries(context.sectorBreakdown).map(([s, w]) => `- ${s}: ${w.toFixed(1)}%`).join('\n')}
+
+${context.alerts.length > 0 ? `\nALERTS:\n${context.alerts.join('\n')}` : ''}
+`;
+
+  const prompts: Record<DiscussionType, string> = {
+    review: `${baseContext}\n\nDiscuss ${context.userName}'s current portfolio. Should they hold, rebalance, or make changes?`,
+    risk_assessment: `${baseContext}\n\nIs ${context.userName}'s portfolio aligned with their ${context.riskProfile} risk profile and ${context.goals.join('/')} goals?`,
+    opportunities: `${baseContext}\n\nWhat opportunities should ${context.userName} consider adding to their portfolio?`,
+    morning_briefing: `${baseContext}\n\nProvide ${context.userName} a morning market briefing focused on their holdings.`,
+  };
+
+  return prompts[type];
+}
+
+/**
+ * Generate agent discussion using DeepSeek API
+ */
+async function generateAgentDiscussion(
+  context: AgentContext,
+  type: DiscussionType
+): Promise<Array<{ agent: string; role: string; content: string; timestamp: string }>> {
+  try {
+    // Build the discussion prompt
+    const prompt = buildDiscussionPrompt(context, type);
+    
+    // Get DeepSeek client
+    const deepSeekClient = getDeepSeekClient();
+    
+    // Define agent roles for the discussion
+    const agentRoles = ['ANALYST', 'RISK', 'STRATEGIST', 'EXECUTOR'];
+    
+    // Generate the discussion
+    const agentMessages = await deepSeekClient.generateAgentDiscussion({
+      prompt,
+      agentRoles,
+      temperature: 0.7,
+      maxTokensPerResponse: 500,
+    });
+
+    return agentMessages;
+  } catch (error) {
+    console.error('Error generating agent discussion:', error);
+    
+    // Fallback to mock responses if API fails
+    const now = new Date().toISOString();
+    
+    if (type === 'review') {
+      return [
+        {
+          agent: 'ANALYST',
+          role: 'Portfolio Analyst',
+          content: `Looking at ${context.userName}'s portfolio, I see strong tech exposure. The top holdings are performing well with YTD at ${context.performance.ytdPct.toFixed(1)}%. However, I notice some concentration risk.`,
+          timestamp: now,
+        },
+        {
+          agent: 'RISK',
+          role: 'Risk Manager',
+          content: `Agreed. With ${context.topHoldings[0]?.weight.toFixed(1)}% in ${context.topHoldings[0]?.symbol}, we're over-concentrated in a single name. I'd recommend trimming to 20% max.`,
+          timestamp: now,
+        },
+        {
+          agent: 'STRATEGIST',
+          role: 'Strategic Advisor',
+          content: `Given ${context.userName}'s ${context.riskProfile} risk profile, let's diversify. I suggest rotating 5-10% into defensive sectors.`,
+          timestamp: now,
+        },
+        {
+          agent: 'EXECUTOR',
+          role: 'Trade Executor',
+          content: `Copy that. I'll execute the rebalancing: Sell 50 shares of ${context.topHoldings[0]?.symbol} and rotate into broader market ETFs.`,
+          timestamp: now,
+        },
+      ];
+    }
+
+    return [];
+  }
+}

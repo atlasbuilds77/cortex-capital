@@ -1,0 +1,29 @@
+services:
+  # Single web service - backend serves frontend
+  - type: web
+    name: cortex-capital
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: |
+      npm install
+      cd frontend && npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: ALPACA_BASE_URL
+        value: https://paper-api.alpaca.markets
+      - key: DEEPSEEK_API_KEY
+        sync: false
+    healthCheckPath: /health

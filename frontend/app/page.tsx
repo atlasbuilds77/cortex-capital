@@ -1,0 +1,767 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion, useScroll, useTransform, useInView } from 'framer-motion'
+import { HEADLINES, VALUE_PROPS, TRUST_SIGNALS, CTA, TESTIMONIALS, FAQ } from '@/lib/copy'
+import { 
+  RefreshCw, 
+  DollarSign, 
+  TrendingUp, 
+  Zap, 
+  Shield, 
+  Landmark, 
+  CheckCircle, 
+  Star,
+  ChevronDown,
+  Play
+} from 'lucide-react'
+
+// Icon mapping for VALUE_PROPS and TRUST_SIGNALS
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  'refresh-cw': RefreshCw,
+  'dollar-sign': DollarSign,
+  'trending-up': TrendingUp,
+  'zap': Zap,
+  'shield': Shield,
+  'landmark': Landmark,
+  'check-circle': CheckCircle,
+}
+
+// Simple background with subtle glows
+function AnimatedBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Solid dark background */}
+      <div className="absolute inset-0 bg-background" />
+      
+      {/* Subtle glow spots */}
+      <motion.div
+        className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-primary/10 blur-[120px]"
+        animate={{
+          x: [0, 50, 0],
+          y: [0, 30, 0],
+          scale: [1, 1.1, 1],
+        }}
+        transition={{
+          duration: 8,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+      <motion.div
+        className="absolute top-1/3 -left-40 w-[450px] h-[450px] rounded-full bg-secondary/15 blur-[120px]"
+        animate={{
+          x: [0, -30, 0],
+          y: [0, 50, 0],
+          scale: [1, 1.15, 1],
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+      />
+    </div>
+  )
+}
+
+// Card component with glass effect
+function Card({ children, className = '', hover = true }: { 
+  children: React.ReactNode
+  className?: string
+  hover?: boolean 
+}) {
+  return (
+    <motion.div
+      className={`
+        relative overflow-hidden rounded-2xl
+        bg-surface-elevated backdrop-blur-xl border border-white/[0.06]
+        shadow-lg shadow-primary/[0.03]
+        ${hover ? 'hover:border-primary/20 hover:bg-surface-elevated/80' : ''}
+        transition-all duration-300
+        ${className}
+      `}
+      whileHover={hover ? { y: -4, transition: { duration: 0.2 } } : undefined}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+// Pricing tier card
+function PricingCard({ 
+  name, 
+  price, 
+  description, 
+  features, 
+  popular = false,
+  cta 
+}: {
+  name: string
+  price: number
+  description: string
+  features: string[]
+  popular?: boolean
+  cta: string
+}) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  
+  const handleClick = async () => {
+    const tier = name.toLowerCase()
+    
+    // Free tier goes to signup
+    if (tier === 'free') {
+      router.push('/signup')
+      return
+    }
+    
+    // Paid tiers go to Stripe checkout
+    setLoading(true)
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tier }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error(data.error || 'Failed to create checkout session')
+      }
+    } catch (error) {
+      console.error('Checkout error:', error)
+      alert('Failed to start checkout. Please try again.')
+      setLoading(false)
+    }
+  }
+  
+  return (
+    <Card 
+      className={`p-8 flex flex-col relative ${
+        popular 
+          ? 'before:absolute before:inset-0 before:rounded-2xl before:p-[2px] before:bg-gradient-to-b before:from-primary before:to-secondary before:-z-10' 
+          : ''
+      }`}
+      hover={true}
+    >
+      {popular && (
+        <div className="absolute -top-px left-1/2 -translate-x-1/2 z-10">
+          <div className="px-4 py-1 bg-gradient-to-r from-primary to-secondary rounded-b-lg text-xs font-semibold text-white">
+            MOST POPULAR
+          </div>
+        </div>
+      )}
+      
+      <h3 className="text-2xl font-semibold mb-2">{name}</h3>
+      <p className="text-text-secondary text-sm mb-6">{description}</p>
+      
+      <div className="mb-6">
+        <span className="text-5xl font-semibold text-primary">
+          ${price}
+        </span>
+        <span className="text-text-muted">/month</span>
+      </div>
+      
+      <ul className="space-y-3 mb-8 flex-grow">
+        {features.map((feature, idx) => (
+          <li key={idx} className="flex items-start gap-3 text-text-secondary">
+            <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className={`w-full py-4 rounded-xl font-semibold transition-all duration-300 ${
+          popular 
+            ? 'bg-gradient-to-r from-primary to-secondary text-white hover:shadow-lg hover:shadow-primary/25' 
+            : 'bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.08] text-white'
+        } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        {loading ? 'Loading...' : cta}
+      </button>
+    </Card>
+  )
+}
+
+// Testimonial card
+function TestimonialCard({ quote, author, role, verified, index }: {
+  quote: string
+  author: string
+  role: string
+  verified: boolean
+  index: number
+}) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+    >
+      <Card className="p-6 h-full">
+        <div className="flex gap-1 mb-4">
+          {[...Array(5)].map((_, i) => (
+            <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
+          ))}
+        </div>
+        <p className="text-white mb-6 leading-relaxed">"{quote}"</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold">{author}</p>
+            <p className="text-sm text-gray-400">{role}</p>
+          </div>
+          {verified && (
+            <div className="flex items-center gap-1 text-green-500 text-sm">
+              <CheckCircle className="w-4 h-4" />
+              <span>Verified</span>
+            </div>
+          )}
+        </div>
+      </Card>
+    </motion.div>
+  )
+}
+
+// Section wrapper with scroll animation
+function AnimatedSection({ children, className = '', id }: { 
+  children: React.ReactNode
+  className?: string
+  id?: string
+}) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
+  return (
+    <motion.section
+      ref={ref}
+      id={id}
+      initial={{ opacity: 0, y: 60 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 60 }}
+      transition={{ duration: 0.7, ease: "easeOut" }}
+      className={className}
+    >
+      {children}
+    </motion.section>
+  )
+}
+
+// Stats counter
+function StatNumber({ value, suffix = '', label }: { 
+  value: number
+  suffix?: string
+  label: string 
+}) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true })
+  
+  return (
+    <div ref={ref} className="text-center">
+      <motion.div
+        className="text-4xl md:text-5xl font-semibold text-accent"
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }}
+        transition={{ duration: 0.5, type: "spring" }}
+      >
+        {value}{suffix}
+      </motion.div>
+      <p className="text-text-secondary mt-2">{label}</p>
+    </div>
+  )
+}
+
+export default function LandingPage() {
+  const router = useRouter()
+  const { scrollYProgress } = useScroll()
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
+  const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95])
+
+  useEffect(() => {
+    const token = localStorage.getItem('cortex_token')
+    if (token) {
+      router.push('/dashboard')
+    }
+  }, [router])
+
+  const pricingTiers = [
+    {
+      name: "Free",
+      price: 0,
+      description: "See what AI can do for you",
+      features: [
+        "Portfolio overview",
+        "Basic health score",
+        "Weekly market email",
+        "1 analysis per month",
+        "Up to $10k portfolio"
+      ],
+      cta: "Start Free"
+    },
+    {
+      name: "Recovery",
+      price: 29,
+      description: "Get back on track after losses",
+      features: [
+        "Portfolio recovery analysis",
+        "Loss mitigation strategies",
+        "Monthly check-ins",
+        "Basic alerts",
+        "Up to $25k portfolio"
+      ],
+      cta: "Start Recovery"
+    },
+    {
+      name: "Scout",
+      price: 49,
+      description: "Perfect for getting started with AI trading",
+      features: [
+        "3 AI trading agents",
+        "Basic portfolio rebalancing",
+        "Daily market insights",
+        "Email support",
+        "Up to $25k portfolio"
+      ],
+      cta: "Start with Scout"
+    },
+    {
+      name: "Operator",
+      price: 99,
+      description: "For serious traders who want full automation",
+      features: [
+        "All 7 AI trading agents",
+        "Tax-loss harvesting",
+        "Options strategies",
+        "Real-time monitoring",
+        "Priority support",
+        "Up to $250k portfolio"
+      ],
+      cta: "Choose Operator"
+    },
+    {
+      name: "Partner",
+      price: 249,
+      description: "White-glove service for sophisticated investors",
+      features: [
+        "Everything in Operator",
+        "Custom AI agent tuning",
+        "Dedicated account manager",
+        "API access",
+        "Unlimited portfolio size",
+        "Direct Slack support"
+      ],
+      popular: true,
+      cta: "Become a Partner"
+    }
+  ]
+
+  return (
+    <div className="min-h-screen bg-background text-text-primary overflow-hidden">
+      {/* Hero Section */}
+      <motion.section 
+        className="relative min-h-screen flex flex-col items-center justify-center px-6"
+        style={{ opacity: heroOpacity, scale: heroScale }}
+      >
+        <AnimatedBackground />
+        
+        {/* Navigation */}
+        <nav className="absolute top-0 left-0 right-0 z-50 p-6">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-xl">
+                C
+              </div>
+              <span className="text-xl font-semibold">Cortex</span>
+            </div>
+            
+            <div className="hidden md:flex items-center gap-8">
+              <a href="#features" className="text-text-secondary hover:text-text-primary transition-colors">Features</a>
+              <a href="#pricing" className="text-text-secondary hover:text-text-primary transition-colors">Pricing</a>
+              <a href="#demo" className="text-text-secondary hover:text-text-primary transition-colors">Demo</a>
+              <button 
+                onClick={() => router.push('/login')}
+                className="text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => router.push('/signup')}
+                className="px-5 py-2.5 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all"
+              >
+                Get Started
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-elevated border border-white/[0.06] text-sm text-text-secondary"
+          >
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            Now managing $12M+ in client assets
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-5xl md:text-7xl lg:text-8xl font-semibold leading-tight"
+          >
+            <span className="text-text-primary">
+              Your Personal
+            </span>
+            <br />
+            <span className="text-primary">
+              Hedge Fund
+            </span>
+          </motion.h1>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="text-xl md:text-2xl text-text-secondary max-w-3xl mx-auto"
+          >
+            {HEADLINES.hero.sub}. Automated trading, tax optimization, and portfolio management — all powered by AI agents that never sleep.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.8 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
+          >
+            <button
+              onClick={() => router.push('/signup')}
+              className="group relative px-8 py-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 overflow-hidden"
+            >
+              <span className="relative z-10">{CTA.primary}</span>
+            </button>
+            
+            <button
+              onClick={() => router.push('/fishtank')}
+              className="px-8 py-4 bg-white/[0.05] border border-white/[0.1] text-white font-semibold rounded-xl hover:bg-white/[0.08] transition-all duration-300 flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Try Demo
+            </button>
+          </motion.div>
+          
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 1 }}
+            className="text-sm text-text-muted"
+          >
+            30-day free trial - No credit card required - Cancel anytime
+          </motion.p>
+        </div>
+      </motion.section>
+
+      {/* Stats Section */}
+      <AnimatedSection className="py-20 px-6 border-y border-white/[0.06]">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          <StatNumber value={12} suffix="M+" label="Assets Managed" />
+          <StatNumber value={2500} suffix="+" label="Active Traders" />
+          <StatNumber value={24} suffix="/7" label="AI Monitoring" />
+          <StatNumber value={99.9} suffix="%" label="Uptime" />
+        </div>
+      </AnimatedSection>
+
+      {/* Features Section */}
+      <AnimatedSection id="features" className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">
+              What Your AI Agents Do
+            </h2>
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+              7 specialized agents working in harmony to maximize your portfolio performance
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {VALUE_PROPS.map((prop, idx) => {
+              const IconComponent = iconMap[prop.icon] || Zap
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-100px" }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                >
+                  <Card className="p-6 h-full">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4">
+                      <IconComponent className="w-6 h-6 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">{prop.title}</h3>
+                    <p className="text-text-secondary">{prop.description}</p>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* Trust Signals */}
+      <AnimatedSection className="py-24 px-6 bg-surface/50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">Built for Trust</h2>
+            <p className="text-xl text-text-secondary">Your security is our obsession</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {TRUST_SIGNALS.map((signal, idx) => {
+              const IconComponent = iconMap[signal.icon] || Shield
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-100px" }}
+                  transition={{ duration: 0.5, delay: idx * 0.15 }}
+                >
+                  <Card className="p-8 text-center h-full">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-6">
+                      <IconComponent className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-3">{signal.title}</h3>
+                    <p className="text-text-secondary">{signal.description}</p>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* Pricing Section */}
+      <AnimatedSection id="pricing" className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+              No hidden fees. No percentage of assets. Just straightforward pricing that scales with you.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 items-start">
+            {pricingTiers.map((tier, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+              >
+                <PricingCard {...tier} />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* Live Demo Section */}
+      <AnimatedSection id="demo" className="py-24 px-6 bg-surface/50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">
+              See Cortex in Action
+            </h2>
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+              Watch your AI agents trade in real-time with our live Fish Tank demo
+            </p>
+          </div>
+          
+          <Card className="p-2 md:p-4" hover={false}>
+            <div className="relative aspect-video rounded-xl overflow-hidden bg-background">
+              <iframe
+                src="/fishtank"
+                className="w-full h-full border-0"
+                title="Cortex Fish Tank Demo"
+              />
+              {/* Overlay for interactivity hint */}
+              <div className="absolute bottom-4 right-4">
+                <button
+                  onClick={() => router.push('/demo')}
+                  className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold rounded-lg hover:shadow-lg hover:shadow-primary/25 transition-all flex items-center gap-2"
+                >
+                  <span>Open Full Demo</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </AnimatedSection>
+
+      {/* Testimonials */}
+      <AnimatedSection className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">
+              Trusted by Traders
+            </h2>
+            <p className="text-xl text-text-secondary">
+              Join thousands of investors who've upgraded to AI-powered trading
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((testimonial, idx) => (
+              <TestimonialCard key={idx} {...testimonial} index={idx} />
+            ))}
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* FAQ Section */}
+      <AnimatedSection className="py-24 px-6 bg-surface/50">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-semibold mb-4">
+              Common Questions
+            </h2>
+          </div>
+          
+          <div className="space-y-4">
+            {FAQ.map((faq, idx) => (
+              <motion.details
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-50px" }}
+                transition={{ duration: 0.4, delay: idx * 0.05 }}
+                className="group"
+              >
+                <Card className="overflow-hidden" hover={false}>
+                  <summary className="p-6 font-semibold text-lg cursor-pointer list-none flex justify-between items-center hover:text-primary transition-colors">
+                    {faq.question}
+                    <ChevronDown className="w-5 h-5 text-text-muted group-open:rotate-180 transition-transform duration-300" />
+                  </summary>
+                  <div className="px-6 pb-6 text-text-secondary leading-relaxed border-t border-white/[0.06] pt-4">
+                    {faq.answer}
+                  </div>
+                </Card>
+              </motion.details>
+            ))}
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* Final CTA Section */}
+      <AnimatedSection className="py-32 px-6 relative">
+        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+        
+        <div className="relative max-w-4xl mx-auto text-center space-y-8">
+          <h2 className="text-4xl md:text-6xl font-semibold">
+            Ready to Let AI <br />
+            <span className="text-primary">
+              Work for You?
+            </span>
+          </h2>
+          
+          <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+            Join thousands of investors who've automated their trading with Cortex. Start your free trial today.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <button
+              onClick={() => router.push('/signup')}
+              className="group relative px-12 py-5 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl text-lg hover:shadow-2xl hover:shadow-primary/30 transition-all duration-300 overflow-hidden"
+            >
+              <span className="relative z-10">{CTA.primary}</span>
+            </button>
+          </div>
+          
+          <p className="text-text-muted">
+            Already have an account?{' '}
+            <button 
+              onClick={() => router.push('/login')}
+              className="text-primary hover:underline font-medium"
+            >
+              {CTA.auth.signIn}
+            </button>
+          </p>
+        </div>
+      </AnimatedSection>
+
+      {/* Footer */}
+      <footer className="py-16 px-6 border-t border-white/[0.06]">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-xl">
+                  C
+                </div>
+                <span className="text-xl font-semibold">Cortex</span>
+              </div>
+              <p className="text-text-secondary text-sm">
+                Your personal hedge fund, powered by AI.
+              </p>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Product</h4>
+              <ul className="space-y-2 text-text-secondary text-sm">
+                <li><a href="#features" className="hover:text-primary transition-colors">Features</a></li>
+                <li><a href="#pricing" className="hover:text-primary transition-colors">Pricing</a></li>
+                <li><a href="#demo" className="hover:text-primary transition-colors">Demo</a></li>
+                <li><button onClick={() => router.push('/dashboard')} className="hover:text-primary transition-colors">Dashboard</button></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Company</h4>
+              <ul className="space-y-2 text-text-secondary text-sm">
+                <li><button onClick={() => router.push('/about')} className="hover:text-primary transition-colors">About</button></li>
+                <li><button onClick={() => router.push('/contact')} className="hover:text-primary transition-colors">Contact</button></li>
+                <li><button onClick={() => router.push('/careers')} className="hover:text-primary transition-colors">Careers</button></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2 text-text-secondary text-sm">
+                <li><button onClick={() => router.push('/terms')} className="hover:text-primary transition-colors">Terms of Service</button></li>
+                <li><button onClick={() => router.push('/privacy')} className="hover:text-primary transition-colors">Privacy Policy</button></li>
+                <li><button onClick={() => router.push('/disclaimer')} className="hover:text-primary transition-colors">Disclaimer</button></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="pt-8 border-t border-white/[0.06] text-center">
+            <p className="text-xs text-text-muted leading-relaxed max-w-4xl mx-auto mb-4">
+              {HEADLINES.disclaimer}
+            </p>
+            <p className="text-sm text-text-muted">
+              © {new Date().getFullYear()} Cortex Capital. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
