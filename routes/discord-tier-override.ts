@@ -3,13 +3,10 @@ import pg from 'pg';
 
 /**
  * Discord Singularity Tier Override
- * Grants Partner tier (highest) to specific Discord users
+ * Grants Partner tier (highest) to users with Singularity role
  */
 
-const SINGULARITY_DISCORD_IDS = [
-  '1070789896204550174', // Singularity bot
-  // Add more Discord IDs here if needed
-];
+const SINGULARITY_ROLE_ID = '1339409988604252234'; // @Singularity role
 
 export async function discordTierOverride(fastify: FastifyInstance) {
   const dbUrl = process.env.DATABASE_URL;
@@ -24,11 +21,15 @@ export async function discordTierOverride(fastify: FastifyInstance) {
 
   /**
    * POST /api/discord/link
-   * Link Discord user to Cortex account, auto-grant Partner tier if Singularity
+   * Link Discord user to Cortex account, auto-grant Partner tier if has Singularity role
    */
   fastify.post('/api/discord/link', async (request, reply) => {
     try {
-      const { discordId, email } = request.body as { discordId: string; email: string };
+      const { discordId, email, roles } = request.body as { 
+        discordId: string; 
+        email: string; 
+        roles?: string[] 
+      };
 
       if (!discordId || !email) {
         return reply.code(400).send({ error: 'discordId and email required' });
@@ -46,9 +47,9 @@ export async function discordTierOverride(fastify: FastifyInstance) {
 
       const user = userResult.rows[0];
 
-      // Check if Discord ID is Singularity
-      const isSingularity = SINGULARITY_DISCORD_IDS.includes(discordId);
-      const newTier = isSingularity ? 'partner' : user.tier;
+      // Check if user has Singularity role
+      const hasSingularityRole = roles?.includes(SINGULARITY_ROLE_ID) || false;
+      const newTier = hasSingularityRole ? 'partner' : user.tier;
 
       // Update user with Discord ID and tier
       await pool.query(
@@ -61,9 +62,9 @@ export async function discordTierOverride(fastify: FastifyInstance) {
       reply.send({
         success: true,
         tier: newTier,
-        upgraded: isSingularity && user.tier !== 'partner',
-        message: isSingularity 
-          ? '🎉 Singularity user detected! Upgraded to Partner tier (free forever)'
+        upgraded: hasSingularityRole && user.tier !== 'partner',
+        message: hasSingularityRole 
+          ? '🎉 Singularity role detected! Upgraded to Partner tier (free forever)'
           : 'Discord account linked',
       });
     } catch (error: any) {
@@ -73,22 +74,29 @@ export async function discordTierOverride(fastify: FastifyInstance) {
   });
 
   /**
-   * GET /api/discord/check/:discordId
-   * Check if Discord user has premium access
+   * POST /api/discord/check
+   * Check if Discord user has Singularity role (requires roles array)
    */
-  fastify.get('/api/discord/check/:discordId', async (request, reply) => {
+  fastify.post('/api/discord/check', async (request, reply) => {
     try {
-      const { discordId } = request.params as { discordId: string };
+      const { discordId, roles } = request.body as { 
+        discordId: string; 
+        roles?: string[] 
+      };
 
-      const isSingularity = SINGULARITY_DISCORD_IDS.includes(discordId);
+      if (!discordId) {
+        return reply.code(400).send({ error: 'discordId required' });
+      }
+
+      const hasSingularityRole = roles?.includes(SINGULARITY_ROLE_ID) || false;
 
       reply.send({
         discordId,
-        isSingularity,
-        tier: isSingularity ? 'partner' : null,
-        message: isSingularity 
-          ? 'Singularity user - Partner tier access granted'
-          : 'Standard user',
+        hasSingularityRole,
+        tier: hasSingularityRole ? 'partner' : null,
+        message: hasSingularityRole 
+          ? 'Singularity role detected - Partner tier access granted'
+          : 'Standard user - no premium role',
       });
     } catch (error: any) {
       fastify.log.error('Discord check error:', error);
