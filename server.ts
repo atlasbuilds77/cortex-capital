@@ -1265,12 +1265,14 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 
 async function start() {
   try {
-    // Serve static frontend files (Next.js build)
-    const frontendPath = path.join(__dirname, 'frontend', 'out');
-    server.register(fastifyStatic, {
-      root: frontendPath,
-      prefix: '/',
-    });
+    // Serve static frontend files (Next.js build) - PRODUCTION ONLY
+    if (process.env.NODE_ENV === 'production') {
+      const frontendPath = path.join(__dirname, 'frontend', 'out');
+      server.register(fastifyStatic, {
+        root: frontendPath,
+        prefix: '/',
+      });
+    }
 
     // Register API routes
     server.register(authRoutes);

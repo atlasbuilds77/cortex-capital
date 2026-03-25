@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Static HTML export
+  // output: 'export', // Only enable for production build
   reactStrictMode: true,
   
   // Production optimizations

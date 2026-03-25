@@ -455,7 +455,7 @@ export default function LandingPage() {
             </button>
             
             <button
-              onClick={() => router.push('/fishtank')}
+              onClick={() => router.push('/demo')}
               className="px-8 py-4 bg-white/[0.05] border border-white/[0.1] text-white font-semibold rounded-xl hover:bg-white/[0.08] transition-all duration-300 flex items-center justify-center gap-2"
             >
               <Play className="w-4 h-4" />
