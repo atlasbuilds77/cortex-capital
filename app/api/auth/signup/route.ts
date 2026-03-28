@@ -53,13 +53,22 @@ export async function POST(request: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create user (defaults to free tier, moderate risk)
+    // Get tier from request body (paid via Stripe) or default to free
+    const { tier: requestedTier, stripeSessionId } = await request.clone().json().catch(() => ({}));
+    
+    // Only allow paid tiers if stripeSessionId is provided
+    const validPaidTiers = ['recovery', 'scout', 'operator', 'partner'];
+    const userTier = (stripeSessionId && validPaidTiers.includes(requestedTier)) 
+      ? requestedTier 
+      : 'free';
+
+    // Create user with the specified tier
     const userId = uuidv4();
     const result = await query(
       `INSERT INTO users (id, email, password_hash, tier, risk_profile, is_active, email_verified, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        RETURNING id, email, tier, created_at`,
-      [userId, email.toLowerCase(), passwordHash, 'free', 'moderate', true, false]
+      [userId, email.toLowerCase(), passwordHash, userTier, 'moderate', true, false]
     );
 
     const user = result.rows[0];

@@ -1,21 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
 
 const API_URL = ""; // API is same-origin
 
 export default function SignupPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const sessionId = searchParams.get('session_id')
+  
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [tier, setTier] = useState<string | null>(null)
+  const [verifyingPayment, setVerifyingPayment] = useState(!!sessionId)
+
+  // Verify Stripe session and get tier
+  useEffect(() => {
+    if (sessionId) {
+      verifyStripeSession()
+    }
+  }, [sessionId])
+
+  const verifyStripeSession = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/checkout/verify?session_id=${sessionId}`)
+      const data = await response.json()
+      
+      if (response.ok && data.tier) {
+        setTier(data.tier)
+        if (data.email) {
+          setEmail(data.email)
+        }
+      } else {
+        setError('Payment verification failed. Please try again.')
+      }
+    } catch (err) {
+      setError('Unable to verify payment. Please contact support.')
+    } finally {
+      setVerifyingPayment(false)
+    }
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    // Require Stripe session for signup
+    if (!sessionId || !tier) {
+      setError('Please select a plan first')
+      router.push('/pricing')
+      return
+    }
 
     // Validation
     if (password !== confirmPassword) {
@@ -34,7 +75,12 @@ export default function SignupPage() {
       const response = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ 
+          email, 
+          password,
+          tier, // Include the paid tier
+          stripeSessionId: sessionId,
+        }),
       })
 
       const data = await response.json()
@@ -54,6 +100,39 @@ export default function SignupPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // No session_id - redirect to pricing
+  if (!sessionId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <h1 className="text-2xl font-semibold mb-4">Select a Plan First</h1>
+          <p className="text-text-secondary mb-8">
+            Choose a plan to get started with Cortex Capital
+          </p>
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-black font-semibold rounded-xl hover:bg-accent transition-all"
+          >
+            View Plans
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // Verifying payment
+  if (verifyingPayment) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <h1 className="text-2xl font-semibold mb-2">Verifying Payment</h1>
+          <p className="text-text-secondary">Just a moment...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -76,11 +155,24 @@ export default function SignupPage() {
           <span className="text-2xl font-semibold text-primary">Cortex Capital</span>
         </div>
 
+        {/* Payment confirmed badge */}
+        {tier && (
+          <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+            <div>
+              <p className="font-medium text-primary">Payment Confirmed!</p>
+              <p className="text-sm text-text-secondary">
+                {tier.charAt(0).toUpperCase() + tier.slice(1)} plan - Now create your account
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Signup form */}
         <div className="bg-surface rounded-2xl border border-gray-700 p-8">
           <h1 className="text-3xl font-bold mb-2">Create your account</h1>
           <p className="text-text-secondary mb-8">
-            Start your AI-powered trading journey
+            Complete your registration to get started
           </p>
 
           {error && (
@@ -134,7 +226,7 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !tier}
               className="w-full py-4 bg-primary text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 hover:bg-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating account...' : 'Create Account'}
