@@ -6,7 +6,15 @@ export type Tier = 'free' | 'recovery' | 'scout' | 'operator';
 
 const TIER_PERMISSIONS: Record<Tier, string[]> = {
   free: ['view_discussions', 'view_demo'],
-  recovery: ['view_discussions', 'view_demo', 'alerts', 'analytics', 'view_portfolio'],
+  recovery: [
+    'view_discussions',
+    'view_demo',
+    'alerts',
+    'analytics',
+    'view_portfolio',
+    'broker_connect',      // Can connect broker
+    // NO auto_execute - view only
+  ],
   scout: [
     'view_discussions',
     'view_demo',
@@ -16,6 +24,8 @@ const TIER_PERMISSIONS: Record<Tier, string[]> = {
     'phone_booth',
     'signals',
     'priority_support',
+    'broker_connect',      // Can connect broker
+    'auto_execute_stocks', // Auto-trade STOCKS only (no options)
   ],
   operator: [
     'view_discussions',
@@ -26,8 +36,10 @@ const TIER_PERMISSIONS: Record<Tier, string[]> = {
     'phone_booth',
     'signals',
     'priority_support',
-    'auto_execute',
-    'broker_connect',
+    'broker_connect',        // Can connect broker
+    'auto_execute_stocks',   // Auto-trade stocks
+    'auto_execute_options',  // Auto-trade options + LEAPS
+    'auto_execute',          // Full auto (legacy compat)
     'portfolio_management',
   ],
 };

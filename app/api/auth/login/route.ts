@@ -4,8 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { query } from '@/lib/db';
+import { getRequiredEnv } from '@/lib/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'cortex-capital-secret-change-in-production';
+function getJwtSecret(): string {
+  return getRequiredEnv('JWT_SECRET');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,8 +48,8 @@ export async function POST(request: NextRequest) {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
+      getJwtSecret(),
+      { expiresIn: '30d', algorithm: 'HS256' }
     );
 
     return NextResponse.json({
@@ -58,10 +61,10 @@ export async function POST(request: NextRequest) {
         createdAt: user.created_at,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('LOGIN ERROR DETAILS:', error);
     return NextResponse.json(
-      { error: 'Login failed', details: error.message },
+      { error: 'Login failed' },
       { status: 500 }
     );
   }

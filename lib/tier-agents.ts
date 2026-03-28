@@ -72,6 +72,11 @@ export const TIER_RESPONSE_DETAIL: Record<Tier, {
   showRiskLevels: boolean;
   showExecutionDetails: boolean;
   conversationDepth: 'basic' | 'detailed' | 'full';
+  // Trading capabilities
+  canConnectBroker: boolean;
+  canAutoTradeStocks: boolean;
+  canAutoTradeOptions: boolean;
+  tradingMode: 'view_only' | 'stocks_only' | 'full';
 }> = {
   free: {
     showPriceTargets: false,
@@ -80,6 +85,10 @@ export const TIER_RESPONSE_DETAIL: Record<Tier, {
     showRiskLevels: false,
     showExecutionDetails: false,
     conversationDepth: 'basic',
+    canConnectBroker: false,
+    canAutoTradeStocks: false,
+    canAutoTradeOptions: false,
+    tradingMode: 'view_only',
   },
   recovery: {
     showPriceTargets: true,
@@ -88,6 +97,10 @@ export const TIER_RESPONSE_DETAIL: Record<Tier, {
     showRiskLevels: true,
     showExecutionDetails: false,
     conversationDepth: 'basic',
+    canConnectBroker: true,     // Can connect broker
+    canAutoTradeStocks: false,  // View only - no auto trading
+    canAutoTradeOptions: false,
+    tradingMode: 'view_only',
   },
   scout: {
     showPriceTargets: true,
@@ -96,6 +109,10 @@ export const TIER_RESPONSE_DETAIL: Record<Tier, {
     showRiskLevels: true,
     showExecutionDetails: false,
     conversationDepth: 'detailed',
+    canConnectBroker: true,     // Can connect broker
+    canAutoTradeStocks: true,   // Auto-trade STOCKS
+    canAutoTradeOptions: false, // No options/LEAPS
+    tradingMode: 'stocks_only',
   },
   operator: {
     showPriceTargets: true,
@@ -104,6 +121,10 @@ export const TIER_RESPONSE_DETAIL: Record<Tier, {
     showRiskLevels: true,
     showExecutionDetails: true,
     conversationDepth: 'full',
+    canConnectBroker: true,     // Can connect broker
+    canAutoTradeStocks: true,   // Auto-trade stocks
+    canAutoTradeOptions: true,  // Auto-trade options + LEAPS
+    tradingMode: 'full',
   },
   partner: {
     showPriceTargets: true,
@@ -112,6 +133,10 @@ export const TIER_RESPONSE_DETAIL: Record<Tier, {
     showRiskLevels: true,
     showExecutionDetails: true,
     conversationDepth: 'full',
+    canConnectBroker: true,
+    canAutoTradeStocks: true,
+    canAutoTradeOptions: true,
+    tradingMode: 'full',
   },
 };
 

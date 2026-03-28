@@ -25,7 +25,7 @@ function encrypt(text: string): { encrypted: string; iv: string; tag: string } {
 }
 
 export const POST = requireAuth(
-  requireTier('operator')(async (request: NextRequest, user, tier) => {
+  requireTier('recovery')(async (request: NextRequest, user, tier) => {
     try {
       const body = await request.json();
       const { apiToken, accountId } = body;

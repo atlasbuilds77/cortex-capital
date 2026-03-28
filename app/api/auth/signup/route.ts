@@ -5,9 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { query } from '@/lib/db';
+import { getRequiredEnv } from '@/lib/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'cortex-capital-secret-change-in-production';
 const SALT_ROUNDS = 10;
+
+function getJwtSecret(): string {
+  return getRequiredEnv('JWT_SECRET');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,8 +80,8 @@ export async function POST(request: NextRequest) {
     // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '30d' }
+      getJwtSecret(),
+      { expiresIn: '30d', algorithm: 'HS256' }
     );
 
     return NextResponse.json({
@@ -89,10 +93,10 @@ export async function POST(request: NextRequest) {
         createdAt: user.created_at,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('SIGNUP ERROR DETAILS:', error);
     return NextResponse.json(
-      { error: 'Signup failed', details: error.message },
+      { error: 'Signup failed' },
       { status: 500 }
     );
   }

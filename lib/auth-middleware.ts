@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { getRequiredEnv } from '@/lib/env';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'cortex-capital-secret-change-in-production';
+function getJwtSecret(): string {
+  return getRequiredEnv('JWT_SECRET');
+}
 
 export interface AuthenticatedUser {
   userId: string;
@@ -16,9 +19,11 @@ export async function authenticate(request: NextRequest): Promise<AuthenticatedU
 
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedUser;
+    const decoded = jwt.verify(token, getJwtSecret(), {
+      algorithms: ['HS256'],
+    }) as AuthenticatedUser;
     return decoded;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
