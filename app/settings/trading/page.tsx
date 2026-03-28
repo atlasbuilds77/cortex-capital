@@ -6,17 +6,15 @@ import { Zap, Shield, AlertTriangle, Loader2, Lock } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 
 const TIER_CAN_EXECUTE: Record<string, boolean> = {
-  free: false,
   recovery: false,
   scout: true,
   operator: true,
-  partner: true,
 }
 
 const TIER_FEATURES: Record<string, string[]> = {
+  recovery: ['View-only mode', 'Learn from agent discussions'],
   scout: ['Auto-execute stocks only', 'No options trading'],
   operator: ['Auto-execute stocks', 'Auto-execute options', 'LEAPS strategies'],
-  partner: ['Full auto-execution', 'All strategies', 'Priority execution'],
 }
 
 export default function TradingSettingsPage() {

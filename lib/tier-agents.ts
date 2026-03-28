@@ -5,7 +5,7 @@
 import type { CortexAgentConfig } from '@/agents/cortex-agents';
 import { CORTEX_AGENTS } from '@/agents/cortex-agents';
 
-export type Tier = 'recovery' | 'scout' | 'operator' | 'partner';
+export type Tier = 'recovery' | 'scout' | 'operator';
 
 // All agent IDs - everyone gets all agents
 const ALL_AGENTS = [
@@ -29,7 +29,6 @@ export const TIER_AGENT_ACCESS: Record<Tier, string[]> = {
   recovery: ALL_AGENTS,
   scout: ALL_AGENTS,
   operator: ALL_AGENTS,
-  partner: ALL_AGENTS,
 };
 
 /**
@@ -63,13 +62,6 @@ export const TIER_CAPABILITIES: Record<Tier, {
     canAutoTradeOptions: true,
     tradingMode: 'full',
     description: 'Full auto-trading: stocks + options',
-  },
-  partner: {
-    canConnectBroker: true,
-    canAutoTradeStocks: true,
-    canAutoTradeOptions: true,
-    tradingMode: 'full',
-    description: 'Full access + priority support',
   },
 };
 
@@ -124,7 +116,6 @@ export function getTierDisplayInfo(tier: Tier): {
     recovery: { name: 'Recovery', color: '#3B82F6', icon: '📚' },
     scout: { name: 'Scout', color: '#8B5CF6', icon: '🎯' },
     operator: { name: 'Operator', color: '#10B981', icon: '⚡' },
-    partner: { name: 'Partner', color: '#F59E0B', icon: '🤝' },
   };
   
   return {
