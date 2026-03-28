@@ -163,7 +163,7 @@ export default function DashboardPage() {
           <MetricCard 
             icon={Bot} 
             label="Active Agents" 
-            value={`${activeAgents}/7`} 
+            value={`${activeAgents} active`} 
             sub={tc.canAutoExecute ? 'Auto-executing' : tc.canViewSignals ? 'Signal mode' : 'Upgrade to activate'} 
           />
           <MetricCard 
