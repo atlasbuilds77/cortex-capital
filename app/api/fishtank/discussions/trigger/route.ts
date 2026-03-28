@@ -92,10 +92,10 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ success: true, data: discussion });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Discussion trigger failed:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Failed to trigger discussion' },
       { status: 500 }
     );
   }

@@ -50,10 +50,10 @@ export async function GET(request: NextRequest) {
       customerId: session.customer,
       subscriptionId: session.subscription,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('Verify checkout error:', error)
     return NextResponse.json(
-      { error: error.message || 'Verification failed' },
+      { error: 'Verification failed' },
       { status: 500 }
     )
   }

@@ -25,10 +25,10 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json(discussions);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Discussions fetch failed:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Failed to fetch discussions' },
       { status: 500 }
     );
   }

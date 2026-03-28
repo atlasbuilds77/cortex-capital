@@ -5,10 +5,10 @@ import { getAuthUser } from '@/lib/auth-middleware';
 import { query } from '@/lib/db';
 import { getAccountInfo } from '@/lib/brokers/robinhood';
 
-// Alpaca fallback for demo
-const ALPACA_KEY = process.env.ALPACA_API_KEY || '';
-const ALPACA_SECRET = process.env.ALPACA_SECRET_KEY || '';
-const ALPACA_BASE = 'https://paper-api.alpaca.markets/v2';
+// Alpaca fallback for demo (same env vars as fishtank)
+const ALPACA_KEY = process.env.DEMO_ALPACA_API_KEY || process.env.ALPACA_API_KEY || '';
+const ALPACA_SECRET = process.env.DEMO_ALPACA_SECRET_KEY || process.env.ALPACA_SECRET || process.env.ALPACA_SECRET_KEY || '';
+const ALPACA_BASE = process.env.DEMO_ALPACA_BASE_URL || 'https://paper-api.alpaca.markets/v2';
 
 export async function GET(request: NextRequest) {
   try {

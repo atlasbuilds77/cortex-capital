@@ -57,10 +57,10 @@ export async function GET(request: NextRequest) {
         subscriptionStatus: user.subscription_status,
       } : null,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching user tier:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Failed to fetch user tier' },
       { status: 500 }
     );
   }

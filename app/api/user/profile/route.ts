@@ -26,10 +26,10 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
       success: true,
       data: result.rows[0],
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Failed to fetch profile' },
       { status: 500 }
     );
   }
@@ -100,10 +100,10 @@ export const PUT = requireAuth(async (request: NextRequest, user) => {
       success: true,
       data: result.rows[0],
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Failed to update profile' },
       { status: 500 }
     );
   }
@@ -128,10 +128,10 @@ export const DELETE = requireAuth(async (request: NextRequest, user) => {
       success: true,
       message: 'Account deleted successfully',
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error(error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Failed to delete account' },
       { status: 500 }
     );
   }

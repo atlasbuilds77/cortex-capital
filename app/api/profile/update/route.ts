@@ -58,10 +58,10 @@ export const PUT = requireAuth(async (request: NextRequest, user) => {
       success: true,
       data: result.rows[0],
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Profile update error:', error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Failed to update profile' },
       { status: 500 }
     );
   }

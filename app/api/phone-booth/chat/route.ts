@@ -19,9 +19,10 @@ export const POST = requireAuth(
 
       const response = await phoneBoothChat(agentId, user.userId, message);
       return NextResponse.json({ success: true, ...response });
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Phone booth chat error:', error);
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Failed to send phone booth message' },
         { status: 500 }
       );
     }
