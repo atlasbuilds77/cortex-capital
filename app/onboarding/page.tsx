@@ -12,7 +12,7 @@ import {
   Search, Zap, Crown, Sparkles
 } from 'lucide-react'
 
-type Step = 'risk' | 'brokerage' | 'tier'
+type Step = 'risk' | 'brokerage' | 'welcome'
 type RiskProfile = 'conservative' | 'moderate' | 'aggressive' | 'ultra_aggressive'
 
 const API_URL = ""; // API is same-origin
@@ -128,11 +128,11 @@ function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState<Step>('risk')
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const [selectedRisk, setSelectedRisk] = useState<RiskProfile | null>(null)
-  const [selectedTier, setSelectedTier] = useState<string>('free')
+  // Tier is already set from Stripe checkout - no need to select here
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const steps: Step[] = ['risk', 'brokerage', 'tier']
+  const steps: Step[] = ['risk', 'brokerage', 'welcome']
   const stepNames = ['Risk Profile', 'Connect Brokerage', 'Choose Plan']
   const currentStepIndex = steps.indexOf(currentStep)
 
@@ -177,28 +177,7 @@ function OnboardingFlow() {
   }
 
   const handleComplete = async () => {
-    // Save tier selection if not free
-    if (selectedTier !== 'free' && token) {
-      try {
-        await fetch(`${API_URL}/api/user/profile`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ tier: selectedTier }),
-        })
-      } catch (err) {
-        console.error('Failed to save tier:', err)
-      }
-    }
-    // Update localStorage directly before redirect (avoids React state race)
-    const storedUser = localStorage.getItem('cortex_user')
-    if (storedUser) {
-      const parsed = JSON.parse(storedUser)
-      parsed.tier = selectedTier
-      localStorage.setItem('cortex_user', JSON.stringify(parsed))
-    }
+    // User already has a tier from signup - just go to dashboard
     window.location.href = '/dashboard'
   }
 
@@ -357,7 +336,7 @@ function OnboardingFlow() {
                 {/* Actions */}
                 <div className="flex gap-3">
                   <button
-                    onClick={() => goToStep('tier', 'forward')}
+                    onClick={() => goToStep('welcome', 'forward')}
                     className="flex-1 py-4 rounded-lg font-semibold bg-surface hover:bg-surface-elevated transition-all text-text-secondary"
                   >
                     Skip for now
@@ -366,86 +345,50 @@ function OnboardingFlow() {
               </div>
             )}
 
-            {/* STEP 3: Tier Comparison */}
-            {currentStep === 'tier' && (
+            {/* STEP 3: Welcome / You're All Set */}
+            {currentStep === 'welcome' && (
               <div className="space-y-6">
                 <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Crown className="w-8 h-8 text-amber-400" />
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-8 h-8 text-primary" />
                   </div>
-                  <h2 className="text-3xl font-bold mb-2">Choose Your Plan</h2>
+                  <h2 className="text-3xl font-bold mb-2">You&apos;re All Set!</h2>
                   <p className="text-text-secondary">
-                    Start free, upgrade when you&apos;re ready
+                    Your AI agents are ready to work for you
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  {TIERS.map((tier) => {
-                    const Icon = tier.icon
-                    return (
-                      <div
-                        key={tier.id}
-                        className={`p-6 rounded-xl border-2 transition-all relative ${
-                          tier.current
-                            ? 'border-cyan-500 bg-cyan-500/5'
-                            : tier.popular
-                            ? 'border-purple-500 bg-purple-500/5'
-                            : 'border-white/[0.08] bg-surface'
-                        }`}
-                      >
-                        {tier.popular && (
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-semibold px-3 py-1 rounded-full">
-                            Most Popular
-                          </div>
-                        )}
-                        
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${tier.bgColor}/10`}>
-                              <Icon className={`w-5 h-5 ${tier.color}`} />
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-lg text-white">{tier.label}</h3>
-                              <p className="text-sm text-text-secondary italic">{tier.tagline}</p>
-                              <div className="flex items-baseline gap-1 mt-1">
-                                <span className="text-2xl font-bold text-white">{tier.price}</span>
-                                <span className="text-text-muted text-sm">/month</span>
-                              </div>
-                            </div>
-                          </div>
-                          {tier.current && (
-                            <span className="text-xs font-medium text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-full">
-                              Current
-                            </span>
-                          )}
-                        </div>
+                {/* Show current tier */}
+                <div className="p-6 rounded-xl border-2 border-primary/30 bg-primary/5">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-primary/20">
+                      <Crown className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-text-secondary">Your Plan</p>
+                      <p className="text-xl font-bold text-white capitalize">
+                        {user?.tier || 'Premium'} Member
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                        <ul className="space-y-2 mb-4">
-                          {tier.features.map((feature, i) => (
-                            <li key={i} className="flex items-center gap-2 text-sm text-text-secondary">
-                              <Check className={`w-4 h-4 flex-shrink-0 ${tier.color}`} />
-                              {feature}
-                            </li>
-                          ))}
-                        </ul>
-
-                        {!tier.current && (
-                          <button
-                            onClick={() => setSelectedTier(tier.id)}
-                            className={`w-full py-2.5 rounded-lg font-medium transition-all text-sm ${
-                              selectedTier === tier.id
-                                ? 'bg-primary text-white ring-2 ring-primary ring-offset-2 ring-offset-background'
-                                : tier.popular
-                                ? 'bg-primary/80 text-white hover:bg-purple-500'
-                                : 'bg-surface-elevated text-text-primary hover:bg-gray-700'
-                            }`}
-                          >
-                            {selectedTier === tier.id ? '✓ Selected' : tier.cta}
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
+                {/* Quick summary */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-surface border border-white/[0.08]">
+                    <Check className="w-5 h-5 text-green-400" />
+                    <span className="text-text-primary">Risk profile configured</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-surface border border-white/[0.08]">
+                    <Check className="w-5 h-5 text-green-400" />
+                    <span className="text-text-primary">
+                      {selectedBroker ? `${selectedBroker.name} connected` : 'Broker setup complete'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-surface border border-white/[0.08]">
+                    <Check className="w-5 h-5 text-green-400" />
+                    <span className="text-text-primary">AI agents activated</span>
+                  </div>
                 </div>
 
                 <button

@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+export const dynamic = 'force-dynamic'
+
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
 
 const API_URL = ""; // API is same-origin
 
-export default function SignupPage() {
+function SignupContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const sessionId = searchParams.get('session_id')
@@ -253,5 +255,14 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><p className="text-text-secondary">Loading...</p></div>}>
+      <SignupContent />
+    </Suspense>
   )
 }

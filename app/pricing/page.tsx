@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+export const dynamic = 'force-dynamic'
+
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Check, ArrowLeft, Loader2 } from 'lucide-react'
@@ -53,7 +55,7 @@ const TIERS = [
   },
 ]
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isUpgrade = searchParams.get('upgrade') === 'true'
@@ -179,5 +181,14 @@ export default function PricingPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><p className="text-text-secondary">Loading...</p></div>}>
+      <PricingContent />
+    </Suspense>
   )
 }
