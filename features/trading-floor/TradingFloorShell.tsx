@@ -120,7 +120,10 @@ export function TradingFloorShell({
     
     async function fetchTier() {
       try {
-        const res = await fetch('/api/user/tier');
+        const token = localStorage.getItem('cortex_token');
+        const res = await fetch('/api/user/tier', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (res.ok) {
           const data = await res.json();
           setTier(data.tier || 'free');
