@@ -1,9 +1,24 @@
 import Stripe from 'stripe'
 
-// Initialize Stripe with secret key
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-})
+// Lazy-initialize Stripe (avoid build-time initialization)
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY is not set')
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-02-25.clover',
+    })
+  }
+  return _stripe
+}
+
+// Keep for backward compatibility but use getStripe() in new code
+export const stripe = typeof window === 'undefined' && process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-02-25.clover' })
+  : null as unknown as Stripe
 
 // Price ID mapping
 export const STRIPE_PRICES = {
@@ -26,7 +41,7 @@ export async function createCheckoutSession({
   email?: string
   userId?: string
 }) {
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [
@@ -53,7 +68,7 @@ export async function createCheckoutSession({
 
 // Helper to retrieve session
 export async function getCheckoutSession(sessionId: string) {
-  return await stripe.checkout.sessions.retrieve(sessionId)
+  return await getStripe().checkout.sessions.retrieve(sessionId)
 }
 
 // Helper to get price info
