@@ -5,8 +5,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export', // Only enable for production build
-  outputFileTracingRoot: __dirname,
   reactStrictMode: true,
   
   // Production optimizations
