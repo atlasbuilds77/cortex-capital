@@ -291,40 +291,75 @@ function OnboardingFlow() {
                   </p>
                 </div>
 
-                {/* Tradier OAuth */}
-                <div className="p-6 bg-surface rounded-xl border border-white/[0.08]">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                      <span className="text-green-400 font-bold text-lg">T</span>
+                {/* Available Brokers */}
+                <div className="space-y-3">
+                  {/* Robinhood */}
+                  <div className="p-5 bg-surface rounded-xl border border-white/[0.08]">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                        <span className="text-green-400 font-bold text-lg">🪶</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-text-primary">Robinhood</h3>
+                        <p className="text-sm text-text-secondary">Commission-free trading</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-text-primary">Tradier</h3>
-                      <p className="text-sm text-text-secondary">Commission-free stock & options trading</p>
-                    </div>
+                    <a
+                      href="/settings/brokers"
+                      className="w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Connect Robinhood
+                    </a>
                   </div>
-                  
-                  <button
-                    onClick={handleTradierConnect}
-                    className="w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    Connect with Tradier
-                  </button>
+
+                  {/* Tradier */}
+                  <div className="p-5 bg-surface rounded-xl border border-white/[0.08]">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                        <span className="text-blue-400 font-bold text-lg">T</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-text-primary">Tradier</h3>
+                        <p className="text-sm text-text-secondary">Commission-free stock & options</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleTradierConnect}
+                      className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-500 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Connect Tradier
+                    </button>
+                  </div>
+
+                  {/* Alpaca */}
+                  <div className="p-5 bg-surface rounded-xl border border-white/[0.08]">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
+                        <span className="text-yellow-400 font-bold text-lg">🦙</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-text-primary">Alpaca</h3>
+                        <p className="text-sm text-text-secondary">API-first trading</p>
+                      </div>
+                    </div>
+                    <a
+                      href="/settings/brokers"
+                      className="w-full py-3 px-4 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Connect Alpaca
+                    </a>
+                  </div>
                 </div>
 
-                {/* Coming soon brokers */}
-                <div className="space-y-3 opacity-60">
-                  {['Alpaca', 'Robinhood', 'Interactive Brokers'].map((broker) => (
-                    <div key={broker} className="p-4 bg-surface rounded-xl border border-white/[0.08]/50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-surface-elevated rounded-lg flex items-center justify-center">
-                          <span className="text-text-muted font-medium">{broker[0]}</span>
-                        </div>
-                        <span className="text-text-secondary">{broker}</span>
-                      </div>
-                      <span className="text-xs text-text-muted bg-surface-elevated px-2 py-1 rounded">Coming Soon</span>
-                    </div>
-                  ))}
+                {/* Coming soon */}
+                <div className="p-4 bg-surface/50 rounded-xl border border-white/[0.05] flex items-center justify-between opacity-60">
+                  <div className="flex items-center gap-3">
+                    <span className="text-text-muted">Interactive Brokers, Webull, TD Ameritrade</span>
+                  </div>
+                  <span className="text-xs text-text-muted bg-surface-elevated px-2 py-1 rounded">Coming Soon</span>
                 </div>
 
                 {/* Trust signals */}
