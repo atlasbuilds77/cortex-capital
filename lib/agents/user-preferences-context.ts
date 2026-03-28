@@ -55,12 +55,29 @@ export async function loadUserPreferences(userId: string): Promise<UserPreferenc
 
 /**
  * Generate agent context based on user preferences
+ * Uses smart defaults when user hasn't set specific preferences
  */
 export function generatePreferencesContext(prefs: UserPreferences): string {
   const sections: string[] = [];
 
   // Risk Profile Section
   sections.push(`RISK PROFILE: ${prefs.riskProfile.toUpperCase()}`);
+
+  // Apply smart defaults based on risk profile if no specific goals set
+  if (prefs.tradingGoals.length === 0) {
+    const defaultGoals: Record<string, string[]> = {
+      conservative: ['Capital preservation', 'Income generation'],
+      moderate: ['Long-term growth', 'Capital preservation'],
+      aggressive: ['Long-term growth', 'Sector exposure'],
+      ultra_aggressive: ['Long-term growth', 'Sector exposure'],
+    };
+    prefs.tradingGoals = defaultGoals[prefs.riskProfile] || defaultGoals.moderate;
+  }
+
+  if (prefs.sectorInterests.length === 0) {
+    // Default to broad market exposure
+    prefs.sectorInterests = ['Technology', 'Healthcare', 'Financials'];
+  }
   
   const riskGuidance: Record<string, string> = {
     conservative: `
