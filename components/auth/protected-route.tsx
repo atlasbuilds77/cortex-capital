@@ -4,8 +4,13 @@ import { useAuth } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth()
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  requirePaidTier?: boolean // If true, free users get redirected to pricing
+}
+
+export function ProtectedRoute({ children, requirePaidTier = false }: ProtectedRouteProps) {
+  const { isAuthenticated, loading, user } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -13,6 +18,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       router.push('/login')
     }
   }, [isAuthenticated, loading, router])
+
+  useEffect(() => {
+    // If paid tier required and user is on free tier, redirect to pricing
+    if (!loading && isAuthenticated && requirePaidTier) {
+      const userTier = user?.tier || 'free'
+      if (userTier === 'free') {
+        router.push('/pricing?upgrade=true')
+      }
+    }
+  }, [isAuthenticated, loading, user, requirePaidTier, router])
 
   if (loading) {
     return (
@@ -29,5 +44,15 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return null
   }
 
+  // Block free users from paid-only routes
+  if (requirePaidTier && (user?.tier || 'free') === 'free') {
+    return null
+  }
+
   return <>{children}</>
+}
+
+// Convenience wrapper for routes that require a paid subscription
+export function PaidRoute({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute requirePaidTier>{children}</ProtectedRoute>
 }

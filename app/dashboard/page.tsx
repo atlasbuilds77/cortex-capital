@@ -40,8 +40,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login')
+      return
     }
-  }, [isAuthenticated, loading, router])
+    // Redirect free tier users to pricing
+    if (!loading && isAuthenticated && user?.tier === 'free') {
+      router.push('/pricing?upgrade=true')
+    }
+  }, [isAuthenticated, loading, router, user])
 
   useEffect(() => {
     if (token) {
