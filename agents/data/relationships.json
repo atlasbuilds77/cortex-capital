@@ -1,0 +1,89 @@
+{
+  "relationships": {
+    "ANALYST::STRATEGIST": {
+      "score": 50,
+      "interactions": []
+    },
+    "ANALYST::DAY_TRADER": {
+      "score": 50,
+      "interactions": []
+    },
+    "ANALYST::MOMENTUM": {
+      "score": 50,
+      "interactions": []
+    },
+    "ANALYST::RISK": {
+      "score": 50,
+      "interactions": []
+    },
+    "ANALYST::EXECUTOR": {
+      "score": 50,
+      "interactions": []
+    },
+    "ANALYST::REPORTER": {
+      "score": 50,
+      "interactions": []
+    },
+    "DAY_TRADER::STRATEGIST": {
+      "score": 50,
+      "interactions": []
+    },
+    "MOMENTUM::STRATEGIST": {
+      "score": 50,
+      "interactions": []
+    },
+    "RISK::STRATEGIST": {
+      "score": 50,
+      "interactions": []
+    },
+    "EXECUTOR::STRATEGIST": {
+      "score": 50,
+      "interactions": []
+    },
+    "REPORTER::STRATEGIST": {
+      "score": 50,
+      "interactions": []
+    },
+    "DAY_TRADER::MOMENTUM": {
+      "score": 50,
+      "interactions": []
+    },
+    "DAY_TRADER::RISK": {
+      "score": 50,
+      "interactions": []
+    },
+    "DAY_TRADER::EXECUTOR": {
+      "score": 50,
+      "interactions": []
+    },
+    "DAY_TRADER::REPORTER": {
+      "score": 50,
+      "interactions": []
+    },
+    "MOMENTUM::RISK": {
+      "score": 50,
+      "interactions": []
+    },
+    "EXECUTOR::MOMENTUM": {
+      "score": 50,
+      "interactions": []
+    },
+    "MOMENTUM::REPORTER": {
+      "score": 50,
+      "interactions": []
+    },
+    "EXECUTOR::RISK": {
+      "score": 50,
+      "interactions": []
+    },
+    "REPORTER::RISK": {
+      "score": 50,
+      "interactions": []
+    },
+    "EXECUTOR::REPORTER": {
+      "score": 50,
+      "interactions": []
+    }
+  },
+  "lastUpdated": "2026-03-27T03:36:40.995Z"
+}

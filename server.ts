@@ -17,6 +17,9 @@ import { discordTierOverride } from './routes/discord-tier-override';
 import discussionRoutes from './routes/discussions';
 import tradeRoutes from './routes/trades';
 import cortexFishtankRoutes from './routes/cortex-fishtank';
+import { userRoutes } from './routes/user';
+import { brokerOAuthRoutes } from './routes/broker-oauth';
+import { userPortfolioRoutes } from './routes/user-portfolio';
 import { collaborativeDaemon, discussionEmitter } from './agents/collaborative-daemon';
 import { createScheduler } from './services/scheduler';
 
@@ -1258,6 +1261,157 @@ server.post<{
 });
 
 // ============================================
+// SSE STREAM FOR LIVE AGENT DISCUSSIONS
+// ============================================
+
+server.get('/api/fishtank/discussions/stream', async (request, reply) => {
+  // Set SSE headers
+  reply.raw.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  });
+
+  // Send initial connection message
+  reply.raw.write(`data: ${JSON.stringify({ type: 'connected', timestamp: Date.now() })}\n\n`);
+
+  // Keep-alive ping every 30s
+  const keepAlive = setInterval(() => {
+    reply.raw.write(`: keepalive\n\n`);
+  }, 30000);
+
+  // Listen for discussion events
+  const onMessage = (message: any) => {
+    reply.raw.write(`data: ${JSON.stringify({ type: 'message', ...message })}\n\n`);
+  };
+
+  const onDiscussionStart = (discussion: any) => {
+    reply.raw.write(`data: ${JSON.stringify({ type: 'discussion_start', ...discussion })}\n\n`);
+  };
+
+  const onDiscussionEnd = (discussion: any) => {
+    reply.raw.write(`data: ${JSON.stringify({ type: 'discussion_end', ...discussion })}\n\n`);
+  };
+
+  discussionEmitter.on('message', onMessage);
+  discussionEmitter.on('discussion_start', onDiscussionStart);
+  discussionEmitter.on('discussion_end', onDiscussionEnd);
+
+  // Cleanup on disconnect
+  request.raw.on('close', () => {
+    clearInterval(keepAlive);
+    discussionEmitter.off('message', onMessage);
+    discussionEmitter.off('discussion_start', onDiscussionStart);
+    discussionEmitter.off('discussion_end', onDiscussionEnd);
+  });
+});
+
+// ============================================
+// ============================================
+// TRADE PIPELINE ROUTES
+// ============================================
+
+import { executeTradeIdea, morningRoutine, endOfDayRoutine } from './agents/trade-pipeline';
+import { phoneBoothChat, getAvailableAgents, endPhoneBoothSession } from './agents/phone-booth';
+import { relationshipMatrix } from './agents/relationship-matrix';
+import { getUserRelationships, updateUserRelationship, getUserRecentShifts, getFullAgentContext } from './agents/multi-user-agents';
+
+// Submit a trade signal for the pipeline
+server.post('/api/trade/signal', async (request, reply) => {
+  const { symbol, direction, thesis, source, confidence } = request.body as any;
+  
+  if (!symbol || !direction) {
+    return reply.code(400).send({ error: 'symbol and direction required' });
+  }
+
+  // Run pipeline async (don't block the response)
+  executeTradeIdea({
+    symbol,
+    direction: direction || 'long',
+    thesis: thesis || `${direction} setup on ${symbol}`,
+    source: source || 'MOMENTUM',
+    confidence: confidence || 70,
+  }).catch(console.error);
+
+  return { success: true, message: `Trade pipeline started for ${symbol} ${direction}` };
+});
+
+// Trigger morning routine
+server.post('/api/trade/morning', async (request, reply) => {
+  morningRoutine().catch(console.error);
+  return { success: true, message: 'Morning routine started' };
+});
+
+// Trigger end of day routine
+server.post('/api/trade/eod', async (request, reply) => {
+  endOfDayRoutine().catch(console.error);
+  return { success: true, message: 'EOD routine started' };
+});
+
+// ============================================
+// PHONE BOOTH - Direct Agent Chat
+// ============================================
+
+// ============================================
+// RELATIONSHIP MATRIX
+// ============================================
+
+server.get('/api/agents/relationships', async (request, reply) => {
+  const { userId } = request.query as { userId?: string };
+  
+  if (userId && userId !== 'system') {
+    // Per-user relationships from DB
+    const relationships = await getUserRelationships(userId);
+    const shifts = await getUserRecentShifts(userId);
+    return { matrix: relationships, recentShifts: shifts };
+  }
+  
+  // System-wide (demo) relationships from JSON
+  return {
+    matrix: relationshipMatrix.getMatrix(),
+    recentShifts: relationshipMatrix.getRecentShifts(10),
+  };
+});
+
+server.get('/api/agents/relationships/:agentId', async (request, reply) => {
+  const { agentId } = request.params as { agentId: string };
+  return relationshipMatrix.getAgentRelationships(agentId as any);
+});
+
+// ============================================
+// PHONE BOOTH - Direct Agent Chat
+// ============================================
+
+// Get available agents for phone booth
+server.get('/api/phone-booth/agents', async (request, reply) => {
+  return getAvailableAgents();
+});
+
+// Chat with an agent via phone booth
+server.post('/api/phone-booth/chat', async (request, reply) => {
+  const { agentId, userId, message } = request.body as any;
+  
+  if (!agentId || !message) {
+    return reply.code(400).send({ error: 'agentId and message required' });
+  }
+
+  try {
+    const response = await phoneBoothChat(agentId, userId || 'demo-user', message);
+    return { success: true, ...response };
+  } catch (error: any) {
+    return reply.code(500).send({ error: error.message });
+  }
+});
+
+// End phone booth session
+server.post('/api/phone-booth/end', async (request, reply) => {
+  const { agentId, userId } = request.body as any;
+  endPhoneBoothSession(agentId, userId || 'demo-user');
+  return { success: true };
+});
+
+// ============================================
 // SERVER STARTUP
 // ============================================
 
@@ -1282,6 +1436,9 @@ async function start() {
     server.register(discussionRoutes);
     server.register(tradeRoutes);
     server.register(cortexFishtankRoutes);
+    server.register(userRoutes);
+    server.register(brokerOAuthRoutes);
+    server.register(userPortfolioRoutes);
     
     // Start server
     await server.listen({ port: PORT, host: '0.0.0.0' });
@@ -1313,7 +1470,54 @@ async function start() {
     if (process.env.ENABLE_DISCUSSIONS !== 'false') {
       console.log('\n🧠 Starting Collaborative Daemon...');
       collaborativeDaemon.start().catch(console.error);
+
+      // Auto-trigger discussions every 30 min during market hours (6:30 AM - 1:00 PM PST)
+      const discussionTypes = ['briefing', 'portfolio_review', 'portfolio_opportunities'] as const;
+      let discussionIndex = 0;
+      
+      setInterval(async () => {
+        const now = new Date();
+        const pstHour = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })).getHours();
+        const pstMinute = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })).getMinutes();
+        
+        // Only during market hours (6:30 AM - 1:00 PM PST) on weekdays
+        const day = now.getDay();
+        if (day === 0 || day === 6) return; // Skip weekends
+        if (pstHour < 6 || pstHour > 13) return; // Outside market hours
+        if (pstHour === 6 && pstMinute < 30) return; // Before 6:30
+        
+        const type = discussionTypes[discussionIndex % discussionTypes.length];
+        discussionIndex++;
+        
+        console.log(`[AUTO] Triggering ${type} discussion (${pstHour}:${pstMinute.toString().padStart(2, '0')} PST)`);
+        
+        try {
+          if (type === 'briefing') {
+            await collaborativeDaemon.morningBriefing();
+          } else {
+            const { portfolioDiscussionEngine } = await import('./agents/portfolio-discussion');
+            const portfolio = await portfolioDiscussionEngine.fetchPortfolio();
+            if (portfolio) {
+              await portfolioDiscussionEngine.discussPortfolio(portfolio, {
+                risk_tolerance: 'moderate',
+                investment_horizon: 'medium',
+                goals: ['Growth'],
+              }, type === 'portfolio_opportunities' ? 'opportunities' : undefined);
+            }
+          }
+        } catch (error: any) {
+          console.error(`[AUTO] Discussion failed:`, error.message);
+        }
+      }, 30 * 60 * 1000); // Every 30 minutes
+      
+      console.log('   📡 Auto-discussions: every 30 min during market hours');
     }
+
+    // Auto-schedule trading routines (market hours only)
+    console.log('\n📊 Trade pipeline loaded');
+    console.log('   POST /api/trade/signal - Submit trade signal for pipeline');
+    console.log('   POST /api/trade/morning - Trigger morning routine');
+    console.log('   POST /api/trade/eod - Trigger end of day routine');
     
   } catch (error) {
     server.log.error(error);

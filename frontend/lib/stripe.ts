@@ -11,7 +11,7 @@ export const STRIPE_PRICES = {
   recovery: 'price_1TDqOlQVfeouH9H6DJv5CtWl',
   scout: 'price_1TDqOiQVfeouH9H6ucOCqNnK',
   operator: 'price_1TDqOjQVfeouH9H6SwXQbcX0',
-  partner: 'price_1TDqOkQVfeouH9H6YokFa1N0',
+  partner: 'price_1TFPuVQVfeouH9H6ZvN4W9oy',
 } as const
 
 export type PriceTier = keyof typeof STRIPE_PRICES
@@ -63,7 +63,7 @@ export function getPriceInfo(tier: PriceTier) {
     recovery: { amount: 29, name: 'Recovery' },
     scout: { amount: 49, name: 'Scout' },
     operator: { amount: 99, name: 'Operator' },
-    partner: { amount: 249, name: 'Partner' },
+    partner: { amount: 149.99, name: 'Partner' },
   }
   return prices[tier]
 }

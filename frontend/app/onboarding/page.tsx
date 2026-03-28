@@ -87,13 +87,13 @@ const TIERS = [
     price: '$49',
     icon: Zap,
     color: 'text-primary',
-    bgColor: 'bg-gradient-to-r from-primary to-secondary',
+    bgColor: 'bg-primary',
     features: [
-      'Everything in Free',
-      '3 AI trading agents',
-      'Automated rebalancing',
-      'Tax-loss harvesting',
-      'Up to $25k portfolio',
+      '5 trades/week',
+      '1-2 options/week',
+      'All 7 agents (view signals)',
+      'Health score',
+      'Weekly email',
     ],
     cta: 'Upgrade to Scout',
     current: false,
@@ -107,11 +107,11 @@ const TIERS = [
     color: 'text-amber-400',
     bgColor: 'bg-amber-500',
     features: [
-      'Everything in Scout',
-      'All 7 AI agents',
-      'Options strategies',
-      'Priority execution',
-      'Up to $250k portfolio',
+      'Unlimited trades',
+      'Unlimited options',
+      'All 7 agents (auto-execute)',
+      'Daily alerts',
+      'Priority support',
     ],
     cta: 'Upgrade to Operator',
     current: false,
@@ -253,7 +253,7 @@ function OnboardingFlow() {
                   disabled={!selectedRisk || saving}
                   className={`w-full py-4 rounded-lg font-semibold transition-all duration-200 ${
                     selectedRisk && !saving
-                      ? 'bg-gradient-to-r from-primary to-secondary text-white hover:bg-purple-500 shadow-lg shadow-purple-600/20'
+                      ? 'bg-primary text-white hover:bg-purple-500 shadow-lg shadow-purple-600/20'
                       : 'bg-surface-elevated text-text-muted cursor-not-allowed'
                   }`}
                 >
@@ -367,7 +367,7 @@ function OnboardingFlow() {
                         }`}
                       >
                         {tier.popular && (
-                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-primary to-secondary text-white text-xs font-semibold px-3 py-1 rounded-full">
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-xs font-semibold px-3 py-1 rounded-full">
                             Most Popular
                           </div>
                         )}
@@ -405,7 +405,7 @@ function OnboardingFlow() {
                           <button
                             className={`w-full py-2.5 rounded-lg font-medium transition-all text-sm ${
                               tier.popular
-                                ? 'bg-gradient-to-r from-primary to-secondary text-white hover:bg-purple-500'
+                                ? 'bg-primary text-white hover:bg-purple-500'
                                 : 'bg-surface-elevated text-text-primary hover:bg-gray-700'
                             }`}
                           >
@@ -419,7 +419,7 @@ function OnboardingFlow() {
 
                 <button
                   onClick={handleComplete}
-                  className="w-full py-4 rounded-lg font-semibold bg-gradient-to-r from-primary to-secondary text-white hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-lg font-semibold bg-primary text-white hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
                 >
                   Go to Dashboard
                   <ArrowRight className="w-5 h-5" />

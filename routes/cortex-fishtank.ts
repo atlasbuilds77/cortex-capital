@@ -237,4 +237,34 @@ export default async function cortexFishtankRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({ error: error.message });
     }
   });
+
+  /**
+   * GET /api/fishtank/trades
+   * Recent trades from Alpaca paper account
+   */
+  fastify.get('/api/fishtank/trades', async (request, reply) => {
+    try {
+      const res = await fetch('https://paper-api.alpaca.markets/v2/orders?status=filled&limit=20&direction=desc', {
+        headers: {
+          'APCA-API-KEY-ID': 'PKXPAHHSVOFCAXOXINQXP6UXST',
+          'APCA-API-SECRET-KEY': '4rwKDqN7nUfYztpB24ts7h3Zsp2ZtaccjvXBQsGJQuWV',
+        },
+      });
+      const orders = await res.json();
+      
+      const trades = (Array.isArray(orders) ? orders : []).map((o: any) => ({
+        id: o.id,
+        symbol: o.symbol,
+        side: o.side,
+        qty: parseFloat(o.filled_qty || o.qty),
+        price: parseFloat(o.filled_avg_price || '0'),
+        timestamp: o.filled_at || o.created_at,
+        status: o.status,
+      }));
+      
+      return reply.send(trades);
+    } catch (error: any) {
+      return reply.code(500).send({ error: error.message });
+    }
+  });
 }

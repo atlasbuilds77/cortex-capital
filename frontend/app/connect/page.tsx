@@ -175,7 +175,7 @@ export default function ConnectBrokerPage() {
                     <p className="text-sm text-text-secondary">
                       Cortex executes trades through your existing brokerage account. 
                       We use secure OAuth connections and never store your passwords. 
-                      Your funds stay with your broker—we just optimize the strategy.
+                      Your funds stay with your broker - we just optimize the strategy.
                     </p>
                   </div>
                 </div>

@@ -262,4 +262,50 @@ export async function userRoutes(server: FastifyInstance) {
       });
     }
   });
+
+  // PUT /api/profile/select - Update risk profile (onboarding endpoint)
+  server.put<{
+    Body: {
+      risk_profile: string;
+    };
+  }>('/api/profile/select', {
+    preHandler: authenticate,
+  }, async (request: AuthenticatedRequest, reply) => {
+    try {
+      const { risk_profile } = request.body;
+      
+      if (!risk_profile) {
+        return reply.status(400).send({
+          success: false,
+          error: 'risk_profile is required',
+        });
+      }
+
+      const validProfiles = ['conservative', 'moderate', 'aggressive', 'speculative'];
+      if (!validProfiles.includes(risk_profile)) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid risk profile',
+        });
+      }
+
+      const result = await query(
+        `UPDATE users SET risk_profile = $1, updated_at = NOW()
+         WHERE id = $2
+         RETURNING id, email, tier, risk_profile`,
+        [risk_profile, request.user!.userId]
+      );
+      
+      return {
+        success: true,
+        data: result.rows[0],
+      };
+    } catch (error: any) {
+      server.log.error(error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
 }

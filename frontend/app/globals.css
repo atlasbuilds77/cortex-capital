@@ -6,18 +6,18 @@
 
 @layer base {
   :root {
-    --background: #090914;
-    --surface: #0f0f23;
-    --surface-elevated: #161630;
-    --primary: #8b5cf6;
-    --secondary: #6366f1;
-    --accent: #22d3ee;
-    --success: #34d399;
+    --background: #0a0e0a;
+    --surface: #0f140f;
+    --surface-elevated: #1a1f1a;
+    --primary: #00C805;
+    --secondary: #00a004;
+    --accent: #00ff08;
+    --success: #00C805;
     --warning: #ffaa00;
     --danger: #ff4444;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --text-muted: #808080;
   }
 
   * {

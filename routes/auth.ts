@@ -157,7 +157,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       // Get user
       const result = await pool.query(
-        'SELECT id, email, tier, broker_type, created_at FROM users WHERE id = $1',
+        'SELECT id, email, tier, created_at FROM users WHERE id = $1',
         [decoded.userId]
       );
 
@@ -165,12 +165,18 @@ export async function authRoutes(fastify: FastifyInstance) {
         return reply.code(404).send({ error: 'User not found' });
       }
 
+      // Get broker type from broker_credentials if exists
+      const brokerResult = await pool.query(
+        'SELECT broker_type FROM broker_credentials WHERE user_id = $1 AND is_active = true LIMIT 1',
+        [decoded.userId]
+      );
+
       const user = result.rows[0];
       reply.send({
         id: user.id,
         email: user.email,
         tier: user.tier,
-        brokerType: user.broker_type,
+        brokerType: brokerResult.rows[0]?.broker_type || null,
         createdAt: user.created_at,
       });
     } catch (error: any) {
@@ -179,6 +185,100 @@ export async function authRoutes(fastify: FastifyInstance) {
       }
       fastify.log.error('Auth me error:', error);
       reply.code(500).send({ error: 'Failed to get user info' });
+    }
+  });
+
+  /**
+   * POST /api/auth/forgot-password
+   * Request password reset email
+   */
+  fastify.post('/api/auth/forgot-password', async (request, reply) => {
+    try {
+      const { email } = request.body as { email: string };
+
+      if (!email) {
+        return reply.code(400).send({ error: 'Email is required' });
+      }
+
+      // Check if user exists (but don't reveal this to the client)
+      const result = await pool.query(
+        'SELECT id FROM users WHERE email = $1',
+        [email.toLowerCase()]
+      );
+
+      // Always return success to prevent email enumeration
+      // In production, this would send an actual email if user exists
+      if (result.rows.length > 0) {
+        // TODO: Generate reset token and send email via Resend
+        fastify.log.info(`Password reset requested for: ${email}`);
+      }
+
+      reply.send({ 
+        success: true, 
+        message: 'If an account exists with this email, you will receive a password reset link.' 
+      });
+    } catch (error: any) {
+      fastify.log.error('Forgot password error:', error);
+      reply.code(500).send({ error: 'Failed to process request' });
+    }
+  });
+
+  /**
+   * PUT /api/auth/change-password
+   * Change password for authenticated user
+   */
+  fastify.put('/api/auth/change-password', async (request, reply) => {
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+
+      const { currentPassword, newPassword } = request.body as {
+        currentPassword: string;
+        newPassword: string;
+      };
+
+      if (!currentPassword || !newPassword) {
+        return reply.code(400).send({ error: 'Current and new password required' });
+      }
+
+      if (newPassword.length < 8) {
+        return reply.code(400).send({ error: 'New password must be at least 8 characters' });
+      }
+
+      // Verify current password
+      const userResult = await pool.query(
+        'SELECT password_hash FROM users WHERE id = $1',
+        [decoded.userId]
+      );
+
+      if (userResult.rows.length === 0) {
+        return reply.code(404).send({ error: 'User not found' });
+      }
+
+      const validPassword = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
+      if (!validPassword) {
+        return reply.code(401).send({ error: 'Current password is incorrect' });
+      }
+
+      // Hash and save new password
+      const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      await pool.query(
+        'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+        [newHash, decoded.userId]
+      );
+
+      reply.send({ success: true, message: 'Password updated successfully' });
+    } catch (error: any) {
+      if (error.name === 'JsonWebTokenError') {
+        return reply.code(401).send({ error: 'Invalid token' });
+      }
+      fastify.log.error('Change password error:', error);
+      reply.code(500).send({ error: 'Failed to change password' });
     }
   });
 

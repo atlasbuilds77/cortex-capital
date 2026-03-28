@@ -1,46 +1,46 @@
 /**
  * Cortex Capital Design System
- * Based on: RecehTok Dark, Fintech UI Kit, Dark Admin Dashboard
+ * Dark theme with Robinhood-style green accents
  */
 
 export const colors = {
   // Background layers
   bg: {
-    base: '#0a0a0f',      // Deepest dark
-    elevated: '#12121a',   // Cards, modals
-    surface: '#1a1a2e',    // Hover states
+    base: '#0a0e0a',       // Deep dark green-black
+    elevated: '#0f140f',   // Cards, modals
+    surface: '#1a1f1a',    // Hover states
   },
 
-  // Primary gradients (purple/blue)
+  // Primary (Robinhood green)
   primary: {
-    from: '#6366f1',       // Indigo
-    via: '#8b5cf6',        // Purple
-    to: '#a855f7',         // Bright purple
+    from: '#00C805',       // Robinhood green
+    via: '#00a004',        // Darker green
+    to: '#00ff08',         // Bright green
   },
 
-  // Accent (cyan/teal)
+  // Accent (bright green)
   accent: {
-    from: '#06b6d4',       // Cyan
-    to: '#14b8a6',         // Teal
-    glow: '#0ea5e9',       // Sky blue glow
+    from: '#00ff08',       // Bright green
+    to: '#00C805',         // Robinhood green
+    glow: '#00ff08',       // Bright green glow
   },
 
   // Status colors
-  success: '#10b981',      // Green
+  success: '#00C805',      // Robinhood green
   warning: '#f59e0b',      // Amber
   danger: '#ef4444',       // Red
-  info: '#3b82f6',         // Blue
+  info: '#00C805',         // Green
 
   // Text
   text: {
     primary: '#ffffff',
-    secondary: '#a0a0b0',
-    muted: '#707085',
+    secondary: '#b3b3b3',
+    muted: '#808080',
   },
 
   // Chart colors
   chart: {
-    positive: '#10b981',
+    positive: '#00C805',
     negative: '#ef4444',
     neutral: '#6b7280',
     gridLines: 'rgba(255, 255, 255, 0.05)',
@@ -48,28 +48,28 @@ export const colors = {
 } as const
 
 export const gradients = {
-  // Primary card gradient
-  card: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)',
+  // Primary card gradient - SOLID COLOR ONLY
+  card: '#1a1f1a',
   
-  // Border glow
-  borderGlow: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
+  // Border glow - SOLID COLOR ONLY
+  borderGlow: '#00C805',
   
-  // Accent gradient
-  accent: 'linear-gradient(135deg, #06b6d4 0%, #14b8a6 100%)',
+  // Accent - SOLID COLOR ONLY
+  accent: '#00ff08',
   
-  // Success/positive
-  positive: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+  // Success/positive - SOLID COLOR ONLY
+  positive: '#00C805',
   
-  // Danger/negative
-  negative: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+  // Danger/negative - SOLID COLOR ONLY
+  negative: '#ef4444',
 } as const
 
 export const shadows = {
   // Glow effects
   glow: {
-    primary: '0 0 20px rgba(139, 92, 246, 0.3), 0 0 40px rgba(139, 92, 246, 0.1)',
-    accent: '0 0 20px rgba(6, 182, 212, 0.3), 0 0 40px rgba(6, 182, 212, 0.1)',
-    success: '0 0 20px rgba(16, 185, 129, 0.3)',
+    primary: '0 0 20px rgba(0, 200, 5, 0.3), 0 0 40px rgba(0, 200, 5, 0.1)',
+    accent: '0 0 20px rgba(0, 255, 8, 0.3), 0 0 40px rgba(0, 255, 8, 0.1)',
+    success: '0 0 20px rgba(0, 200, 5, 0.3)',
     danger: '0 0 20px rgba(239, 68, 68, 0.3)',
   },
   

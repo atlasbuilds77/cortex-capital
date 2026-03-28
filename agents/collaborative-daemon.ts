@@ -17,6 +17,8 @@ import OpenAI from 'openai';
 import * as fs from 'fs';
 import * as path from 'path';
 import { EventEmitter } from 'events';
+import { relationshipMatrix, AgentType, RelationshipEvent } from './relationship-matrix';
+import { recallGate } from './recall-gate';
 
 // Agent definitions with personalities
 const AGENTS = {
@@ -158,11 +160,37 @@ class CollaborativeDaemon {
     const agentInfo = AGENTS[agent];
     const soul = this.loadAgentSoul(agent);
     
+    // Get agent memories via recall gate
+    let memoryContext = '';
+    try {
+      const memories = recallGate.recall(agent.toLowerCase(), context);
+      if (memories) {
+        memoryContext = `\n[YOUR MEMORIES]\n${memories}\n[/YOUR MEMORIES]\nUse these memories to inform your response. Reference past calls when relevant.`;
+      }
+    } catch {}
+
+    // Get relationship context for this agent
+    let relationshipContext = '';
+    try {
+      const agentType = agent as AgentType;
+      const relationships = relationshipMatrix.getAgentRelationships(agentType);
+      if (relationships && relationships.length > 0) {
+        const relSummary = relationships
+          .filter(r => r.label !== 'Cordial') // Only mention non-neutral relationships
+          .slice(0, 3)
+          .map(r => `${r.agent}: ${r.label} (${r.score}/100)`)
+          .join(', ');
+        if (relSummary) {
+          relationshipContext = `\nYour current relationships: ${relSummary}. Let these influence your tone subtly.`;
+        }
+      }
+    } catch {}
+
     const systemPrompt = `You are ${agentInfo.name}, the ${agentInfo.role} at Cortex Capital, an AI-powered hedge fund.
 
 Personality: ${agentInfo.personality}
 
-${soul ? `Your detailed personality and approach:\n${soul}\n` : ''}
+${soul ? `Your detailed personality and approach:\n${soul}\n` : ''}${relationshipContext}${memoryContext}
 
 RULES:
 - Keep responses concise (2-4 sentences max)
@@ -195,9 +223,10 @@ RULES:
 
   private loadAgentSoul(agent: string): string | null {
     try {
-      const soulPath = path.join(__dirname, 'SOULS', `${agent}.soul.md`);
+      const agentName = agent.toLowerCase().replace(/ /g, '_');
+      const soulPath = path.join(__dirname, 'souls', `${agentName}.md`);
       if (fs.existsSync(soulPath)) {
-        return fs.readFileSync(soulPath, 'utf-8').slice(0, 1000); // First 1000 chars
+        return fs.readFileSync(soulPath, 'utf-8').slice(0, 2000); // First 2000 chars for full personality
       }
     } catch {}
     return null;
@@ -315,7 +344,7 @@ RULES:
 
     return this.runDiscussion(
       'Morning Market Briefing',
-      ['ANALYST', 'STRATEGIST', 'DAY_TRADER', 'MOMENTUM', 'RISK'],
+      ['ANALYST', 'STRATEGIST', 'DAY_TRADER', 'MOMENTUM', 'OPTIONS_STRATEGIST', 'RISK', 'GROWTH', 'VALUE'],
       marketContext,
       1
     );
@@ -429,6 +458,18 @@ What worked today? What didn't? What to improve tomorrow?`;
         () => this.discussTradeIdea('QQQ', 'long', 'Momentum breakout above resistance'),
         () => this.discussTradeIdea('SPY', 'short', 'Rejection at key resistance level'),
         () => this.reviewPosition('NVDA', 890, 905, 1500),
+        () => this.runDiscussion(
+          'Investment Opportunities Discussion',
+          ['GROWTH', 'VALUE', 'STRATEGIST', 'RISK'],
+          'Review current portfolio allocation. GROWTH: identify momentum opportunities and sector rotations. VALUE: find undervalued names with strong fundamentals. STRATEGIST: weigh both perspectives. RISK: keep position sizing in check.',
+          2
+        ),
+        () => this.runDiscussion(
+          'Options Strategy Review',
+          ['OPTIONS_STRATEGIST', 'ANALYST', 'RISK', 'EXECUTOR'],
+          'Review any open options positions. Check theta decay, DTE, strike distance from current price. Flag anything that needs attention. Suggest hedges or adjustments.',
+          2
+        ),
       ];
 
       const randomDiscussion = discussionTypes[Math.floor(Math.random() * discussionTypes.length)];

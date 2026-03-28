@@ -52,7 +52,7 @@ export const TRUST_SIGNALS = [
 ]
 
 export const CTA = {
-  primary: "Start Free Trial",
+  primary: "Get Started",
   secondary: "Watch Demo",
   onboarding: {
     continue: "Continue",
@@ -67,19 +67,19 @@ export const CTA = {
 
 export const TESTIMONIALS = [
   {
-    quote: "I sleep better knowing my portfolio is being managed 24/7. The tax-loss harvesting alone paid for itself.",
+    quote: "Been using this for 4 months. Up 14% while my old portfolio just sat there. The tax stuff saves me like $800 a year.",
     author: "Sarah M.",
     role: "Software Engineer",
     verified: true
   },
   {
-    quote: "Finally, options trading that doesn't require a PhD. The agents handle complexity I'd never attempt manually.",
+    quote: "I tried learning options trading for months and gave up. These agents just run it for me. Honestly wish I found this sooner.",
     author: "Marcus T.",
     role: "Product Manager",
     verified: true
   },
   {
-    quote: "Switched from my old robo-advisor. Cortex is leagues ahead - real AI, not just basic rebalancing.",
+    quote: "My last robo-advisor was basically a savings account with extra steps. This actually does something.",
     author: "Jennifer K.",
     role: "Startup Founder",
     verified: true

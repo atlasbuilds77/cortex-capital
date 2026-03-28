@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+
+const FISHTANK_URL = process.env.NEXT_PUBLIC_FISHTANK_URL || 'http://localhost:3002'
 import { useRouter } from 'next/navigation'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
 import { HEADLINES, VALUE_PROPS, TRUST_SIGNALS, CTA, TESTIMONIALS, FAQ } from '@/lib/copy'
@@ -146,20 +148,20 @@ function PricingCard({
     <Card 
       className={`p-8 flex flex-col relative ${
         popular 
-          ? 'before:absolute before:inset-0 before:rounded-2xl before:p-[2px] before:bg-gradient-to-b before:from-primary before:to-secondary before:-z-10' 
+          ? 'ring-2 ring-primary shadow-lg shadow-primary/20' 
           : ''
       }`}
       hover={true}
     >
       {popular && (
-        <div className="absolute -top-px left-1/2 -translate-x-1/2 z-10">
-          <div className="px-4 py-1 bg-gradient-to-r from-primary to-secondary rounded-b-lg text-xs font-semibold text-white">
-            MOST POPULAR
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+          <div className="px-4 py-1.5 bg-primary rounded-full text-xs font-semibold text-black">
+            Most Popular
           </div>
         </div>
       )}
       
-      <h3 className="text-2xl font-semibold mb-2">{name}</h3>
+      <h3 className="text-2xl font-semibold mb-2 text-white">{name}</h3>
       <p className="text-text-secondary text-sm mb-6">{description}</p>
       
       <div className="mb-6">
@@ -183,7 +185,7 @@ function PricingCard({
         disabled={loading}
         className={`w-full py-4 rounded-xl font-semibold transition-all duration-300 ${
           popular 
-            ? 'bg-gradient-to-r from-primary to-secondary text-white hover:shadow-lg hover:shadow-primary/25' 
+            ? 'bg-primary text-black hover:shadow-lg hover:shadow-primary/25 hover:bg-accent' 
             : 'bg-white/[0.05] border border-white/[0.1] hover:bg-white/[0.08] text-white'
         } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
@@ -297,19 +299,6 @@ export default function LandingPage() {
 
   const pricingTiers = [
     {
-      name: "Free",
-      price: 0,
-      description: "See what AI can do for you",
-      features: [
-        "Portfolio overview",
-        "Basic health score",
-        "Weekly market email",
-        "1 analysis per month",
-        "Up to $10k portfolio"
-      ],
-      cta: "Start Free"
-    },
-    {
       name: "Recovery",
       price: 29,
       description: "Get back on track after losses",
@@ -327,11 +316,11 @@ export default function LandingPage() {
       price: 49,
       description: "Perfect for getting started with AI trading",
       features: [
-        "3 AI trading agents",
-        "Basic portfolio rebalancing",
-        "Daily market insights",
-        "Email support",
-        "Up to $25k portfolio"
+        "5 trades/week",
+        "1-2 options/week",
+        "All 7 agents (view signals)",
+        "Health score",
+        "Weekly email"
       ],
       cta: "Start with Scout"
     },
@@ -340,13 +329,13 @@ export default function LandingPage() {
       price: 99,
       description: "For serious traders who want full automation",
       features: [
-        "All 7 AI trading agents",
-        "Tax-loss harvesting",
-        "Options strategies",
-        "Real-time monitoring",
-        "Priority support",
-        "Up to $250k portfolio"
+        "Unlimited trades",
+        "Unlimited options",
+        "All 7 agents (auto-execute)",
+        "Daily alerts",
+        "Priority support"
       ],
+      popular: true,
       cta: "Choose Operator"
     },
     {
@@ -355,13 +344,12 @@ export default function LandingPage() {
       description: "White-glove service for sophisticated investors",
       features: [
         "Everything in Operator",
-        "Custom AI agent tuning",
-        "Dedicated account manager",
-        "API access",
-        "Unlimited portfolio size",
+        "Custom agent tuning",
+        "Monthly strategy call",
+        "Recovery check-ins",
         "Direct Slack support"
       ],
-      popular: true,
+      popular: false,
       cta: "Become a Partner"
     }
   ]
@@ -379,7 +367,7 @@ export default function LandingPage() {
         <nav className="absolute top-0 left-0 right-0 z-50 p-6">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-xl">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-black font-semibold text-xl">
                 C
               </div>
               <span className="text-xl font-semibold">Cortex</span>
@@ -397,7 +385,7 @@ export default function LandingPage() {
               </button>
               <button
                 onClick={() => router.push('/signup')}
-                className="px-5 py-2.5 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all"
+                className="px-5 py-2.5 bg-primary text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 hover:bg-accent transition-all"
               >
                 Get Started
               </button>
@@ -407,20 +395,10 @@ export default function LandingPage() {
 
         {/* Hero Content */}
         <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-elevated border border-white/[0.06] text-sm text-text-secondary"
-          >
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            Now managing $12M+ in client assets
-          </motion.div>
-
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
             className="text-5xl md:text-7xl lg:text-8xl font-semibold leading-tight"
           >
             <span className="text-text-primary">
@@ -435,23 +413,23 @@ export default function LandingPage() {
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
             className="text-xl md:text-2xl text-text-secondary max-w-3xl mx-auto"
           >
-            {HEADLINES.hero.sub}. Automated trading, tax optimization, and portfolio management — all powered by AI agents that never sleep.
+            {HEADLINES.hero.sub}. Automated trading, tax optimization, and portfolio management - all powered by AI agents that never sleep.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.8 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
           >
             <button
               onClick={() => router.push('/signup')}
-              className="group relative px-8 py-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 overflow-hidden"
+              className="group relative px-8 py-4 bg-primary text-black font-semibold rounded-xl hover:shadow-xl hover:shadow-primary/30 hover:bg-accent transition-all duration-300"
             >
-              <span className="relative z-10">{CTA.primary}</span>
+              {CTA.primary}
             </button>
             
             <button
@@ -462,27 +440,8 @@ export default function LandingPage() {
               Try Demo
             </button>
           </motion.div>
-          
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 1 }}
-            className="text-sm text-text-muted"
-          >
-            30-day free trial - No credit card required - Cancel anytime
-          </motion.p>
         </div>
       </motion.section>
-
-      {/* Stats Section */}
-      <AnimatedSection className="py-20 px-6 border-y border-white/[0.06]">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-          <StatNumber value={12} suffix="M+" label="Assets Managed" />
-          <StatNumber value={2500} suffix="+" label="Active Traders" />
-          <StatNumber value={24} suffix="/7" label="AI Monitoring" />
-          <StatNumber value={99.9} suffix="%" label="Uptime" />
-        </div>
-      </AnimatedSection>
 
       {/* Features Section */}
       <AnimatedSection id="features" className="py-24 px-6">
@@ -595,17 +554,18 @@ export default function LandingPage() {
           </div>
           
           <Card className="p-2 md:p-4" hover={false}>
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-background">
+            <div className="relative rounded-xl overflow-hidden bg-background" style={{ height: '600px' }}>
               <iframe
-                src="/fishtank"
+                src={`${FISHTANK_URL}/cortex`}
                 className="w-full h-full border-0"
                 title="Cortex Fish Tank Demo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; webgl; webgl2"
               />
               {/* Overlay for interactivity hint */}
               <div className="absolute bottom-4 right-4">
                 <button
                   onClick={() => router.push('/demo')}
-                  className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white text-sm font-semibold rounded-lg hover:shadow-lg hover:shadow-primary/25 transition-all flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-black text-sm font-semibold rounded-lg hover:shadow-lg hover:shadow-primary/25 hover:bg-accent transition-all flex items-center gap-2"
                 >
                   <span>Open Full Demo</span>
                   <span>→</span>
@@ -641,30 +601,26 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-semibold mb-4">
-              Common Questions
+              Frequently Asked Questions
             </h2>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-8">
             {FAQ.map((faq, idx) => (
-              <motion.details
+              <motion.div
                 key={idx}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
-                className="group"
               >
-                <Card className="overflow-hidden" hover={false}>
-                  <summary className="p-6 font-semibold text-lg cursor-pointer list-none flex justify-between items-center hover:text-primary transition-colors">
-                    {faq.question}
-                    <ChevronDown className="w-5 h-5 text-text-muted group-open:rotate-180 transition-transform duration-300" />
-                  </summary>
-                  <div className="px-6 pb-6 text-text-secondary leading-relaxed border-t border-white/[0.06] pt-4">
-                    {faq.answer}
-                  </div>
-                </Card>
-              </motion.details>
+                <h3 className="text-xl font-semibold text-white mb-3">
+                  {faq.question}
+                </h3>
+                <p className="text-text-secondary leading-relaxed">
+                  {faq.answer}
+                </p>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -683,15 +639,15 @@ export default function LandingPage() {
           </h2>
           
           <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-            Join thousands of investors who've automated their trading with Cortex. Start your free trial today.
+            Join thousands of investors who've automated their trading with Cortex.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
             <button
               onClick={() => router.push('/signup')}
-              className="group relative px-12 py-5 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl text-lg hover:shadow-2xl hover:shadow-primary/30 transition-all duration-300 overflow-hidden"
+              className="group relative px-12 py-5 bg-primary text-black font-semibold rounded-xl text-lg hover:shadow-2xl hover:shadow-primary/30 hover:bg-accent transition-all duration-300"
             >
-              <span className="relative z-10">{CTA.primary}</span>
+              {CTA.primary}
             </button>
           </div>
           
@@ -713,7 +669,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-xl">
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-black font-semibold text-xl">
                   C
                 </div>
                 <span className="text-xl font-semibold">Cortex</span>
@@ -738,7 +694,6 @@ export default function LandingPage() {
               <ul className="space-y-2 text-text-secondary text-sm">
                 <li><button onClick={() => router.push('/about')} className="hover:text-primary transition-colors">About</button></li>
                 <li><button onClick={() => router.push('/contact')} className="hover:text-primary transition-colors">Contact</button></li>
-                <li><button onClick={() => router.push('/careers')} className="hover:text-primary transition-colors">Careers</button></li>
               </ul>
             </div>
             

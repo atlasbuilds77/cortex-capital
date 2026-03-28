@@ -70,7 +70,7 @@ export default function SignupPage() {
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold text-xl">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-black font-semibold text-xl">
             C
           </div>
           <span className="text-2xl font-semibold">Cortex Capital</span>
@@ -135,7 +135,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-primary text-black font-semibold rounded-xl hover:shadow-lg hover:shadow-primary/25 hover:bg-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </button>

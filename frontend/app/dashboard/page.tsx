@@ -81,7 +81,7 @@ export default function DashboardPage() {
       </div>
 
       {/* User Info Banner */}
-      <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-primary/20">
+      <div className="bg-gradient-to-r bg-primary/10 border-b border-primary/20">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <p className="text-sm text-center">
             <strong className="text-primary">Your AI Team:</strong> {' '}

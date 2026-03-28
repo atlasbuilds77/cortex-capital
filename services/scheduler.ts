@@ -19,7 +19,10 @@ export class PortfolioScheduler {
   private timezone: string;
 
   constructor(config: SchedulerConfig) {
-    this.db = new Pool({ connectionString: config.databaseUrl });
+    this.db = new Pool({ 
+      connectionString: config.databaseUrl,
+      ssl: { rejectUnauthorized: false }
+    });
     this.timezone = config.timezone || 'America/Los_Angeles';
 
     logger.info('Portfolio Scheduler initialized', {

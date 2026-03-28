@@ -64,7 +64,7 @@ export default function RecoveryPage() {
             transition={{ delay: 0.2 }}
             className="text-xl md:text-2xl text-gray-400 text-center max-w-3xl mx-auto mb-8"
           >
-            You're not alone. Millions lost their savings. But recovery is possible — 
+            You're not alone. Millions lost their savings. But recovery is possible, 
             with discipline, strategy, and AI that doesn't panic.
           </motion.p>
 
@@ -404,7 +404,7 @@ export default function RecoveryPage() {
           </h2>
           <p className="text-gray-400 text-lg mb-8">
             Every day you wait is a day of potential recovery missed. 
-            Let AI do what humans can't — trade without emotion.
+            Let AI do what humans can't: trade without emotion.
           </p>
           <Link
             href="/signup?plan=recovery"
