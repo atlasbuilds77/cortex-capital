@@ -15,7 +15,7 @@ export const PUT = requireAuth(async (request: NextRequest, user) => {
       );
     }
 
-    const validProfiles = ['conservative', 'moderate', 'aggressive', 'speculative'];
+    const validProfiles = ['conservative', 'moderate', 'aggressive', 'ultra_aggressive'];
     if (!validProfiles.includes(risk_profile)) {
       return NextResponse.json(
         { success: false, error: 'Invalid risk profile' },

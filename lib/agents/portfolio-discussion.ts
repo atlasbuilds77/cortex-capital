@@ -18,6 +18,7 @@ import OpenAI from 'openai';
 import * as fs from 'fs';
 import { collaborativeDaemon, discussionEmitter } from './collaborative-daemon';
 import { query } from '../integrations/database';
+import { getRiskProfilePrompt, getQuickRiskContext, type RiskProfile } from './risk-profile-modifier';
 
 // Alpaca types
 interface Position {
@@ -183,7 +184,14 @@ class PortfolioDiscussionEngine {
     const totalInvested = portfolio.positions.reduce((sum, p) => sum + p.market_value, 0);
     const cashPct = (portfolio.cash / portfolio.portfolio_value * 100).toFixed(1);
 
+    // Get risk profile behavioral guidance
+    const riskProfileGuidance = getRiskProfilePrompt(profile.risk_tolerance as RiskProfile);
+
     return `
+${riskProfileGuidance}
+
+---
+
 PORTFOLIO SNAPSHOT:
 - Total Value: $${portfolio.portfolio_value.toLocaleString()}
 - Cash: $${portfolio.cash.toLocaleString()} (${cashPct}%)

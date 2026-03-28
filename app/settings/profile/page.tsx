@@ -1,32 +1,73 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { api } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 
 interface ProfileData {
   name: string
   email: string
   phone: string
   avatarUrl?: string
+  risk_profile?: string
 }
 
 export default function ProfilePage() {
+  const { user, token, updateUser } = useAuth()
   const [profile, setProfile] = useState<ProfileData>({
-    name: 'Hunter Thompson',
-    email: 'user@example.com',
-    phone: '+1 (424) 515-7194',
+    name: '',
+    email: '',
+    phone: '',
     avatarUrl: undefined,
+    risk_profile: 'moderate',
   })
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Load user data on mount
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        phone: '',
+        avatarUrl: undefined,
+        risk_profile: user.risk_profile || 'moderate',
+      })
+    }
+  }, [user])
+
   const handleSave = async () => {
     setSaving(true)
-    // TODO: API call to update profile
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setSaving(false)
+    setSaved(false)
+    
+    try {
+      const res = await fetch('/api/profile/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: profile.name,
+          phone: profile.phone,
+          risk_profile: profile.risk_profile,
+        }),
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        updateUser({ name: profile.name, risk_profile: profile.risk_profile })
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      }
+    } catch (error) {
+      console.error('Failed to save:', error)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,11 +87,17 @@ export default function ProfilePage() {
       setTimeout(() => setDeleteConfirm(false), 5000)
       return
     }
-    // TODO: API call to delete account
     if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
       alert('Account deletion request submitted. You will receive a confirmation email.')
     }
   }
+
+  const riskProfiles = [
+    { id: 'conservative', label: 'Conservative', desc: 'Preserve capital, minimal risk' },
+    { id: 'moderate', label: 'Moderate', desc: 'Balanced growth and safety' },
+    { id: 'aggressive', label: 'Aggressive', desc: 'Growth-focused, accept volatility' },
+    { id: 'ultra_aggressive', label: 'Ultra Aggressive', desc: 'Maximum returns, high risk' },
+  ]
 
   return (
     <div className="space-y-8">
@@ -58,7 +105,7 @@ export default function ProfilePage() {
       <div>
         <h2 className="text-2xl font-bold hidden lg:block">Profile</h2>
         <p className="text-text-secondary mt-1 hidden lg:block">
-          Manage your personal information
+          Manage your personal information and trading preferences
         </p>
       </div>
 
@@ -115,7 +162,7 @@ export default function ProfilePage() {
         />
       </motion.div>
 
-      {/* Email */}
+      {/* Email (read-only) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -128,13 +175,42 @@ export default function ProfilePage() {
           id="email"
           type="email"
           value={profile.email}
-          onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-          className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:outline-none focus:border-primary transition-colors"
-          placeholder="your@email.com"
+          disabled
+          className="w-full px-4 py-3 bg-background/50 border border-gray-700 rounded-lg text-text-secondary cursor-not-allowed"
         />
         <p className="text-text-secondary text-sm mt-2">
-          Used for account recovery and important notifications
+          Email cannot be changed. Contact support if needed.
         </p>
+      </motion.div>
+
+      {/* Risk Profile */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+      >
+        <label className="block text-sm font-medium mb-2">
+          Risk Profile
+        </label>
+        <p className="text-text-secondary text-sm mb-3">
+          This affects how your AI agents give recommendations
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {riskProfiles.map((rp) => (
+            <button
+              key={rp.id}
+              onClick={() => setProfile({ ...profile, risk_profile: rp.id })}
+              className={`p-4 rounded-lg border text-left transition-all ${
+                profile.risk_profile === rp.id
+                  ? 'border-primary bg-primary/10'
+                  : 'border-gray-700 bg-surface hover:border-gray-600'
+              }`}
+            >
+              <div className="font-medium">{rp.label}</div>
+              <div className="text-sm text-text-secondary">{rp.desc}</div>
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       {/* Phone */}
@@ -164,7 +240,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="flex gap-4"
+        className="flex gap-4 items-center"
       >
         <button
           onClick={handleSave}
@@ -173,6 +249,9 @@ export default function ProfilePage() {
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
+        {saved && (
+          <span className="text-green-400 text-sm">✓ Saved!</span>
+        )}
       </motion.div>
 
       {/* Danger Zone */}
@@ -188,7 +267,7 @@ export default function ProfilePage() {
             <div>
               <h4 className="font-medium mb-1">Delete Account</h4>
               <p className="text-text-secondary text-sm">
-                Permanently delete your account and all associated data. This action cannot be undone.
+                Permanently delete your account and all associated data.
               </p>
             </div>
             <button
@@ -202,15 +281,6 @@ export default function ProfilePage() {
               {deleteConfirm ? 'Confirm Delete' : 'Delete Account'}
             </button>
           </div>
-          {deleteConfirm && (
-            <motion.p
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="text-warning text-sm mt-3"
-            >
-              Click again to confirm deletion. This will expire in 5 seconds.
-            </motion.p>
-          )}
         </div>
       </motion.div>
     </div>
