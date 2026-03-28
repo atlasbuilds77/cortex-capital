@@ -51,3 +51,4 @@ temp/
 # Backups
 *.backup
 *.bak
+.env
