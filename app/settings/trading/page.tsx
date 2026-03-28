@@ -27,7 +27,7 @@ export default function TradingSettingsPage() {
   const [autoExecuteEnabled, setAutoExecuteEnabled] = useState(false)
   const [confirmDisable, setConfirmDisable] = useState(false)
 
-  const tier = user?.tier || 'free'
+  const tier = user?.tier || 'recovery'
   const canExecute = TIER_CAN_EXECUTE[tier] || false
   const features = TIER_FEATURES[tier] || []
 

@@ -81,7 +81,7 @@ export default function DashboardPage() {
   }
   
   const isDemo = portfolio?.source === 'demo'
-  const activeAgents = tier === 'free' ? 1 : tier === 'recovery' ? 3 : tier === 'scout' ? 7 : 10
+  const activeAgents = 10 // All tiers get all 10 agents
   const todayPnL = portfolio?.todayPnL || 0
   const pnlColor = todayPnL >= 0 ? 'text-green-400' : 'text-red-400'
   const pnlSign = todayPnL >= 0 ? '+' : ''
