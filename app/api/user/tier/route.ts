@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getAuthUser } from '@/lib/auth-middleware';
 import { 
   getAgentsForTier, 
   getAllAgentsWithAccess, 
@@ -10,32 +11,19 @@ import {
   type Tier 
 } from '@/lib/tier-agents';
 
-// Get user ID from cookie/session (simplified)
-function getUserIdFromRequest(request: NextRequest): string | null {
-  const authCookie = request.cookies.get('cortex_auth');
-  if (authCookie) {
-    try {
-      const parsed = JSON.parse(authCookie.value);
-      return parsed.userId || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const userId = getUserIdFromRequest(request);
+    // Get user from JWT token in Authorization header
+    const authUser = await getAuthUser(request);
     
     // Default to free tier if not logged in
     let tier: Tier = 'free';
     let user = null;
     
-    if (userId) {
+    if (authUser?.userId) {
       const result = await query(
         'SELECT id, email, tier, subscription_status FROM users WHERE id = $1',
-        [userId]
+        [authUser.userId]
       );
       
       if (result.rows.length > 0) {
