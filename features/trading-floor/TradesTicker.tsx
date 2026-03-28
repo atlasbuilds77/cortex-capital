@@ -13,25 +13,52 @@ interface Trade {
   timestamp: string;
 }
 
-export function TradesTicker() {
+interface TradesTickerProps {
+  context?: "demo" | "dashboard";
+}
+
+export function TradesTicker({ context = "demo" }: TradesTickerProps) {
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [source, setSource] = useState<string>("loading");
 
   useEffect(() => {
     const fetchTrades = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/fishtank/trades`);
-        if (res.ok) setTrades(await res.json());
+        // Use user-aware endpoint for dashboard, demo endpoint for demo
+        const endpoint = context === "dashboard" 
+          ? `${API_BASE}/api/user/trades`
+          : `${API_BASE}/api/fishtank/trades`;
+          
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          // Handle both formats (user endpoint returns {source, trades}, demo returns array)
+          if (Array.isArray(data)) {
+            setTrades(data);
+            setSource("demo");
+          } else {
+            setTrades(data.trades || []);
+            setSource(data.source || "unknown");
+          }
+        }
       } catch {}
     };
     fetchTrades();
-    const interval = setInterval(fetchTrades, 60000); // Refresh every min
+    const interval = setInterval(fetchTrades, 30000); // Refresh every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [context]);
 
   if (trades.length === 0) return null;
 
   return (
     <div className="absolute bottom-12 left-0 right-0 z-20 overflow-hidden pointer-events-none">
+      {/* Source indicator */}
+      {source === "user" && (
+        <div className="absolute -top-5 left-4 text-[9px] text-green-400/60 uppercase tracking-wider">
+          ● Live Trades
+        </div>
+      )}
+      
       <div className="animate-marquee flex gap-8 whitespace-nowrap">
         {[...trades, ...trades].map((trade, i) => (
           <span

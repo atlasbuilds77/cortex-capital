@@ -35,3 +35,11 @@ export function requireAuth(handler: (request: NextRequest, user: AuthenticatedU
     return handler(request, user);
   };
 }
+
+/**
+ * Get authenticated user without requiring auth (returns null if not authenticated)
+ * Useful for endpoints that work for both authenticated and anonymous users
+ */
+export async function getAuthUser(request: NextRequest): Promise<AuthenticatedUser | null> {
+  return authenticate(request);
+}

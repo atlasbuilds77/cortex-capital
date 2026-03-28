@@ -29,10 +29,10 @@ export default function DemoPage() {
       </Link>
 
       {/* P&L Stats */}
-      <PnlOverlay />
+      <PnlOverlay context="demo" />
 
       {/* Trade ticker tape */}
-      <TradesTicker />
+      <TradesTicker context="demo" />
     </div>
   )
 }
