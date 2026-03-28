@@ -1419,16 +1419,7 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 
 async function start() {
   try {
-    // Serve static frontend files (Next.js build) - PRODUCTION ONLY
-    if (process.env.NODE_ENV === 'production') {
-      const frontendPath = path.join(__dirname, 'frontend', 'out');
-      server.register(fastifyStatic, {
-        root: frontendPath,
-        prefix: '/',
-      });
-    }
-
-    // Register API routes
+    // Register API routes FIRST (they have specific paths like /api/*)
     server.register(authRoutes);
     server.register(paymentRoutes);
     server.register(oauthRoutes);
@@ -1439,6 +1430,35 @@ async function start() {
     server.register(userRoutes);
     server.register(brokerOAuthRoutes);
     server.register(userPortfolioRoutes);
+    
+    // Serve static frontend files LAST (Next.js build) - PRODUCTION ONLY
+    // This acts as a catch-all for non-API routes
+    if (process.env.NODE_ENV === 'production') {
+      const frontendPath = path.join(__dirname, 'frontend', 'out');
+      
+      // Check if frontend build exists
+      const fs = await import('fs');
+      if (fs.existsSync(frontendPath)) {
+        server.register(fastifyStatic, {
+          root: frontendPath,
+          prefix: '/',
+          decorateReply: false, // Don't conflict with API routes
+        });
+        
+        // Fallback to index.html for SPA routing
+        server.setNotFoundHandler(async (request, reply) => {
+          // Don't serve index for API routes
+          if (request.url.startsWith('/api/')) {
+            return reply.code(404).send({ error: 'API route not found' });
+          }
+          return reply.sendFile('index.html');
+        });
+        
+        console.log(`\n📁 Serving frontend from ${frontendPath}`);
+      } else {
+        console.log(`\n⚠️  Frontend build not found at ${frontendPath}`);
+      }
+    }
     
     // Start server
     await server.listen({ port: PORT, host: '0.0.0.0' });
