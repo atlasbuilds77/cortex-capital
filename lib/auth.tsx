@@ -33,18 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const savedToken = localStorage.getItem('cortex_token')
-    const savedUser = localStorage.getItem('cortex_user')
     
     if (savedToken) {
       setToken(savedToken)
-      if (savedUser) {
-        try {
-          setUser(JSON.parse(savedUser))
-        } catch {
-          // Corrupted user data
-        }
-      }
-      // Validate token with backend
+      // Always fetch fresh user data from server (don't trust localStorage cache)
       fetchCurrentUser(savedToken)
     } else {
       setLoading(false)
