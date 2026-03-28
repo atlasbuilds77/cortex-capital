@@ -5040,9 +5040,9 @@ export function RetroOffice3D({
 
       {/* Title — top center overlay. */}
       {!immersiveOverlayActive ? (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 pointer-events-none select-none z-10">
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 pointer-events-none select-none z-10">
           <div className="h-px w-12 bg-gradient-to-r from-transparent to-amber-500/40" />
-          <span className="text-sm tracking-[0.3em] text-amber-300/80 font-bold uppercase">
+          <span className="text-base tracking-[0.3em] text-amber-300/90 font-bold uppercase drop-shadow-lg">
             {officeTitle}
           </span>
           <div className="h-px w-12 bg-gradient-to-l from-transparent to-amber-500/40" />
@@ -5051,7 +5051,7 @@ export function RetroOffice3D({
 
       {/* Agent roster — compact top summary. */}
       {!immersiveOverlayActive ? (
-        <div className="absolute top-10 left-1/2 z-20 -translate-x-1/2">
+        <div className="absolute top-14 left-1/2 z-20 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-amber-900/25 bg-[#1c1610]/92 px-2 py-2 shadow-lg backdrop-blur-sm">
             <div className="flex items-center -space-x-1.5">
               {compactRosterAgents.map((agent) => {
