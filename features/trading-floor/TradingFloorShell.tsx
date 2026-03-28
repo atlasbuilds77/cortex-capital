@@ -232,48 +232,106 @@ export function TradingFloorShell({
     return () => unsubscribe();
   }, [canSeeAgent]);
 
-  // Sims-like idle behavior - only for non-locked agents
+  // Sims-like idle behavior - make agents feel ALIVE
   useEffect(() => {
     const activeAgentIds = agents.filter(a => !lockedAgents.has(a.id)).map(a => a.id);
     if (activeAgentIds.length === 0) return;
     
-    const lastChange: Record<string, number> = {};
-    activeAgentIds.forEach(id => { lastChange[id] = 0; });
+    // Track each agent's current activity and duration
+    const agentState: Record<string, { activity: string; since: number; duration: number }> = {};
+    
+    // Initialize - spread agents across activities
+    activeAgentIds.forEach((id, i) => {
+      const activities = ['desk', 'desk', 'desk', 'gym', 'phoneBooth', 'smsBooth', 'desk', 'desk'];
+      const activity = activities[i % activities.length];
+      const duration = 10000 + Math.random() * 20000; // 10-30 seconds per activity
+      agentState[id] = { activity, since: Date.now(), duration };
+    });
 
-    const assignActivity = (agentId: string) => {
-      const now = Date.now();
-      if (now - (lastChange[agentId] || 0) < 8000) return;
-      lastChange[agentId] = now;
-
-      const roll = Math.random();
-      let activity: string;
-      if (roll < 0.55) activity = 'desk';
-      else if (roll < 0.70) activity = 'gym';
-      else if (roll < 0.85) activity = 'phoneBooth';
-      else activity = 'smsBooth';
-      
+    const applyActivity = (agentId: string, activity: string) => {
       setAnimationState(prev => ({
         ...prev,
         gymHoldByAgentId: { ...prev.gymHoldByAgentId, [agentId]: activity === 'gym' },
         phoneBoothHoldByAgentId: { ...prev.phoneBoothHoldByAgentId, [agentId]: activity === 'phoneBooth' },
         smsBoothHoldByAgentId: { ...prev.smsBoothHoldByAgentId, [agentId]: activity === 'smsBooth' },
         deskHoldByAgentId: { ...prev.deskHoldByAgentId, [agentId]: activity === 'desk' },
+        workingUntilByAgentId: { 
+          ...prev.workingUntilByAgentId, 
+          [agentId]: activity === 'desk' ? Date.now() + 30000 : 0 
+        },
       }));
+      
+      // Also update agent status for visual feedback
+      setAgents(prev => prev.map(a => 
+        a.id === agentId 
+          ? { ...a, status: activity === 'desk' ? 'working' : 'idle' }
+          : a
+      ));
     };
 
+    // Initial assignment with stagger
     activeAgentIds.forEach((id, i) => {
-      setTimeout(() => assignActivity(id), 1000 + i * 1200);
+      setTimeout(() => {
+        applyActivity(id, agentState[id].activity);
+      }, 500 + i * 300);
     });
 
-    const idleLoop = setInterval(() => {
-      if (Math.random() < 0.5 && activeAgentIds.length > 0) {
-        const agentId = activeAgentIds[Math.floor(Math.random() * activeAgentIds.length)];
-        assignActivity(agentId);
-      }
-    }, 3000);
+    // Main simulation loop - check every 2 seconds
+    const simLoop = setInterval(() => {
+      const now = Date.now();
+      
+      activeAgentIds.forEach(agentId => {
+        const state = agentState[agentId];
+        if (!state) return;
+        
+        // Check if agent should switch activities
+        if (now - state.since > state.duration) {
+          // Pick new activity (weighted: desk is most common)
+          const roll = Math.random();
+          let newActivity: string;
+          
+          // Don't pick the same activity twice in a row (usually)
+          if (roll < 0.50) {
+            newActivity = 'desk'; // 50% chance desk
+          } else if (roll < 0.65) {
+            newActivity = state.activity === 'gym' ? 'desk' : 'gym'; // 15% gym
+          } else if (roll < 0.80) {
+            newActivity = state.activity === 'phoneBooth' ? 'desk' : 'phoneBooth'; // 15% phone
+          } else if (roll < 0.92) {
+            newActivity = state.activity === 'smsBooth' ? 'desk' : 'smsBooth'; // 12% SMS
+          } else {
+            // 8% chance to just wander (clear all holds briefly)
+            newActivity = 'wander';
+          }
+          
+          // Update state
+          agentState[agentId] = {
+            activity: newActivity,
+            since: now,
+            duration: newActivity === 'wander' 
+              ? 3000 + Math.random() * 5000  // Wander for 3-8 seconds
+              : 12000 + Math.random() * 25000 // Normal activity 12-37 seconds
+          };
+          
+          // Apply the activity
+          if (newActivity === 'wander') {
+            // Clear all holds - agent will walk around
+            setAnimationState(prev => ({
+              ...prev,
+              gymHoldByAgentId: { ...prev.gymHoldByAgentId, [agentId]: false },
+              phoneBoothHoldByAgentId: { ...prev.phoneBoothHoldByAgentId, [agentId]: false },
+              smsBoothHoldByAgentId: { ...prev.smsBoothHoldByAgentId, [agentId]: false },
+              deskHoldByAgentId: { ...prev.deskHoldByAgentId, [agentId]: false },
+            }));
+          } else {
+            applyActivity(agentId, newActivity);
+          }
+        }
+      });
+    }, 2000);
 
-    return () => clearInterval(idleLoop);
-  }, [agents, lockedAgents]);
+    return () => clearInterval(simLoop);
+  }, [agents.length, lockedAgents.size]); // Only re-run if agent count changes
 
   const triggerDiscussion = async (type: string, params?: Record<string, any>) => {
     try {
