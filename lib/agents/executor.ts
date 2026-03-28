@@ -19,6 +19,7 @@ import {
   ExternalAPIError,
   withRetry,
 } from '../errors';
+import { notifyTradeExecution } from '../notifications/trade-notifier';
 
 export interface ExecutionConfig {
   dry_run: boolean; // Simulate execution without placing real orders
@@ -258,6 +259,21 @@ export class TradeExecutor {
         // Mark as executed for idempotency
         if (result.status === 'filled' || result.status === 'partial') {
           this.markTradeExecuted(idempotencyKey);
+          
+          // Send notification
+          try {
+            await notifyTradeExecution({
+              userId,
+              symbol: trade.ticker,
+              action: trade.action as 'buy' | 'sell',
+              quantity: result.filled_quantity,
+              price: result.average_price,
+              reason: trade.rationale || 'Agent decision',
+              isStopLoss: trade.reason?.includes('stop') || trade.reason?.includes('Stop'),
+            });
+          } catch (notifyErr) {
+            console.error('[EXECUTOR] Failed to send notification:', notifyErr);
+          }
         }
         
         // Add delay between trades if configured

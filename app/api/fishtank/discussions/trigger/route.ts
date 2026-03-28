@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             }
           }
           
-          await portfolioDiscussionEngine.discussPortfolio(reviewPortfolio, userPrefs);
+          await portfolioDiscussionEngine.discussPortfolio(reviewPortfolio, userPrefs, undefined, userId);
         }
         return NextResponse.json({ 
           success: true, 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             risk_tolerance: params?.risk_tolerance || 'moderate',
             investment_horizon: params?.horizon || 'medium',
             goals: params?.goals || ['Growth']
-          }, 'risk');
+          }, 'risk', userId);
         }
         return NextResponse.json({ 
           success: true, 
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
             risk_tolerance: params?.risk_tolerance || 'aggressive',
             investment_horizon: params?.horizon || 'medium',
             goals: params?.goals || ['Growth', 'Alpha']
-          }, 'opportunities');
+          }, 'opportunities', userId);
         }
         return NextResponse.json({ 
           success: true, 

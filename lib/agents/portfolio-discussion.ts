@@ -215,7 +215,8 @@ ${profile.excluded_sectors ? `- Excluded Sectors: ${profile.excluded_sectors.joi
   async discussPortfolio(
     portfolio: PortfolioData,
     profile: UserProfile,
-    focusArea?: 'rebalancing' | 'risk' | 'opportunities' | 'performance'
+    focusArea?: 'rebalancing' | 'risk' | 'opportunities' | 'performance',
+    userId?: string
   ): Promise<void> {
     const context = this.formatPortfolioContext(portfolio, profile);
     
@@ -254,8 +255,8 @@ ${profile.excluded_sectors ? `- Excluded Sectors: ${profile.excluded_sectors.joi
         participants = ['ANALYST', 'STRATEGIST', 'RISK', 'GROWTH'];
     }
 
-    // Use the collaborative daemon to run the discussion
-    await collaborativeDaemon.runDiscussion(topic, participants as any, prompt, 2);
+    // Use the collaborative daemon to run the discussion with userId for preferences
+    await collaborativeDaemon.runDiscussion(topic, participants as any, prompt, 2, userId);
   }
 
   /**

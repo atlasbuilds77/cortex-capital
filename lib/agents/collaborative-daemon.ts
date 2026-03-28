@@ -20,6 +20,8 @@ import { EventEmitter } from 'events';
 import { relationshipMatrix, AgentType, RelationshipEvent } from './relationship-matrix';
 import { recallGate } from './recall-gate';
 import { query } from '../db';
+import { getMarketContextForAgents } from './data/market-data';
+import { loadUserPreferences, generatePreferencesContext, UserPreferences } from './user-preferences-context';
 
 // Agent definitions with personalities
 const AGENTS = {
@@ -283,8 +285,30 @@ RULES:
     topic: string,
     participants: (keyof typeof AGENTS)[],
     context: string,
-    rounds: number = 2
+    rounds: number = 2,
+    userId?: string
   ): Promise<Discussion> {
+    // Inject real market data and user preferences
+    let enrichedContext = context;
+    
+    try {
+      const marketContext = await getMarketContextForAgents();
+      enrichedContext = `${marketContext}\n\n${context}`;
+    } catch (err) {
+      console.error('[CollaborativeDaemon] Failed to get market data:', err);
+    }
+
+    if (userId) {
+      try {
+        const prefs = await loadUserPreferences(userId);
+        if (prefs) {
+          const prefsContext = generatePreferencesContext(prefs);
+          enrichedContext = `USER PREFERENCES:\n${prefsContext}\n\n${enrichedContext}`;
+        }
+      } catch (err) {
+        console.error('[CollaborativeDaemon] Failed to load user preferences:', err);
+      }
+    }
     const discussion: Discussion = {
       id: this.generateId(),
       topic,
@@ -302,9 +326,9 @@ RULES:
     console.log(`Participants: ${participants.join(', ')}`);
     console.log(`${'='.repeat(60)}\n`);
 
-    // First agent kicks off
+    // First agent kicks off with enriched context
     const firstAgent = participants[0];
-    const firstContent = await this.agentSpeak(firstAgent, context);
+    const firstContent = await this.agentSpeak(firstAgent, enrichedContext);
     let lastMessage = this.createMessage(firstAgent, firstContent, discussion);
 
     // Others respond in rounds
