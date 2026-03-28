@@ -2,40 +2,87 @@
 
 import { motion } from 'framer-motion'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react'
-import { useState } from 'react'
+import { TrendingUp, TrendingDown, Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Loader2, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/auth'
 
-// Mock portfolio data
-const holdings = [
-  { symbol: 'NVDA', name: 'NVIDIA Corp', shares: 45, price: 875.28, avgCost: 650.00, value: 39387.60, change: 34.66, sector: 'Technology' },
-  { symbol: 'MSFT', name: 'Microsoft', shares: 30, price: 422.45, avgCost: 380.00, value: 12673.50, change: 11.17, sector: 'Technology' },
-  { symbol: 'GOOGL', name: 'Alphabet', shares: 25, price: 156.89, avgCost: 140.00, value: 3922.25, change: 12.06, sector: 'Technology' },
-  { symbol: 'JPM', name: 'JP Morgan', shares: 50, price: 198.34, avgCost: 175.00, value: 9917.00, change: 13.34, sector: 'Finance' },
-  { symbol: 'XOM', name: 'Exxon Mobil', shares: 75, price: 118.56, avgCost: 105.00, value: 8892.00, change: 12.91, sector: 'Energy' },
-  { symbol: 'JNJ', name: 'Johnson & Johnson', shares: 40, price: 156.78, avgCost: 160.00, value: 6271.20, change: -2.01, sector: 'Healthcare' },
-  { symbol: 'UNH', name: 'UnitedHealth', shares: 15, price: 492.34, avgCost: 450.00, value: 7385.10, change: 9.41, sector: 'Healthcare' },
-  { symbol: 'AMZN', name: 'Amazon', shares: 55, price: 178.92, avgCost: 155.00, value: 9840.60, change: 15.43, sector: 'Technology' },
-]
+interface Position {
+  symbol: string
+  quantity: number
+  averageCost: number
+  currentPrice: number
+  todayChange: number
+  unrealizedPnL: number
+}
 
-const sectorData = [
-  { name: 'Technology', value: 65823.95, color: '#00D4AA', percentage: 66.3 },
-  { name: 'Healthcare', value: 13656.30, color: '#7C3AED', percentage: 13.8 },
-  { name: 'Finance', value: 9917.00, color: '#F59E0B', percentage: 10.0 },
-  { name: 'Energy', value: 8892.00, color: '#EF4444', percentage: 9.0 },
-  { name: 'Cash', value: 877.64, color: '#6B7280', percentage: 0.9 },
-]
-
-const totalValue = holdings.reduce((sum, h) => sum + h.value, 0) + 877.64
-const totalCost = holdings.reduce((sum, h) => sum + (h.shares * h.avgCost), 0)
-const totalGain = totalValue - totalCost
-const totalGainPercent = ((totalGain / totalCost) * 100)
+interface PortfolioData {
+  source: string
+  accountValue: number
+  buyingPower: number
+  todayPnL: number
+  openPositions: number
+  positions: Position[]
+}
 
 export default function PortfolioPage() {
+  const { token } = useAuth()
+  const [portfolio, setPortfolio] = useState<PortfolioData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
-  
-  const filteredHoldings = selectedSector 
-    ? holdings.filter(h => h.sector === selectedSector)
-    : holdings
+
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      try {
+        const res = await fetch('/api/user/portfolio', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (!res.ok) throw new Error('Failed to fetch portfolio')
+        const data = await res.json()
+        setPortfolio(data)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPortfolio()
+  }, [token])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error || !portfolio) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-danger mx-auto mb-4" />
+          <p className="text-text-secondary">{error || 'Failed to load portfolio'}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const { positions, accountValue, buyingPower, todayPnL } = portfolio
+  const totalCost = positions.reduce((sum, p) => sum + (p.quantity * p.averageCost), 0)
+  const totalGain = positions.reduce((sum, p) => sum + p.unrealizedPnL, 0)
+  const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0
+  const cashBalance = buyingPower
+
+  // Calculate sector data (simplified - just use "Equity" for now since we don't have sector info)
+  const investedValue = positions.reduce((sum, p) => sum + (p.quantity * p.currentPrice), 0)
+  const cashPercent = accountValue > 0 ? (cashBalance / accountValue) * 100 : 0
+  const equityPercent = 100 - cashPercent
+
+  const sectorData = [
+    { name: 'Equity', value: investedValue, color: '#00D4AA', percentage: equityPercent.toFixed(1) },
+    { name: 'Cash', value: cashBalance, color: '#6B7280', percentage: cashPercent.toFixed(1) },
+  ]
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
@@ -48,16 +95,18 @@ export default function PortfolioPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-text-primary">Portfolio</h1>
-            <p className="text-text-secondary mt-1">Your holdings breakdown and allocation</p>
+            <p className="text-text-secondary mt-1">
+              {portfolio.source === 'demo' ? '📊 Demo Account (Alpaca Paper)' : 'Live Portfolio'}
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-4 py-2 bg-surface-elevated rounded-lg text-text-secondary hover:text-text-primary transition-colors border border-gray-700"
-            >
-              Export CSV
-            </motion.button>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              portfolio.source === 'demo' 
+                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                : 'bg-green-500/20 text-green-400 border border-green-500/30'
+            }`}>
+              {portfolio.source === 'demo' ? 'DEMO' : 'LIVE'}
+            </span>
           </div>
         </div>
 
@@ -75,7 +124,9 @@ export default function PortfolioPage() {
                 <Wallet size={18} />
                 <span className="text-sm font-medium">Total Value</span>
               </div>
-              <p className="text-2xl font-bold text-text-primary">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+              <p className="text-2xl font-bold text-text-primary">
+                ${accountValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
             </div>
           </motion.div>
 
@@ -85,14 +136,18 @@ export default function PortfolioPage() {
             transition={{ delay: 0.15 }}
             className="p-5 bg-surface rounded-xl border border-gray-700 relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-green-600/5 pointer-events-none" />
+            <div className={`absolute inset-0 ${totalGain >= 0 ? 'bg-green-600/5' : 'bg-red-600/5'} pointer-events-none`} />
             <div className="relative">
               <div className="flex items-center gap-2 text-text-secondary mb-2">
-                <TrendingUp size={18} />
-                <span className="text-sm font-medium">Total Gain</span>
+                {totalGain >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                <span className="text-sm font-medium">Unrealized P&L</span>
               </div>
-              <p className="text-2xl font-bold text-success">+${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-              <p className="text-sm text-success mt-1">+{totalGainPercent.toFixed(2)}%</p>
+              <p className={`text-2xl font-bold ${totalGain >= 0 ? 'text-success' : 'text-danger'}`}>
+                {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className={`text-sm mt-1 ${totalGain >= 0 ? 'text-success' : 'text-danger'}`}>
+                {totalGain >= 0 ? '+' : ''}{totalGainPercent.toFixed(2)}%
+              </p>
             </div>
           </motion.div>
 
@@ -108,7 +163,7 @@ export default function PortfolioPage() {
                 <BarChart3 size={18} />
                 <span className="text-sm font-medium">Positions</span>
               </div>
-              <p className="text-2xl font-bold text-text-primary">{holdings.length}</p>
+              <p className="text-2xl font-bold text-text-primary">{positions.length}</p>
               <p className="text-sm text-text-secondary mt-1">Active holdings</p>
             </div>
           </motion.div>
@@ -123,15 +178,16 @@ export default function PortfolioPage() {
             <div className="relative">
               <div className="flex items-center gap-2 text-text-secondary mb-2">
                 <Wallet size={18} />
-                <span className="text-sm font-medium">Cash Balance</span>
+                <span className="text-sm font-medium">Buying Power</span>
               </div>
-              <p className="text-2xl font-bold text-text-primary">$877.64</p>
-              <p className="text-sm text-text-secondary mt-1">0.9% of portfolio</p>
+              <p className="text-2xl font-bold text-text-primary">
+                ${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
             </div>
           </motion.div>
         </div>
 
-        {/* Allocation Chart and Sector Breakdown */}
+        {/* Allocation Chart and Top Performers */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
           <motion.div
@@ -140,7 +196,7 @@ export default function PortfolioPage() {
             transition={{ delay: 0.3 }}
             className="p-6 bg-surface rounded-xl border border-gray-700"
           >
-            <h2 className="text-lg font-semibold text-text-primary mb-4">Allocation by Sector</h2>
+            <h2 className="text-lg font-semibold text-text-primary mb-4">Allocation</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -152,17 +208,9 @@ export default function PortfolioPage() {
                     outerRadius={90}
                     paddingAngle={3}
                     dataKey="value"
-                    onClick={(data) => setSelectedSector(selectedSector === data.name ? null : data.name)}
-                    style={{ cursor: 'pointer' }}
                   >
                     {sectorData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.color}
-                        opacity={selectedSector && selectedSector !== entry.name ? 0.3 : 1}
-                        stroke={selectedSector === entry.name ? '#fff' : 'transparent'}
-                        strokeWidth={2}
-                      />
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -179,19 +227,11 @@ export default function PortfolioPage() {
             </div>
             <div className="mt-4 flex flex-wrap gap-3 justify-center">
               {sectorData.map((sector) => (
-                <button
-                  key={sector.name}
-                  onClick={() => setSelectedSector(selectedSector === sector.name ? null : sector.name)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all ${
-                    selectedSector === sector.name
-                      ? 'bg-surface-elevated border border-primary'
-                      : 'bg-surface-elevated/50 border border-transparent hover:border-gray-600'
-                  }`}
-                >
+                <div key={sector.name} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-elevated/50 text-sm">
                   <span className="w-3 h-3 rounded-full" style={{ backgroundColor: sector.color }} />
                   <span className="text-text-secondary">{sector.name}</span>
                   <span className="text-text-primary font-medium">{sector.percentage}%</span>
-                </button>
+                </div>
               ))}
             </div>
           </motion.div>
@@ -203,42 +243,52 @@ export default function PortfolioPage() {
             transition={{ delay: 0.35 }}
             className="p-6 bg-surface rounded-xl border border-gray-700"
           >
-            <h2 className="text-lg font-semibold text-text-primary mb-4">Performance Leaders</h2>
+            <h2 className="text-lg font-semibold text-text-primary mb-4">Performance</h2>
             <div className="space-y-3">
-              {[...holdings]
-                .sort((a, b) => b.change - a.change)
+              {[...positions]
+                .sort((a, b) => b.unrealizedPnL - a.unrealizedPnL)
                 .slice(0, 5)
-                .map((holding, index) => (
-                  <motion.div
-                    key={holding.symbol}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + index * 0.05 }}
-                    className="flex items-center justify-between p-3 bg-surface-elevated rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        holding.change >= 0 ? 'bg-success/20' : 'bg-danger/20'
-                      }`}>
-                        {holding.change >= 0 ? (
-                          <ArrowUpRight className="text-success" size={18} />
-                        ) : (
-                          <ArrowDownRight className="text-danger" size={18} />
-                        )}
+                .map((position, index) => {
+                  const pnlPercent = position.averageCost > 0 
+                    ? ((position.currentPrice - position.averageCost) / position.averageCost) * 100
+                    : 0
+                  return (
+                    <motion.div
+                      key={position.symbol}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + index * 0.05 }}
+                      className="flex items-center justify-between p-3 bg-surface-elevated rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          position.unrealizedPnL >= 0 ? 'bg-success/20' : 'bg-danger/20'
+                        }`}>
+                          {position.unrealizedPnL >= 0 ? (
+                            <ArrowUpRight className="text-success" size={18} />
+                          ) : (
+                            <ArrowDownRight className="text-danger" size={18} />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium text-text-primary">{position.symbol}</p>
+                          <p className="text-xs text-text-secondary">{position.quantity} shares</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-text-primary">{holding.symbol}</p>
-                        <p className="text-xs text-text-secondary">{holding.name}</p>
+                      <div className="text-right">
+                        <p className={`font-medium ${position.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {position.unrealizedPnL >= 0 ? '+' : ''}${position.unrealizedPnL.toFixed(2)}
+                        </p>
+                        <p className={`text-xs ${pnlPercent >= 0 ? 'text-success' : 'text-danger'}`}>
+                          {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+                        </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium ${holding.change >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {holding.change >= 0 ? '+' : ''}{holding.change.toFixed(2)}%
-                      </p>
-                      <p className="text-xs text-text-secondary">${holding.value.toLocaleString()}</p>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  )
+                })}
+              {positions.length === 0 && (
+                <p className="text-text-secondary text-center py-8">No positions</p>
+              )}
             </div>
           </motion.div>
         </div>
@@ -251,120 +301,111 @@ export default function PortfolioPage() {
           className="bg-surface rounded-xl border border-gray-700 overflow-hidden"
         >
           <div className="p-4 sm:p-6 border-b border-gray-700">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <h2 className="text-lg font-semibold text-text-primary">
-                Holdings {selectedSector && `- ${selectedSector}`}
-              </h2>
-              {selectedSector && (
-                <button
-                  onClick={() => setSelectedSector(null)}
-                  className="text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  Clear filter
-                </button>
-              )}
-            </div>
+            <h2 className="text-lg font-semibold text-text-primary">Holdings</h2>
           </div>
           
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-surface-elevated">
-                <tr>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Asset</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Shares</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Price</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Avg Cost</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Value</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">P&L</th>
-                  <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Sector</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {filteredHoldings.map((holding, index) => {
-                  const pl = (holding.price - holding.avgCost) * holding.shares
+          {positions.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-text-secondary">No positions in portfolio</p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-surface-elevated">
+                    <tr>
+                      <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Symbol</th>
+                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Shares</th>
+                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Price</th>
+                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Avg Cost</th>
+                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Value</th>
+                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">P&L</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {positions.map((position, index) => {
+                      const value = position.quantity * position.currentPrice
+                      const pnlPercent = position.averageCost > 0 
+                        ? ((position.currentPrice - position.averageCost) / position.averageCost) * 100
+                        : 0
+                      return (
+                        <motion.tr
+                          key={position.symbol}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.45 + index * 0.03 }}
+                          className="hover:bg-surface-elevated/50 transition-colors"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
+                                <span className="font-bold text-primary text-sm">{position.symbol.slice(0, 2)}</span>
+                              </div>
+                              <p className="font-medium text-text-primary">{position.symbol}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right text-text-primary">{position.quantity}</td>
+                          <td className="px-6 py-4 text-right text-text-primary">${position.currentPrice.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-text-secondary">${position.averageCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right font-medium text-text-primary">${value.toLocaleString()}</td>
+                          <td className="px-6 py-4 text-right">
+                            <span className={`font-medium ${position.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
+                              {position.unrealizedPnL >= 0 ? '+' : ''}${position.unrealizedPnL.toFixed(2)}
+                            </span>
+                            <span className={`block text-xs ${pnlPercent >= 0 ? 'text-success' : 'text-danger'}`}>
+                              {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+                            </span>
+                          </td>
+                        </motion.tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden p-4 space-y-3">
+                {positions.map((position, index) => {
+                  const value = position.quantity * position.currentPrice
+                  const pnlPercent = position.averageCost > 0 
+                    ? ((position.currentPrice - position.averageCost) / position.averageCost) * 100
+                    : 0
                   return (
-                    <motion.tr
-                      key={holding.symbol}
+                    <motion.div
+                      key={position.symbol}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.45 + index * 0.03 }}
-                      className="hover:bg-surface-elevated/50 transition-colors"
+                      className="p-4 bg-surface-elevated rounded-lg"
                     >
-                      <td className="px-6 py-4">
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
-                            <span className="font-bold text-primary text-sm">{holding.symbol.slice(0, 2)}</span>
+                            <span className="font-bold text-purple-400 text-sm">{position.symbol.slice(0, 2)}</span>
                           </div>
                           <div>
-                            <p className="font-medium text-text-primary">{holding.symbol}</p>
-                            <p className="text-xs text-text-secondary">{holding.name}</p>
+                            <p className="font-medium text-text-primary">{position.symbol}</p>
+                            <p className="text-xs text-text-secondary">{position.quantity} shares</p>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-text-primary">{holding.shares}</td>
-                      <td className="px-6 py-4 text-right text-text-primary">${holding.price.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right text-text-secondary">${holding.avgCost.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-right font-medium text-text-primary">${holding.value.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right">
-                        <span className={`font-medium ${pl >= 0 ? 'text-success' : 'text-danger'}`}>
-                          {pl >= 0 ? '+' : ''}${pl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                        <span className={`block text-xs ${holding.change >= 0 ? 'text-success' : 'text-danger'}`}>
-                          {holding.change >= 0 ? '+' : ''}{holding.change.toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span className="px-2 py-1 text-xs rounded-full bg-surface-elevated text-text-secondary">
-                          {holding.sector}
-                        </span>
-                      </td>
-                    </motion.tr>
+                        <div className="text-right">
+                          <p className="font-medium text-text-primary">${value.toLocaleString()}</p>
+                          <p className={`text-sm ${position.unrealizedPnL >= 0 ? 'text-success' : 'text-danger'}`}>
+                            {position.unrealizedPnL >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-text-secondary">
+                        <span>Price: ${position.currentPrice.toFixed(2)}</span>
+                        <span>Avg: ${position.averageCost.toFixed(2)}</span>
+                      </div>
+                    </motion.div>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="md:hidden p-4 space-y-3">
-            {filteredHoldings.map((holding, index) => {
-              const pl = (holding.price - holding.avgCost) * holding.shares
-              return (
-                <motion.div
-                  key={holding.symbol}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.45 + index * 0.03 }}
-                  className="p-4 bg-surface-elevated rounded-lg"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
-                        <span className="font-bold text-purple-400 text-sm">{holding.symbol.slice(0, 2)}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-text-primary">{holding.symbol}</p>
-                        <p className="text-xs text-text-secondary">{holding.shares} shares</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-text-primary">${holding.value.toLocaleString()}</p>
-                      <p className={`text-sm ${pl >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {pl >= 0 ? '+' : ''}{holding.change.toFixed(2)}%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-text-secondary">Price: ${holding.price.toFixed(2)}</span>
-                    <span className="px-2 py-0.5 text-xs rounded-full bg-surface text-text-secondary">
-                      {holding.sector}
-                    </span>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
+              </div>
+            </>
+          )}
         </motion.div>
       </motion.div>
     </div>

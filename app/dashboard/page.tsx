@@ -69,11 +69,20 @@ export default function DashboardPage() {
 
   const tier = user?.tier || 'free'
   const tierInfo = TIER_LABELS[tier] || TIER_LABELS.free
-  const tc = portfolio?.tierConfig || {}
-  const p = portfolio?.portfolio
+  
+  // Derive tier capabilities directly from tier
+  const tc = {
+    canUsePhoneBooth: ['scout', 'operator', 'partner'].includes(tier),
+    canAutoExecute: ['operator', 'partner'].includes(tier),
+    canViewSignals: ['scout', 'operator', 'partner'].includes(tier),
+    canCustomizeAgents: ['operator', 'partner'].includes(tier),
+    alertFrequency: tier === 'operator' || tier === 'partner' ? 'realtime' : tier === 'scout' ? 'daily' : 'none',
+    maxTradesPerWeek: tier === 'operator' || tier === 'partner' ? -1 : tier === 'scout' ? 10 : 0,
+  }
+  
   const isDemo = portfolio?.source === 'demo'
-  const activeAgents = (tier === 'free' || tier === 'recovery') ? 0 : tier === 'scout' ? 3 : 7
-  const todayPnL = p?.todayPnL || 0
+  const activeAgents = tier === 'free' ? 1 : tier === 'recovery' ? 3 : tier === 'scout' ? 7 : 10
+  const todayPnL = portfolio?.todayPnL || 0
   const pnlColor = todayPnL >= 0 ? 'text-green-400' : 'text-red-400'
   const pnlSign = todayPnL >= 0 ? '+' : ''
 
@@ -141,14 +150,14 @@ export default function DashboardPage() {
           <MetricCard 
             icon={DollarSign} 
             label="Portfolio Value" 
-            value={p ? `$${p.accountValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} 
-            sub={p ? `Cash: $${p.cash.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : 'Connect broker'} 
+            value={portfolio ? `$${portfolio.accountValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} 
+            sub={portfolio ? `Buying Power: $${portfolio.buyingPower?.toLocaleString('en-US', { maximumFractionDigits: 0 }) || '0'}` : 'Connect broker'} 
           />
           <MetricCard 
             icon={todayPnL >= 0 ? TrendingUp : TrendingDown}
             label="Today's P&L" 
             value={p ? `${pnlSign}$${Math.abs(todayPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} 
-            sub={p ? `${p.positions.length} open positions` : 'No data yet'}
+            sub={portfolio ? `${portfolio.positions?.length || 0} open positions` : 'No data yet'}
             valueColor={pnlColor}
           />
           <MetricCard 
