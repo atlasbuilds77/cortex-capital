@@ -414,9 +414,74 @@ export async function saveBrokerConnection(
   }
 }
 
+/**
+ * Execute a trade for a user
+ */
+export async function executeUserTrade(
+  userId: string,
+  order: { symbol: string; side: 'buy' | 'sell'; qty: number; type: 'market' | 'limit'; limitPrice?: number }
+): Promise<{ success: boolean; orderId?: string; avgPrice?: number; error?: string }> {
+  try {
+    const connection = await getBrokerConnection(userId);
+    if (!connection) {
+      return { success: false, error: 'No broker connection' };
+    }
+
+    const credentials = decryptCredentials(connection.credentialsEncrypted);
+
+    switch (connection.brokerType) {
+      case 'alpaca': {
+        if (!credentials.alpaca) throw new Error('Missing Alpaca credentials');
+        const alpaca = (await import('../integrations/alpaca')).default;
+        // Use Alpaca's submit order
+        const result = await alpaca.submitOrder({
+          symbol: order.symbol,
+          qty: order.qty,
+          side: order.side,
+          type: order.type,
+          time_in_force: 'day',
+        });
+        return { 
+          success: true, 
+          orderId: result.id, 
+          avgPrice: parseFloat(result.filled_avg_price || '0') 
+        };
+      }
+
+      case 'tradier': {
+        if (!credentials.tradier) throw new Error('Missing Tradier credentials');
+        const tradier = (await import('../integrations/tradier')).default;
+        const result = await tradier.placeOrder(
+          connection.accountId,
+          order.symbol,
+          order.qty,
+          order.side,
+          order.type,
+          order.limitPrice
+        );
+        return {
+          success: true,
+          orderId: result.order?.id,
+          avgPrice: result.order?.avg_fill_price || 0,
+        };
+      }
+
+      default:
+        return { success: false, error: `Unsupported broker: ${connection.brokerType}` };
+    }
+  } catch (error: any) {
+    console.error('[BrokerService] Trade execution failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export { getBrokerConnection };
+
 export default {
   fetchUserPortfolio,
   fetchDemoPortfolio,
   saveBrokerConnection,
-  encryptCredentials
+  encryptCredentials,
+  executeUserTrade,
+  getBrokerConnection,
 };
