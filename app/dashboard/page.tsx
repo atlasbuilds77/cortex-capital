@@ -156,7 +156,7 @@ export default function DashboardPage() {
           <MetricCard 
             icon={todayPnL >= 0 ? TrendingUp : TrendingDown}
             label="Today's P&L" 
-            value={p ? `${pnlSign}$${Math.abs(todayPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} 
+            value={portfolio ? `${pnlSign}$${Math.abs(todayPnL).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} 
             sub={portfolio ? `${portfolio.positions?.length || 0} open positions` : 'No data yet'}
             valueColor={pnlColor}
           />
