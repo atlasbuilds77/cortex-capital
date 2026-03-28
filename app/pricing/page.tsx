@@ -177,7 +177,7 @@ function PricingContent() {
         </div>
 
         <p className="text-center text-text-secondary text-sm mt-12">
-          All plans include a 7-day money-back guarantee. No questions asked.
+          Cancel anytime. No long-term commitments.
         </p>
       </div>
     </div>
