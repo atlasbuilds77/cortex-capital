@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { OfficeAgent } from "@/features/retro-office/core/types";
 import type { OfficeAnimationState } from "@/lib/office/eventTriggers";
@@ -10,6 +10,7 @@ import {
   subscribeToDiscussions,
   type AgentDiscussionMessage,
 } from "@/lib/cortex-capital-api";
+import { useAuth } from "@/lib/auth";
 
 const API_BASE = ""; // API is same-origin
 
@@ -80,9 +81,11 @@ export function TradingFloorShell({
   fullHeightClassName = "h-screen",
   userTier: propTier,
 }: TradingFloorShellProps) {
+  const { user, token } = useAuth();
   const [tier, setTier] = useState<UserTier>(propTier || (context === 'demo' ? 'operator' : 'free'));
   const [tierLoaded, setTierLoaded] = useState(!!propTier || context === 'demo');
   const [lockedAgents, setLockedAgents] = useState<Set<string>>(new Set());
+  const hasTriggeredPortfolioDiscussion = useRef(false);
   
   const [agents, setAgents] = useState<OfficeAgent[]>(() =>
     getAllCortexAgents("working"),
@@ -272,17 +275,48 @@ export function TradingFloorShell({
     return () => clearInterval(idleLoop);
   }, [agents, lockedAgents]);
 
-  const triggerDiscussion = async (type: string) => {
+  const triggerDiscussion = async (type: string, params?: Record<string, any>) => {
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       await fetch(`${API_BASE}/api/fishtank/discussions/trigger`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
+        headers,
+        body: JSON.stringify({ 
+          type, 
+          userId: user?.id,
+          params,
+        }),
       });
     } catch (error) {
       console.error("Failed to trigger discussion:", error);
     }
   };
+
+  // Auto-trigger portfolio discussion when user opens their dashboard
+  useEffect(() => {
+    if (context !== 'dashboard') return;
+    if (hasTriggeredPortfolioDiscussion.current) return;
+    if (!tierLoaded) return;
+    
+    // Only for paid tiers with agent access
+    if (tier === 'free') return;
+    
+    // Wait a moment for the UI to settle, then trigger discussion
+    const timer = setTimeout(() => {
+      hasTriggeredPortfolioDiscussion.current = true;
+      triggerDiscussion('portfolio_review', {
+        risk_tolerance: 'moderate',
+        horizon: 'medium',
+        goals: ['Growth', 'Capital Preservation'],
+      });
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, [context, tierLoaded, tier, user?.id]);
 
   // Get tier badge info
   const getTierBadge = () => {

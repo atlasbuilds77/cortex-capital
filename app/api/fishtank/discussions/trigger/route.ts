@@ -2,10 +2,19 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { collaborativeDaemon } from '@/lib/agents/collaborative-daemon';
+import { getAuthUser } from '@/lib/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, userId, params } = await request.json();
+    const body = await request.json();
+    const { type, params } = body;
+    
+    // Get userId from auth token if not provided
+    let userId = body.userId;
+    if (!userId) {
+      const authUser = await getAuthUser(request);
+      userId = authUser?.userId;
+    }
     
     // Import portfolio discussion engine (lazy load)
     const { portfolioDiscussionEngine } = await import('@/lib/agents/portfolio-discussion');
