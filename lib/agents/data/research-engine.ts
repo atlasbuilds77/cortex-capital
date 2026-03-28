@@ -11,8 +11,8 @@
 
 import alpaca from '../../integrations/alpaca';
 
-// Brave API key - get from environment or credentials
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY || process.env.NEXT_PUBLIC_BRAVE_API_KEY || '';
+// Brave API key - get from environment or hardcoded fallback
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 'BSAGCUFwmAYKm6tdjsO5FTnq_QR6ewc';
 
 interface NewsItem {
   title: string;
