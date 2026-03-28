@@ -1,125 +1,142 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Smartphone, Zap, BarChart3, TrendingUp, Bell, Rocket, Clock } from 'lucide-react'
+import { Bell, Mail, MessageSquare, Smartphone, Lock, Loader2 } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
 
 interface NotificationSettings {
-  email: {
-    tradeAlerts: boolean
-    dailySummary: boolean
-    weeklyReport: boolean
-    accountActivity: boolean
-    systemUpdates: boolean
-  }
-  push: {
-    tradeAlerts: boolean
-    dailySummary: boolean
-    weeklyReport: boolean
-    accountActivity: boolean
-    systemUpdates: boolean
-  }
+  email_trade_executed: boolean
+  email_stop_loss: boolean
+  email_trade_signals: boolean
+  email_daily_digest: boolean
+  email_weekly_report: boolean
+  email_account_alerts: boolean
+  push_enabled: boolean
 }
 
-const NotificationIcon = ({ iconType }: { iconType: string }) => {
-  const iconClass = "w-5 h-5 text-purple-400"
-  switch (iconType) {
-    case 'zap': return <Zap className={iconClass} />
-    case 'chart': return <BarChart3 className={iconClass} />
-    case 'trending': return <TrendingUp className={iconClass} />
-    case 'bell': return <Bell className={iconClass} />
-    case 'rocket': return <Rocket className={iconClass} />
-    default: return <Bell className={iconClass} />
-  }
-}
+const NOTIFICATION_OPTIONS = [
+  {
+    id: 'email_trade_executed',
+    label: 'Trade Executed',
+    description: 'Get notified when a trade is executed on your behalf',
+    icon: Mail,
+    tier: 'operator',
+  },
+  {
+    id: 'email_stop_loss',
+    label: 'Stop Loss Triggered',
+    description: 'Immediate alert when a stop loss is hit',
+    icon: Mail,
+    tier: 'operator',
+  },
+  {
+    id: 'email_trade_signals',
+    label: 'Trade Signals',
+    description: 'When agents identify a trading opportunity',
+    icon: Mail,
+    tier: 'scout',
+  },
+  {
+    id: 'email_daily_digest',
+    label: 'Daily Digest',
+    description: 'End-of-day portfolio summary',
+    icon: Mail,
+    tier: 'recovery',
+  },
+  {
+    id: 'email_weekly_report',
+    label: 'Weekly Report',
+    description: 'Weekly performance and insights',
+    icon: Mail,
+    tier: 'operator',
+  },
+  {
+    id: 'email_account_alerts',
+    label: 'Account Alerts',
+    description: 'Important account notifications',
+    icon: Mail,
+    tier: 'free',
+  },
+]
+
+const TIER_HIERARCHY = { free: 0, recovery: 1, scout: 2, operator: 3, partner: 4 }
 
 export default function NotificationsPage() {
-  const [settings, setSettings] = useState<NotificationSettings>({
-    email: {
-      tradeAlerts: true,
-      dailySummary: true,
-      weeklyReport: true,
-      accountActivity: true,
-      systemUpdates: false,
-    },
-    push: {
-      tradeAlerts: true,
-      dailySummary: false,
-      weeklyReport: false,
-      accountActivity: true,
-      systemUpdates: false,
-    },
-  })
+  const { user, token } = useAuth()
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [settings, setSettings] = useState<NotificationSettings>({
+    email_trade_executed: true,
+    email_stop_loss: true,
+    email_trade_signals: true,
+    email_daily_digest: true,
+    email_weekly_report: true,
+    email_account_alerts: true,
+    push_enabled: false,
+  })
+
+  const userTierLevel = TIER_HIERARCHY[user?.tier as keyof typeof TIER_HIERARCHY] || 0
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const res = await fetch('/api/user/notifications', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setSettings({ ...settings, ...data })
+        }
+      } catch (error) {
+        console.error('Failed to load notification settings:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadSettings()
+  }, [token])
 
   const handleSave = async () => {
     setSaving(true)
-    // TODO: API call to update notification settings
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setSaving(false)
+    setSaved(false)
+    try {
+      const res = await fetch('/api/user/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(settings),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      }
+    } catch (error) {
+      console.error('Failed to save notification settings:', error)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const toggleEmail = (key: keyof NotificationSettings['email']) => {
-    setSettings({
-      ...settings,
-      email: { ...settings.email, [key]: !settings.email[key] },
-    })
+  const toggleSetting = (key: keyof NotificationSettings) => {
+    setSettings({ ...settings, [key]: !settings[key] })
   }
 
-  const togglePush = (key: keyof NotificationSettings['push']) => {
-    setSettings({
-      ...settings,
-      push: { ...settings.push, [key]: !settings.push[key] },
-    })
+  const canAccess = (requiredTier: string) => {
+    const requiredLevel = TIER_HIERARCHY[requiredTier as keyof typeof TIER_HIERARCHY] || 0
+    return userTierLevel >= requiredLevel
   }
 
-  const Toggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
-    <button
-      onClick={onToggle}
-      className={`relative w-12 h-6 rounded-full transition-colors ${
-        enabled ? 'bg-primary' : 'bg-gray-700'
-      }`}
-    >
-      <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-          enabled ? 'translate-x-6' : ''
-        }`}
-      />
-    </button>
-  )
-
-  const notifications = [
-    {
-      key: 'tradeAlerts' as const,
-      label: 'Trade Alerts',
-      description: 'Real-time notifications when trades are executed',
-      iconType: 'zap',
-    },
-    {
-      key: 'dailySummary' as const,
-      label: 'Daily Summary',
-      description: 'Portfolio performance recap at end of day',
-      iconType: 'chart',
-    },
-    {
-      key: 'weeklyReport' as const,
-      label: 'Weekly Report',
-      description: 'Comprehensive performance analysis every Monday',
-      iconType: 'trending',
-    },
-    {
-      key: 'accountActivity' as const,
-      label: 'Account Activity',
-      description: 'Security alerts and important account changes',
-      iconType: 'bell',
-    },
-    {
-      key: 'systemUpdates' as const,
-      label: 'System Updates',
-      description: 'New features, maintenance, and announcements',
-      iconType: 'rocket',
-    },
-  ]
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -127,7 +144,7 @@ export default function NotificationsPage() {
       <div>
         <h2 className="text-2xl font-bold hidden lg:block">Notifications</h2>
         <p className="text-text-secondary mt-1 hidden lg:block">
-          Control how you receive updates and alerts
+          Choose how and when you want to be notified
         </p>
       </div>
 
@@ -135,116 +152,116 @@ export default function NotificationsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <Mail className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold">Email Notifications</h3>
+        </div>
+        <div className="space-y-3">
+          {NOTIFICATION_OPTIONS.map((option) => {
+            const hasAccess = canAccess(option.tier)
+            const isEnabled = settings[option.id as keyof NotificationSettings]
+            
+            return (
+              <div
+                key={option.id}
+                className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                  hasAccess 
+                    ? 'bg-background border-gray-700' 
+                    : 'bg-background/50 border-gray-800 opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    hasAccess ? 'bg-primary/20' : 'bg-gray-800'
+                  }`}>
+                    {hasAccess ? (
+                      <option.icon className="w-5 h-5 text-primary" />
+                    ) : (
+                      <Lock className="w-4 h-4 text-gray-500" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-medium flex items-center gap-2">
+                      {option.label}
+                      {!hasAccess && (
+                        <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-gray-800 text-gray-400">
+                          {option.tier}+
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-text-secondary text-sm">{option.description}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => hasAccess && toggleSetting(option.id as keyof NotificationSettings)}
+                  disabled={!hasAccess}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    !hasAccess 
+                      ? 'bg-gray-800 cursor-not-allowed'
+                      : isEnabled 
+                        ? 'bg-primary cursor-pointer' 
+                        : 'bg-gray-700 cursor-pointer'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                      isEnabled && hasAccess ? 'translate-x-6' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </motion.div>
+
+      {/* Coming Soon */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Mail className="w-5 h-5 text-purple-400" /> Email Notifications
-        </h3>
-        <div className="space-y-4">
-          {notifications.map((notification, index) => (
-            <motion.div
-              key={`email-${notification.key}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.15 + index * 0.05 }}
-              className="flex items-center justify-between p-4 bg-background rounded-lg border border-gray-700"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
-                  <NotificationIcon iconType={notification.iconType} />
-                </div>
-                <div>
-                  <div className="font-medium">{notification.label}</div>
-                  <div className="text-text-secondary text-sm">{notification.description}</div>
-                </div>
-              </div>
-              <Toggle
-                enabled={settings.email[notification.key]}
-                onToggle={() => toggleEmail(notification.key)}
-              />
-            </motion.div>
-          ))}
+        <div className="flex items-center gap-3 mb-4">
+          <Smartphone className="w-5 h-5 text-text-secondary" />
+          <h3 className="text-lg font-semibold text-text-secondary">More Coming Soon</h3>
         </div>
-      </motion.div>
-
-      {/* Push Notifications */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Smartphone className="w-5 h-5 text-purple-400" /> Push Notifications
-        </h3>
-        <p className="text-text-secondary text-sm mb-4">
-          Receive notifications on your mobile device or desktop
-        </p>
-        <div className="space-y-4">
-          {notifications.map((notification, index) => (
-            <motion.div
-              key={`push-${notification.key}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.45 + index * 0.05 }}
-              className="flex items-center justify-between p-4 bg-background rounded-lg border border-gray-700"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
-                  <NotificationIcon iconType={notification.iconType} />
-                </div>
-                <div>
-                  <div className="font-medium">{notification.label}</div>
-                  <div className="text-text-secondary text-sm">{notification.description}</div>
-                </div>
-              </div>
-              <Toggle
-                enabled={settings.push[notification.key]}
-                onToggle={() => togglePush(notification.key)}
-              />
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-4 rounded-lg border border-gray-800 bg-background/30 opacity-60">
+            <div className="flex items-center gap-2 mb-2">
+              <Bell className="w-4 h-4" />
+              <span className="font-medium">Push Notifications</span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-gray-800">Soon</span>
+            </div>
+            <p className="text-sm text-text-secondary">Browser push alerts</p>
+          </div>
+          <div className="p-4 rounded-lg border border-gray-800 bg-background/30 opacity-60">
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquare className="w-4 h-4" />
+              <span className="font-medium">Telegram</span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-gray-800">Soon</span>
+            </div>
+            <p className="text-sm text-text-secondary">Real-time alerts via Telegram</p>
+          </div>
         </div>
-      </motion.div>
-
-      {/* Notification Schedule */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.75 }}
-        className="p-6 bg-primary/10 border border-primary/30 rounded-lg"
-      >
-        <h4 className="font-medium mb-2 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-purple-400" /> Notification Schedule
-        </h4>
-        <ul className="space-y-2 text-text-secondary text-sm">
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Trade alerts: Real-time (during market hours)
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Daily summary: 4:00 PM EST (after market close)
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Weekly report: Mondays at 8:00 AM EST
-          </li>
-        </ul>
       </motion.div>
 
       {/* Save Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
+        transition={{ delay: 0.2 }}
       >
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-3 bg-primary text-background rounded-lg hover:bg-primary/90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? 'Saving...' : 'Save Preferences'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-3 bg-primary text-background rounded-lg hover:bg-primary/90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+          {saved && <span className="text-green-400 text-sm">✓ Settings saved!</span>}
+        </div>
       </motion.div>
     </div>
   )
