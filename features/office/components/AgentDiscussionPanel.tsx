@@ -93,7 +93,12 @@ function MessageBubble({ message, isLatest, isLocked }: { message: AgentDiscussi
           </span>
         </div>
         <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
-          {message.content}
+          {message.content
+            ?.replace(/\*\*(.*?)\*\*/g, '$1')  // Remove **bold**
+            ?.replace(/\*(.*?)\*/g, '$1')       // Remove *italic*
+            ?.replace(/`(.*?)`/g, '$1')         // Remove `code`
+            ?.replace(/#{1,3}\s/g, '')          // Remove ### headers
+          }
         </p>
       </div>
     </div>

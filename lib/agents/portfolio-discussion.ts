@@ -190,6 +190,8 @@ class PortfolioDiscussionEngine {
     return `
 ${riskProfileGuidance}
 
+IMPORTANT: Discuss based on the data below. Do not ask for more data or "required actions". Give your analysis and recommendations directly. No markdown formatting.
+
 ---
 
 PORTFOLIO SNAPSHOT:

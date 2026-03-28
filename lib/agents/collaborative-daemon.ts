@@ -200,7 +200,11 @@ RULES:
 - Stay in character
 - Be specific with numbers when discussing trades
 - Reference what other agents said when replying
-- Sound natural, like a real trader in a team meeting`;
+- Sound natural, like a real trader in a team meeting
+- Do NOT ask for "required action" or request additional data
+- Do NOT use markdown formatting (no **, *, #, or \`)
+- Work with the data provided - if limited, acknowledge and give general guidance
+- You are having a DISCUSSION, not requesting tasks`;
 
     const userPrompt = replyTo 
       ? `${replyTo.agent} said: "${replyTo.content}"\n\nRespond to this in context of: ${context}`
