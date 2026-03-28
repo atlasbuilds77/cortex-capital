@@ -336,8 +336,14 @@ export function TradingFloorShell({
     return () => clearInterval(simLoop);
   }, [agents.length, lockedAgents.size]); // Only re-run if agent count changes
 
+  const [discussionLoading, setDiscussionLoading] = useState<string | null>(null);
+
   const triggerDiscussion = async (type: string, params?: Record<string, any>) => {
     try {
+      setDiscussionLoading(type);
+      // Auto-open the discussion panel
+      setShowDiscussions(true);
+      
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
@@ -354,6 +360,9 @@ export function TradingFloorShell({
       });
     } catch (error) {
       console.error("Failed to trigger discussion:", error);
+    } finally {
+      // Keep loading for a bit while agents start responding
+      setTimeout(() => setDiscussionLoading(null), 2000);
     }
   };
 
@@ -464,24 +473,27 @@ export function TradingFloorShell({
           <div className="absolute left-4 bottom-4 z-30 flex items-center gap-2">
             <button
               onClick={() => triggerDiscussion('portfolio_review')}
-              className="flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs"
+              disabled={discussionLoading !== null}
+              className={`flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs ${discussionLoading === 'portfolio_review' ? 'animate-pulse border-purple-500/50' : ''}`}
               title="Have agents review your portfolio"
             >
-              📊 Review
+              {discussionLoading === 'portfolio_review' ? '⏳' : '📊'} Review
             </button>
             <button
               onClick={() => triggerDiscussion('portfolio_risk')}
-              className="flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs"
+              disabled={discussionLoading !== null}
+              className={`flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs ${discussionLoading === 'portfolio_risk' ? 'animate-pulse border-purple-500/50' : ''}`}
               title="Risk assessment"
             >
-              🛡️ Risk
+              {discussionLoading === 'portfolio_risk' ? '⏳' : '🛡️'} Risk
             </button>
             <button
               onClick={() => triggerDiscussion('portfolio_opportunities')}
-              className="flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs"
+              disabled={discussionLoading !== null}
+              className={`flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs ${discussionLoading === 'portfolio_opportunities' ? 'animate-pulse border-purple-500/50' : ''}`}
               title="Find opportunities"
             >
-              🚀 Ideas
+              {discussionLoading === 'portfolio_opportunities' ? '⏳' : '🚀'} Ideas
             </button>
           </div>
         )}
