@@ -23,6 +23,7 @@ import { query } from '../db';
 import { getMarketContextForAgents } from './data/market-data';
 import { loadUserPreferences, generatePreferencesContext, UserPreferences } from './user-preferences-context';
 import { getFullResearchContext } from './data/research-engine';
+import { recallMemories, generateLearningSummary } from './learning/agent-memory';
 
 // Agent definitions with personalities
 const AGENTS = {
@@ -164,12 +165,19 @@ class CollaborativeDaemon {
     const agentInfo = AGENTS[agent];
     const soul = this.loadAgentSoul(agent);
     
-    // Get agent memories via recall gate
+    // Get agent memories via recall gate + learning system
     let memoryContext = '';
     try {
       const memories = recallGate.recall(agent.toLowerCase(), context);
       if (memories) {
         memoryContext = `\n[YOUR MEMORIES]\n${memories}\n[/YOUR MEMORIES]\nUse these memories to inform your response. Reference past calls when relevant.`;
+      }
+      
+      // Add learned patterns from trade outcomes
+      const learnedMemories = await recallMemories(agent, context, 5);
+      if (learnedMemories.length > 0) {
+        const learningSummary = learnedMemories.map(m => `- ${m.content}`).join('\n');
+        memoryContext += `\n[LEARNED FROM EXPERIENCE]\n${learningSummary}\n[/LEARNED]`;
       }
     } catch {}
 
