@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticate } from '@/lib/auth-middleware';
 import { query } from '@/lib/db';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { executeTradeIdea } from '@/lib/agents/trade-pipeline';
 import { requireAuth } from '@/lib/auth-middleware';

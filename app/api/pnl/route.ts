@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 
 // PnL endpoint - wraps fishtank/live data for the demo overlay

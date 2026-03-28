@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { phoneBoothChat } from '@/lib/agents/phone-booth';
 import { requireAuth } from '@/lib/auth-middleware';

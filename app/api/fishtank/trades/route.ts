@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 const ALPACA_KEY = process.env.ALPACA_API_KEY || 'PKXPAHHSVOFCAXOXINQXP6UXST';
