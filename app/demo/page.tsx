@@ -17,12 +17,15 @@ export default function DemoPage() {
     <div className="relative h-screen w-full">
       <TradingFloorShell context="demo" initialShowDiscussions={false} />
       
-      {/* Back to home */}
+      {/* Back to home - more prominent */}
       <Link 
         href="/"
-        className="absolute top-4 left-4 z-40 flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1.5 backdrop-blur-sm border border-white/5 text-white/40 hover:text-white hover:bg-black/40 transition-all text-xs"
+        className="absolute top-4 left-4 z-50 flex items-center gap-2 rounded-xl bg-black/60 px-4 py-2.5 backdrop-blur-xl border border-white/10 text-white hover:bg-black/80 hover:border-white/20 transition-all text-sm font-medium shadow-lg"
       >
-        ← Back
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Exit Demo
       </Link>
 
       {/* P&L Stats */}
