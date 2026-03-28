@@ -3,11 +3,21 @@
  * 
  * Shows AI agents discussing portfolio, trades, and market conditions.
  * Connects to Cortex Capital backend via SSE for live updates.
+ * Supports tier-based filtering for paid features.
  */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { subscribeToDiscussions, fetchDiscussions, type AgentDiscussionMessage } from "@/lib/cortex-capital-api";
+
+// Tier-based agent access (must match server)
+const TIER_AGENT_ACCESS: Record<string, string[]> = {
+  free: ['REPORTER'],
+  recovery: ['REPORTER', 'ANALYST', 'STRATEGIST'],
+  scout: ['REPORTER', 'ANALYST', 'STRATEGIST', 'MOMENTUM', 'DAY_TRADER', 'GROWTH', 'VALUE'],
+  operator: ['REPORTER', 'ANALYST', 'STRATEGIST', 'EXECUTOR', 'MOMENTUM', 'DAY_TRADER', 'OPTIONS_STRATEGIST', 'RISK', 'GROWTH', 'VALUE'],
+  partner: ['REPORTER', 'ANALYST', 'STRATEGIST', 'EXECUTOR', 'MOMENTUM', 'DAY_TRADER', 'OPTIONS_STRATEGIST', 'RISK', 'GROWTH', 'VALUE'],
+};
 
 // Agent colors and emojis
 const AGENT_STYLES: Record<string, { emoji: string; color: string; gradient: string }> = {
@@ -20,10 +30,33 @@ const AGENT_STYLES: Record<string, { emoji: string; color: string; gradient: str
   VALUE: { emoji: "💎", color: "#0EA5E9", gradient: "from-sky-500/20 to-sky-600/10" },
   OPTIONS_STRATEGIST: { emoji: "🎲", color: "#EC4899", gradient: "from-pink-500/20 to-pink-600/10" },
   EXECUTOR: { emoji: "🎬", color: "#6366F1", gradient: "from-indigo-500/20 to-indigo-600/10" },
+  REPORTER: { emoji: "📰", color: "#94A3B8", gradient: "from-slate-500/20 to-slate-600/10" },
 };
 
-function MessageBubble({ message, isLatest }: { message: AgentDiscussionMessage; isLatest: boolean }) {
+type UserTier = 'free' | 'recovery' | 'scout' | 'operator' | 'partner';
+
+function MessageBubble({ message, isLatest, isLocked }: { message: AgentDiscussionMessage; isLatest: boolean; isLocked?: boolean }) {
   const style = AGENT_STYLES[message.agent] || { emoji: "🤖", color: "#6B7280", gradient: "from-gray-500/20 to-gray-600/10" };
+  
+  if (isLocked) {
+    return (
+      <div className="flex gap-3 p-4 rounded-xl bg-gray-800/30 border border-white/5 opacity-60">
+        <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl bg-gray-700/50 border-2 border-gray-600">
+          🔒
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold text-sm text-gray-500">
+              {message.agent} (Locked)
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 italic">
+            Upgrade to see this message
+          </p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div 
@@ -67,13 +100,28 @@ function MessageBubble({ message, isLatest }: { message: AgentDiscussionMessage;
   );
 }
 
-function DiscussionHeader({ topic, participants }: { topic: string; participants?: string[] }) {
+function DiscussionHeader({ topic, participants, tier }: { topic: string; participants?: string[]; tier?: UserTier }) {
+  const tierInfo = {
+    free: { label: 'Free', color: 'text-gray-400' },
+    recovery: { label: 'Recovery', color: 'text-blue-400' },
+    scout: { label: 'Scout', color: 'text-purple-400' },
+    operator: { label: 'Operator', color: 'text-green-400' },
+    partner: { label: 'Partner', color: 'text-amber-400' },
+  };
+  
+  const info = tier ? tierInfo[tier] : null;
+  
   return (
     <div className="px-4 py-2.5 border-b border-white/5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
           <span className="font-medium text-white/60 text-xs tracking-wide uppercase">{topic}</span>
+          {info && (
+            <span className={`text-[10px] ${info.color} ml-2`}>
+              {info.label}
+            </span>
+          )}
         </div>
         {participants && (
           <div className="flex -space-x-1">
@@ -97,13 +145,31 @@ function DiscussionHeader({ topic, participants }: { topic: string; participants
   );
 }
 
-export function AgentDiscussionPanel({ maxMessages = 20 }: { maxMessages?: number }) {
+export function AgentDiscussionPanel({ 
+  maxMessages = 20,
+  filterByTier,
+}: { 
+  maxMessages?: number;
+  filterByTier?: UserTier;
+}) {
   const [messages, setMessages] = useState<AgentDiscussionMessage[]>([]);
   const [currentTopic, setCurrentTopic] = useState<string>("Agent Discussions");
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestMessageId = useRef<string | null>(null);
+
+  // Get allowed agents for this tier
+  const allowedAgents = useMemo(() => {
+    if (!filterByTier) return null; // No filtering
+    return new Set(TIER_AGENT_ACCESS[filterByTier] || TIER_AGENT_ACCESS.free);
+  }, [filterByTier]);
+
+  // Check if agent is accessible
+  const canSeeAgent = (agentName: string): boolean => {
+    if (!allowedAgents) return true;
+    return allowedAgents.has(agentName.toUpperCase());
+  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -155,10 +221,21 @@ export function AgentDiscussionPanel({ maxMessages = 20 }: { maxMessages?: numbe
     };
   }, [maxMessages]);
 
+  // Filter and prepare messages for display
+  const displayMessages = useMemo(() => {
+    return messages.filter(msg => msg?.id).map(msg => ({
+      ...msg,
+      isLocked: !canSeeAgent(msg.agent),
+    }));
+  }, [messages, allowedAgents]);
+
+  const visibleCount = displayMessages.filter(m => !m.isLocked).length;
+  const lockedCount = displayMessages.filter(m => m.isLocked).length;
+
   return (
     <div className="flex flex-col h-full bg-gray-950/95 overflow-hidden">
       {/* Header */}
-      <DiscussionHeader topic={currentTopic} />
+      <DiscussionHeader topic={currentTopic} tier={filterByTier} />
       
       {/* Connection Status */}
       {error && (
@@ -167,20 +244,35 @@ export function AgentDiscussionPanel({ maxMessages = 20 }: { maxMessages?: numbe
         </div>
       )}
       
+      {/* Locked messages notice */}
+      {lockedCount > 0 && (
+        <div className="px-4 py-2 bg-purple-900/20 border-b border-purple-800/30">
+          <div className="flex items-center justify-between">
+            <span className="text-purple-300 text-xs">
+              🔒 {lockedCount} messages from locked agents
+            </span>
+            <a href="/pricing" className="text-purple-400 text-xs hover:text-purple-300">
+              Upgrade →
+            </a>
+          </div>
+        </div>
+      )}
+      
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 ? (
+        {displayMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <div className="text-3xl mb-3 opacity-40">💬</div>
             <p className="text-white/30 text-sm">Agents are working...</p>
             <p className="text-white/15 text-xs mt-1">Click Briefing to start a discussion</p>
           </div>
         ) : (
-          messages.filter(msg => msg?.id).map((msg, idx) => (
+          displayMessages.map((msg, idx) => (
             <MessageBubble 
               key={msg.id} 
               message={msg} 
-              isLatest={idx === messages.length - 1}
+              isLatest={idx === displayMessages.length - 1}
+              isLocked={msg.isLocked}
             />
           ))
         )}
@@ -196,7 +288,7 @@ export function AgentDiscussionPanel({ maxMessages = 20 }: { maxMessages?: numbe
           </span>
         </div>
         <span className="text-[10px] text-white/20">
-          {messages.length}
+          {visibleCount} visible {lockedCount > 0 ? `• ${lockedCount} locked` : ''}
         </span>
       </div>
     </div>
@@ -204,24 +296,36 @@ export function AgentDiscussionPanel({ maxMessages = 20 }: { maxMessages?: numbe
 }
 
 // Compact version for sidebar
-export function AgentDiscussionCompact({ maxMessages = 5 }: { maxMessages?: number }) {
+export function AgentDiscussionCompact({ maxMessages = 5, filterByTier }: { maxMessages?: number; filterByTier?: UserTier }) {
   const [messages, setMessages] = useState<AgentDiscussionMessage[]>([]);
+
+  const allowedAgents = useMemo(() => {
+    if (!filterByTier) return null;
+    return new Set(TIER_AGENT_ACCESS[filterByTier] || TIER_AGENT_ACCESS.free);
+  }, [filterByTier]);
 
   useEffect(() => {
     fetchDiscussions().then((result) => {
       if (result.success && result.data) {
-        setMessages(result.data.messages.slice(-maxMessages));
+        let msgs = result.data.messages;
+        if (allowedAgents) {
+          msgs = msgs.filter(m => allowedAgents.has(m.agent.toUpperCase()));
+        }
+        setMessages(msgs.slice(-maxMessages));
       }
     });
 
     const unsubscribe = subscribeToDiscussions(
       (message) => {
+        if (allowedAgents && !allowedAgents.has(message.agent.toUpperCase())) {
+          return; // Skip locked agents
+        }
         setMessages((prev) => [...prev.slice(-(maxMessages - 1)), message]);
       }
     );
 
     return () => unsubscribe();
-  }, [maxMessages]);
+  }, [maxMessages, allowedAgents]);
 
   return (
     <div className="space-y-2">
