@@ -1,0 +1,7 @@
+#!/bin/bash
+# expect-test wrapper - fixes PATH for ioreg
+# Usage: ./expect-test "test the login flow"
+#        ./expect-test --headed "test signup"
+
+cd "$(dirname "$0")"
+PATH="/usr/sbin:$PATH" expect-cli "$@"

@@ -1,0 +1,69 @@
+#!/bin/bash
+# Cortex Capital Test Runner
+# Usage: ./run-tests [flow-name]
+#        ./run-tests all
+#        ./run-tests list
+
+cd "$(dirname "$0")"
+FLOWS_DIR=".expect/flows"
+
+# Fix PATH for ioreg
+export PATH="/usr/sbin:$PATH"
+
+list_flows() {
+    echo "Available test flows:"
+    echo "====================="
+    for f in $FLOWS_DIR/*.md; do
+        name=$(basename "$f" .md)
+        title=$(head -1 "$f" | sed 's/^# //')
+        echo "  $name - $title"
+    done
+    echo ""
+    echo "Usage: ./run-tests <flow-name>"
+    echo "       ./run-tests all"
+}
+
+run_flow() {
+    local flow=$1
+    local file="$FLOWS_DIR/$flow.md"
+    
+    if [ ! -f "$file" ]; then
+        echo "❌ Flow not found: $flow"
+        list_flows
+        exit 1
+    fi
+    
+    echo "🧪 Running: $flow"
+    echo "========================================"
+    
+    # Read the flow file and pass to expect-cli
+    content=$(cat "$file")
+    expect-cli --verbose -m "$content" -y
+}
+
+run_all() {
+    echo "🚀 Running ALL test flows"
+    echo "========================================"
+    
+    for f in $FLOWS_DIR/*.md; do
+        name=$(basename "$f" .md)
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        run_flow "$name"
+    done
+    
+    echo ""
+    echo "✅ All flows complete!"
+}
+
+case "${1:-list}" in
+    list)
+        list_flows
+        ;;
+    all)
+        run_all
+        ;;
+    *)
+        run_flow "$1"
+        ;;
+esac

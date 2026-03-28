@@ -6,8 +6,8 @@
 import { Pool } from 'pg';
 import { getPortfolioContext, buildAgentContext, type AgentContext } from './portfolio-context';
 import { parseAgentDecisions } from './decision-parser';
-import { queueTradeForApproval } from '../services/trade-queue';
-import { getDeepSeekClient, type AgentMessage } from '../integrations/deepseek';
+import { queueTradeForApproval } from './services/trade-queue';
+import { getDeepSeekClient, type AgentMessage } from './integrations/deepseek';
 
 export type DiscussionType = 'review' | 'risk_assessment' | 'opportunities' | 'morning_briefing';
 

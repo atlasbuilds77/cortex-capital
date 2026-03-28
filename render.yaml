@@ -1,29 +1,21 @@
+# Render Blueprint for Cortex Capital Frontend
+# https://render.com/docs/blueprint-spec
+
 services:
-  # Single web service - backend serves frontend
   - type: web
-    name: cortex-capital
+    name: cortex-capital-frontend
     env: node
     region: oregon
-    plan: starter
-    buildCommand: |
-      npm install
-      cd frontend && npm install && npm run build
+    plan: free
+    buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: JWT_SECRET
-        generateValue: true
-      - key: ENCRYPTION_KEY
-        sync: false
-      - key: ALPACA_API_KEY
-        sync: false
-      - key: ALPACA_SECRET_KEY
-        sync: false
-      - key: ALPACA_BASE_URL
-        value: https://paper-api.alpaca.markets
-      - key: DEEPSEEK_API_KEY
-        sync: false
-    healthCheckPath: /health
+      - key: NEXT_PUBLIC_API_URL
+        sync: false  # Set manually in dashboard
+      - key: PORT
+        value: 3000
+    autoDeploy: true
+    branch: main

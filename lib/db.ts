@@ -1,25 +1,22 @@
-/**
- * DATABASE CONNECTION HELPER
- * Provides Pool instance for services
- */
+import pg from 'pg';
 
-import { Pool } from 'pg';
+const dbUrl = process.env.DATABASE_URL;
 
-let pool: Pool | null = null;
-
-export function getPool(): Pool {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }, // Always use SSL for Render
-    });
-  }
-  return pool;
+if (!dbUrl) {
+  throw new Error('DATABASE_URL environment variable is required');
 }
 
-export async function closePool(): Promise<void> {
-  if (pool) {
-    await pool.end();
-    pool = null;
-  }
+export function getPool() { return pool; }
+
+export const pool = new pg.Pool({
+  connectionString: dbUrl,
+  ssl: { rejectUnauthorized: false },
+});
+
+export async function query(text: string, params?: any[]) {
+  const start = Date.now();
+  const res = await pool.query(text, params);
+  const duration = Date.now() - start;
+  console.log('executed query', { text, duration, rows: res.rowCount });
+  return res;
 }

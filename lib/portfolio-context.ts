@@ -110,7 +110,7 @@ export async function getPortfolioContext(
 
     // 3. Fetch positions from broker
     const { fetchUserPositions, calculateSectorExposure, calculateYTDPnL } = await import(
-      '../services/position-fetcher'
+      './services/position-fetcher'
     );
 
     const brokerData = await fetchUserPositions(userId, db);

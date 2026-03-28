@@ -1,38 +1,43 @@
-# Backend Deployment Guide - Railway
+# Frontend Deployment Guide - Vercel
 
-Production deployment for Cortex Capital backend API on Railway with Render Postgres.
+Production-ready Next.js 14 deployment on Vercel.
 
 ---
 
 ## Prerequisites
 
-- Railway account (free tier works for testing)
-- Render Postgres database (already provisioned)
-- GitHub repository
-- API keys: Tradier, Resend
+- Vercel account (free tier works)
+- GitHub repo connected to Vercel
+- Backend API URL (Railway deployment)
 
 ---
 
-## Quick Start
+## Step-by-Step Deployment
 
-### 1. Deploy to Railway
-
-**Option A: Dashboard (Recommended)**
-
-1. Go to https://railway.app/new
-2. Click **Deploy from GitHub repo**
-3. Select your repository
-4. Railway auto-detects Node.js
-5. Click **Deploy**
-
-**Option B: CLI**
+### 1. Install Vercel CLI (Optional)
 
 ```bash
-npm i -g @railway/cli
-railway login
-railway init
-railway up
+npm i -g vercel
 ```
+
+### 2. Connect Project to Vercel
+
+**Option A: Via Dashboard (Recommended)**
+
+1. Go to https://vercel.com/new
+2. Import your GitHub repository
+3. Select `cortex-capital/frontend` as root directory
+4. Framework preset: **Next.js** (auto-detected)
+5. Click **Deploy**
+
+**Option B: Via CLI**
+
+```bash
+cd frontend
+vercel
+```
+
+Follow prompts to link project.
 
 ---
 
@@ -40,167 +45,78 @@ railway up
 
 ### Required Variables
 
-Add these in **Railway Dashboard → Variables**:
+Go to **Project Settings → Environment Variables** and add:
 
-```bash
-# Database (Render Postgres)
-DATABASE_URL=postgresql://user:password@host.render.com:5432/cortex_capital?sslmode=require
+| Variable | Value | Environment |
+|----------|-------|-------------|
+| `NEXT_PUBLIC_API_URL` | `https://api.cortexcapital.ai` | Production |
+| `NEXT_PUBLIC_API_URL` | `https://cortex-capital-dev.up.railway.app` | Preview |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3000` | Development |
 
-# Tradier API
-TRADIER_TOKEN=your_tradier_token
-TRADIER_BASE_URL=https://api.tradier.com  # or sandbox.tradier.com
+**IMPORTANT:** `NEXT_PUBLIC_` prefix makes variables available in the browser.
 
-# Security
-JWT_SECRET=generate_with_openssl_rand_hex_64
-ENCRYPTION_KEY=generate_32_character_key
+### How to Set
 
-# Email (Resend)
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
-SUPPORT_EMAIL=support@cortexcapital.ai
-
-# Application
-APP_URL=https://app.cortexcapital.ai
-PORT=3000
-NODE_ENV=production
-
-# CORS
-ALLOWED_ORIGINS=https://app.cortexcapital.ai,https://cortex-capital-frontend.vercel.app
-
-# Logging
-LOG_LEVEL=info
-
-# Optional: Monitoring
-# SENTRY_DSN=https://xxx@sentry.io/xxx
-```
-
-### Generate Secrets
-
-```bash
-# JWT Secret (64 bytes)
-openssl rand -hex 64
-
-# Encryption Key (32 bytes)
-openssl rand -hex 32
-```
-
-### Railway-Specific Variables
-
-Railway auto-injects:
-- `PORT` (use `process.env.PORT` or default 3000)
-- `RAILWAY_ENVIRONMENT` (production/staging)
-- `RAILWAY_PUBLIC_DOMAIN` (your-app.up.railway.app)
+1. Project Settings → Environment Variables
+2. Add each variable
+3. Select environments (Production/Preview/Development)
+4. Click **Save**
 
 ---
 
-## Database Setup (Render Postgres)
+## Build Settings
 
-### 1. Render Postgres (Already Provisioned)
+Vercel auto-detects Next.js. Verify these settings:
 
-You mentioned you already have Render Postgres. Get credentials from:
+- **Framework Preset:** Next.js
+- **Build Command:** `npm run build` (default)
+- **Output Directory:** `.next` (default)
+- **Install Command:** `npm install` (default)
+- **Node Version:** 20.x (auto)
 
-**Render Dashboard → Database → Connection Info**
-
-### 2. Connection String Format
-
-```
-postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require
-```
-
-**IMPORTANT:** Include `?sslmode=require` for Render.
-
-### 3. Run Migrations
-
-**From your local machine:**
-
-```bash
-# Export DATABASE_URL from Render
-export DATABASE_URL="postgresql://..."
-
-# Run migrations
-npm run db:migrate
-npm run db:migrate:engine
-```
-
-**Or SSH into Railway container:**
-
-```bash
-railway run npm run db:migrate
-railway run npm run db:migrate:engine
-```
-
-### 4. Verify Database
-
-```bash
-# Connect via psql
-psql $DATABASE_URL
-
-# Check tables
-\dt
-
-# Should see:
-# - users
-# - positions
-# - agents
-# - executions
-# - scheduler_jobs
-# - engine tables
-```
-
----
-
-## Build Configuration
-
-Railway auto-detects Node.js. Verify settings:
-
-### railway.json (Already Created)
+### Override if needed:
 
 ```json
+// vercel.json already configured
 {
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm run build"
-  },
-  "deploy": {
-    "startCommand": "npm run start:prod",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 300
-  }
-}
-```
-
-### package.json Scripts
-
-```json
-{
-  "build": "tsc",
-  "start:prod": "NODE_ENV=production node dist/server.js"
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs"
 }
 ```
 
 ---
 
-## Custom Domain Setup
+## Domain Setup
 
-### 1. Add Domain in Railway
+### 1. Add Custom Domain
 
 1. Project Settings → Domains
-2. Click **+ Custom Domain**
-3. Enter: `api.cortexcapital.ai`
+2. Add domain: `app.cortexcapital.ai`
+3. Follow DNS instructions
 
 ### 2. DNS Configuration
 
-Add CNAME record at your DNS provider:
+**If using Vercel nameservers (easiest):**
 
+Vercel provides nameservers → update at domain registrar.
+
+**If using custom DNS:**
+
+Add CNAME record:
 ```
-CNAME  api  your-app.up.railway.app
+CNAME  app  cname.vercel-dns.com
 ```
 
-Or use Railway's provided instructions.
+Or A record:
+```
+A  app  76.76.21.21
+```
 
 ### 3. SSL Certificate
 
-- Auto-provisioned by Railway
-- Takes ~2 minutes
+- Auto-provisioned by Vercel
+- Ready in ~60 seconds
 - Auto-renews
 
 ---
@@ -210,105 +126,48 @@ Or use Railway's provided instructions.
 ### Automatic Deployments
 
 - **Production:** Push to `main` branch
-- **Preview:** Create new Railway environment for other branches
+- **Preview:** Push to any branch or open PR
+- **Development:** Local `vercel dev`
 
 ### Manual Deploy
 
 ```bash
-railway up          # Deploy current branch
-railway up --detach # Deploy in background
-```
-
----
-
-## Health Checks
-
-Railway pings `/health` endpoint every 30 seconds.
-
-**Endpoint:**
-```typescript
-// server.ts
-server.get('/health', async (request, reply) => {
-  return { status: 'ok', timestamp: new Date().toISOString() };
-});
-```
-
-**Test:**
-```bash
-curl https://your-app.up.railway.app/health
-# {"status":"ok","timestamp":"2026-03-21T12:00:00.000Z"}
+vercel --prod  # Deploy to production
+vercel         # Deploy preview
 ```
 
 ---
 
 ## Post-Deployment Checklist
 
-- [ ] Health endpoint responds: `curl https://api.cortexcapital.ai/health`
-- [ ] Database migrations ran successfully
-- [ ] Frontend can reach backend API
-- [ ] Tradier API key works (check logs)
-- [ ] Email sending works (Resend)
-- [ ] CORS headers allow frontend domain
-- [ ] No errors in Railway logs
+- [ ] Site loads at production URL
+- [ ] API requests reach backend (check Network tab)
+- [ ] No console errors
+- [ ] Security headers present (check DevTools → Network → Response Headers)
+- [ ] Images load correctly
+- [ ] SSL certificate valid (green padlock)
 - [ ] Custom domain resolves correctly
-- [ ] SSL certificate valid
 
 ---
 
-## Monitoring & Logs
+## Environment-Specific Testing
 
-### View Logs
-
-**Railway Dashboard:**
-1. Click your deployment
-2. **Deployments** tab → Click latest
-3. **View Logs**
-
-**CLI:**
-```bash
-railway logs
-railway logs --follow  # Real-time
+### Production
+```
+https://app.cortexcapital.ai
 ```
 
-### Log Levels
-
-```bash
-# In .env or Railway variables
-LOG_LEVEL=info  # debug | info | warn | error
+### Preview (automatic per-branch)
+```
+https://cortex-capital-frontend-git-[branch].vercel.app
 ```
 
-### Error Tracking (Optional)
-
-Add Sentry:
-
+### Development
 ```bash
-npm install @sentry/node
-
-# In server.ts
-import * as Sentry from '@sentry/node';
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV,
-});
+npm run dev
+# or
+vercel dev  # Uses Vercel CLI for production-like env
 ```
-
----
-
-## Scaling
-
-### Vertical Scaling
-
-Railway Dashboard → Settings → Resources
-
-- **Starter Plan:** 512 MB RAM, 1 vCPU
-- **Pro Plan:** Up to 32 GB RAM, 8 vCPU
-
-### Horizontal Scaling
-
-Not available on Railway. For true horizontal scaling:
-- Use Railway for database
-- Deploy app to Kubernetes/ECS
 
 ---
 
@@ -316,62 +175,90 @@ Not available on Railway. For true horizontal scaling:
 
 ### Build Fails
 
-**Check logs:**
-```bash
-railway logs --deployment
-```
-
-**Common issues:**
-- TypeScript errors: `npm run build` locally
-- Missing dependencies: Check `package.json`
-- Node version: Railway uses Node 20 (matches local)
-
-### Database Connection Fails
-
-**Verify:**
-```bash
-# Test connection locally
-psql $DATABASE_URL
-
-# Check Railway env vars
-railway variables
-```
+**Check build logs:**
+1. Deployment → Click failed deployment
+2. Review **Build Logs**
 
 **Common fixes:**
-- Add `?sslmode=require` to DATABASE_URL
-- Whitelist Railway IP in Render (usually not needed)
-- Verify credentials are correct
+- TypeScript errors: `npm run typecheck`
+- ESLint errors: `npm run lint`
+- Missing env vars: Add to Vercel settings
 
-### Health Check Fails
+### API Requests Fail
 
-**Reasons:**
-- Server not binding to `0.0.0.0` (Railway requirement)
-- Wrong PORT variable
-- Server crashes on startup
+**Verify:**
+1. `NEXT_PUBLIC_API_URL` is set correctly
+2. Backend is running (Railway deployment)
+3. CORS headers allow your domain
 
-**Fix server binding:**
-```typescript
-// server.ts
-const PORT = parseInt(process.env.PORT || '3000', 10);
-const HOST = '0.0.0.0'; // Required for Railway
+**Check Network tab:**
+- Request URL should match `NEXT_PUBLIC_API_URL`
+- Response should not be CORS error
 
-await server.listen({ port: PORT, host: HOST });
-```
+### Environment Variables Not Working
 
-### CORS Errors
+**Rules:**
+- Browser variables MUST start with `NEXT_PUBLIC_`
+- Server-side variables don't need prefix
+- Rebuild required after changing env vars
 
-**Update ALLOWED_ORIGINS:**
+**Force rebuild:**
 ```bash
-# In Railway variables
-ALLOWED_ORIGINS=https://app.cortexcapital.ai,https://cortex-capital-frontend.vercel.app
+vercel --prod --force
 ```
 
-**Check server CORS config:**
+---
+
+## Performance Optimization
+
+### Image Optimization
+
+Already configured in `next.config.mjs`:
+- AVIF/WebP formats
+- Responsive sizes
+- 60s cache TTL
+
+### Bundle Analysis
+
+```bash
+npm install -D @next/bundle-analyzer
+
+# Add to next.config.mjs
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+
+module.exports = withBundleAnalyzer(nextConfig)
+
+# Run analysis
+ANALYZE=true npm run build
+```
+
+---
+
+## Monitoring
+
+### Vercel Analytics (Built-in)
+
+1. Project Settings → Analytics
+2. Enable **Web Analytics**
+3. View real-time metrics
+
+### Custom Monitoring
+
+Add to `app/layout.tsx`:
+
 ```typescript
-// server.ts
-server.register(cors, {
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || true,
-});
+// Sentry, PostHog, etc.
+import { useEffect } from 'react'
+
+export default function RootLayout({ children }) {
+  useEffect(() => {
+    // Initialize monitoring
+  }, [])
+  
+  return <html>{children}</html>
+}
 ```
 
 ---
@@ -381,118 +268,34 @@ server.register(cors, {
 ### Via Dashboard
 
 1. Deployments tab
-2. Click previous successful deployment
-3. **⋯ → Redeploy**
+2. Find previous successful deployment
+3. Click **⋯** → **Promote to Production**
 
 ### Via CLI
 
 ```bash
-railway rollback
+vercel rollback
 ```
-
----
-
-## Maintenance
-
-### Update Dependencies
-
-```bash
-npm update
-npm audit fix
-git commit -am "Update dependencies"
-git push  # Auto-deploys
-```
-
-### Database Migrations
-
-```bash
-# Create new migration
-# migrations/005_new_feature.sql
-
-# Deploy
-railway run psql $DATABASE_URL -f migrations/005_new_feature.sql
-```
-
-### Backup Database
-
-**Render provides automatic backups.**
-
-Manual backup:
-```bash
-pg_dump $DATABASE_URL > backup.sql
-```
-
----
-
-## Environment Management
-
-### Multiple Environments
-
-**Option 1: Railway Environments**
-
-1. Dashboard → New Environment
-2. Name it "staging"
-3. Deploy different branch
-
-**Option 2: Separate Projects**
-
-- `cortex-capital-prod` (main branch)
-- `cortex-capital-staging` (develop branch)
-
----
-
-## Cost Optimization
-
-### Free Tier Limits (Railway)
-
-- $5 free credits/month
-- Unused credits expire
-- Execution time-based billing
-
-### Tips
-
-- Use single Railway project
-- Render Postgres has free tier (512 MB)
-- Upgrade only when needed
 
 ---
 
 ## Security Checklist
 
-- [x] HTTPS enforced (automatic on Railway)
-- [x] Secrets in environment variables (not code)
-- [x] Database requires SSL
-- [x] CORS limited to frontend domain
-- [x] Rate limiting enabled (Fastify plugin)
-- [ ] API authentication (add JWT middleware)
-- [ ] Input validation (use Zod schemas)
-- [ ] DDoS protection (consider Cloudflare)
+- [x] Security headers configured (next.config.mjs)
+- [x] HTTPS enforced (automatic on Vercel)
+- [x] API URL validation
+- [x] No secrets in client code
+- [ ] Content Security Policy (add if needed)
+- [ ] Rate limiting on API endpoints
 
 ---
 
-## Support Resources
+## Support
 
-- **Railway Docs:** https://docs.railway.app
-- **Render Docs:** https://render.com/docs
-- **Fastify Docs:** https://www.fastify.io/docs/latest/
-
----
-
-## Production Readiness
-
-Before going live:
-
-1. [ ] Load test with Artillery/k6
-2. [ ] Set up monitoring (Sentry/DataDog)
-3. [ ] Configure alerting (Railway webhooks)
-4. [ ] Document runbooks for incidents
-5. [ ] Set up staging environment
-6. [ ] Enable database backups (Render auto)
-7. [ ] Review security headers
-8. [ ] Add API rate limiting per user
-9. [ ] Set up log aggregation
-10. [ ] Create disaster recovery plan
+- **Vercel Docs:** https://vercel.com/docs
+- **Next.js Docs:** https://nextjs.org/docs
+- **Issues:** Check deployment logs first
 
 ---
 
-**Backend should be live at https://api.cortexcapital.ai within 10 minutes of setup.**
+**Deployed frontend should be live at your custom domain within minutes of setup.**

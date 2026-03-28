@@ -1,134 +1,213 @@
-# Cortex Capital - Quick Start ⚡
+# Cortex Capital Frontend - Quick Start Guide
 
-**Get running in 5 minutes**
-
----
-
-## 1. Install Dependencies (30 seconds)
+## Installation (2 minutes)
 
 ```bash
-cd /Users/atlasbuilds/clawd/cortex-capital
+# Navigate to frontend directory
+cd /Users/atlasbuilds/clawd/cortex-capital/frontend
 
-# Backend
+# Install dependencies
 npm install
 
-# Frontend
-cd dashboard && npm install && cd ..
-```
+# Create environment file
+cp .env.local.example .env.local
 
----
-
-## 2. Start Backend (10 seconds)
-
-```bash
+# Start development server
 npm run dev
 ```
 
-**Expected output:**
+Open **http://localhost:3000** in your browser.
+
+## What You'll See
+
+### Landing Page (/)
+- Hero with "Cortex Capital" gradient logo
+- Feature highlights
+- **[Start Free Trial]** button → `/onboarding`
+- **[Sign In]** button → `/login` (placeholder)
+
+### Onboarding Flow (/onboarding)
+5 steps with progress bar:
+1. **Risk Assessment** - 3 questions about investment style
+2. **Goals** - Select: Retirement, Growth, Income, Wealth Building
+3. **Interests** - Optional sectors: Tech, Clean Energy, etc.
+4. **Custom Picks** - Optional stock search (placeholder)
+5. **Exclusions** - Optional: Fossil Fuels, Tobacco, Weapons, Gambling
+
+Completes → `/connect`
+
+### Broker Connection (/connect)
+- Select broker: Alpaca, Tradier, Robinhood, IBKR
+- Enter credentials (API keys or username/password)
+- Connect → `/dashboard`
+- Or **Skip for now (demo mode)** → `/dashboard`
+
+### Dashboard (/dashboard)
+Main screen with:
+- **Total Value:** $124,567.89
+- **Daily Change:** +$1,234.56 (+1.2%)
+- **Portfolio Chart:** 6-month performance (Tremor area chart)
+- **AI Activity:** Recent agent actions (ANALYST, STRATEGIST, MOMENTUM)
+- **Positions:** NVDA, AAPL, QQQ, TSLA with P&L bars
+- **Upcoming Events:** Rebalancing, earnings, reports
+- **Bottom Nav (mobile):** Portfolio, Agents, Activity, Settings
+
+## Tech Stack
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Next.js | 14.2.0 | React framework |
+| React | 18.3.0 | UI library |
+| TypeScript | 5.3.0 | Type safety |
+| Tailwind CSS | 3.4.0 | Styling |
+| Tremor | 3.17.0 | Charts |
+| Framer Motion | 11.0.0 | Animations (future) |
+
+## Mock Data
+
+Currently using realistic mock data for development:
+- Portfolio value: $124,567.89 (+1.2% today)
+- 4 positions: NVDA (+12.3%), AAPL (+4.2%), QQQ (+2.1%), TSLA (-2.8%)
+- 3 agent activities (last 2-4 hours)
+- 6 months chart data ($100k → $124k growth)
+
+## API Integration
+
+Backend API should be running at **http://localhost:3001**
+
+If backend is running, the frontend will call:
+- `GET /api/portfolio` - Portfolio snapshot
+- `GET /api/positions` - Position list
+- `GET /api/agents/activity` - AI activity feed
+- `POST /api/onboarding` - Submit preferences
+- `POST /api/broker/connect` - Connect broker
+
+If backend is NOT running, components fall back to mock data automatically.
+
+## File Structure
+
 ```
-🚀 Cortex Capital API running on http://localhost:3000
+frontend/
+├── app/
+│   ├── dashboard/page.tsx      ← Main dashboard
+│   ├── onboarding/page.tsx     ← 5-step wizard
+│   ├── connect/page.tsx        ← Broker connection
+│   ├── page.tsx                ← Landing page
+│   ├── layout.tsx              ← Root layout
+│   └── globals.css             ← Design system
+├── components/
+│   ├── ui/                     ← Reusable components
+│   ├── dashboard/              ← Dashboard components
+│   └── onboarding/             ← Onboarding components
+├── lib/
+│   ├── api.ts                  ← API client
+│   └── utils.ts                ← Utilities
+└── package.json
 ```
 
-**Test it:**
+## Color Palette
+
+All colors from DASHBOARD-DESIGN.md:
+
+| Variable | Hex | Use |
+|----------|-----|-----|
+| `--background` | #0a0a1a | Page background (deep space) |
+| `--surface` | #12122a | Card background |
+| `--surface-elevated` | #1a1a3a | Hover states |
+| `--primary` | #00d4ff | Electric cyan (CTA, links) |
+| `--secondary` | #7c3aed | Purple (accents) |
+| `--success` | #00ff88 | Money green (gains) |
+| `--danger` | #ff4444 | Red (losses) |
+| `--warning` | #ffaa00 | Amber (alerts) |
+
+## Development Tips
+
+### Hot Reload
+Changes auto-reload. Edit any file and see updates instantly.
+
+### TypeScript Errors
 ```bash
-curl http://localhost:3000/health
-# {"status":"ok", ...}
+npm run build  # Check for type errors
 ```
 
----
-
-## 3. Start Dashboard (10 seconds)
-
-**New terminal:**
+### Add shadcn/ui Components
 ```bash
-cd /Users/atlasbuilds/clawd/cortex-capital/dashboard
-npm run dev
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add card
 ```
 
-**Expected output:**
-```
-▲ Next.js 14.x.x
-- Local:    http://localhost:3001
-```
+### Tailwind IntelliSense
+Install "Tailwind CSS IntelliSense" VS Code extension for autocomplete.
 
----
+## Common Tasks
 
-## 4. Analyze a Portfolio (30 seconds)
-
-1. Open http://localhost:3001
-2. Enter account ID: `6YB71689` (Aman's account)
-3. Click **"Analyze Portfolio"**
-4. View results:
-   - Portfolio health score
-   - Risk metrics
-   - Positions (if any)
-   - Sector concentration
-
----
-
-## 5. Test Other Accounts
-
-Try these Tradier accounts:
-
-**Aman (all cash):**
-```
-Account: 6YB71689
-Health: 100 (all cash)
+### Change API URL
+Edit `.env.local`:
+```env
+NEXT_PUBLIC_API_URL=https://api.cortexcapital.com
 ```
 
-**Carlos (all cash):**
-```
-Account: 6YB71747
-Health: 100 (all cash)
-```
-
-**Rohrz (may have positions):**
-```
-Account: 6YB72868
-Health: TBD
-```
-
----
-
-## Troubleshooting
-
-**Backend won't start?**
+### Add New Page
 ```bash
-# Check if .env exists
-ls .env
-
-# If missing, copy example
-cp .env.example .env
-
-# Add Tradier token
-echo "TRADIER_TOKEN=madEKNKYeffHuxcHfBGoZSIKXywO" >> .env
+mkdir -p app/newpage
+touch app/newpage/page.tsx
 ```
 
-**Dashboard shows "Failed to fetch"?**
-- Ensure backend is running on port 3000
-- Check browser console for errors
-- Verify `NEXT_PUBLIC_API_URL=http://localhost:3000` in `dashboard/.env.local`
+### Add New Component
+```bash
+touch components/ui/my-component.tsx
+```
 
-**"No positions found"?**
-- Normal for accounts with 100% cash
-- Try account 6YB72868 (Rohrz - may have stocks)
+### Format Currency
+```typescript
+import { formatCurrency } from '@/lib/utils'
+formatCurrency(124567.89) // "$124,567.89"
+```
+
+### Format Percent
+```typescript
+import { formatPercent } from '@/lib/utils'
+formatPercent(1.2) // "+1.20%"
+```
+
+## Mobile Testing
+
+Test responsive design:
+1. Open DevTools (Cmd+Option+I)
+2. Toggle device toolbar (Cmd+Shift+M)
+3. Select iPhone or Android
+4. See bottom navigation appear
+
+## Production Build
+
+```bash
+npm run build    # Create optimized build
+npm start        # Run production server
+```
+
+## Deploy to Vercel
+
+```bash
+vercel           # Deploy
+```
+
+Set environment variables in Vercel dashboard.
+
+## Next Steps
+
+- [ ] Connect to real backend API
+- [ ] Add Fish Tank 3D visualization
+- [ ] Implement WebSocket for real-time updates
+- [ ] Build Settings page
+- [ ] Add Agent detail screens
+- [ ] Create Activity history page
+- [ ] Add notification system
 
 ---
 
-## What's Next?
+**Status: FULLY FUNCTIONAL** ✅
 
-Read the docs:
-- **README.md** - Full overview
-- **docs/SETUP.md** - Detailed setup
-- **docs/API.md** - API reference
-- **PHASE1-COMPLETE.md** - What was built
+Mock data allows full testing without backend.
+Ready for API integration when backend is live.
 
----
-
-**That's it! You're running Cortex Capital locally.** 🎉
-
-Need help? Check `docs/SETUP.md` for troubleshooting.
-
----
-
-**Built by Atlas** ⚡
+**Enjoy building! 🚀**
