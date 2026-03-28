@@ -398,6 +398,33 @@ export function TradingFloorShell({
           </div>
         )}
 
+        {/* Quick Actions - bottom left (dashboard only) */}
+        {context === 'dashboard' && tier !== 'free' && (
+          <div className="absolute left-4 bottom-4 z-30 flex items-center gap-2">
+            <button
+              onClick={() => triggerDiscussion('portfolio_review')}
+              className="flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs"
+              title="Have agents review your portfolio"
+            >
+              📊 Review
+            </button>
+            <button
+              onClick={() => triggerDiscussion('portfolio_risk')}
+              className="flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs"
+              title="Risk assessment"
+            >
+              🛡️ Risk
+            </button>
+            <button
+              onClick={() => triggerDiscussion('portfolio_opportunities')}
+              className="flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs"
+              title="Find opportunities"
+            >
+              🚀 Ideas
+            </button>
+          </div>
+        )}
+
         {/* Chat toggle - bottom right */}
         <button
           onClick={() => setShowDiscussions((prev) => !prev)}
