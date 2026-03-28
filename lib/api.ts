@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+// Always use relative URLs for same-origin API calls
+const API_BASE_URL = ''
 
 // Typed API errors
 export class ApiError extends Error {

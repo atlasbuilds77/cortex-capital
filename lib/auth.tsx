@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+// Always use relative URLs for same-origin API calls
+const API_URL = ''
 
 interface User {
   id: string
