@@ -19,6 +19,7 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 import { relationshipMatrix, AgentType, RelationshipEvent } from './relationship-matrix';
 import { recallGate } from './recall-gate';
+import { query } from '../db';
 
 // Agent definitions with personalities
 const AGENTS = {
@@ -328,6 +329,24 @@ RULES:
 
     discussion.status = 'concluded';
     discussionEmitter.emit('discussion_end', discussion);
+    
+    // Persist to database
+    try {
+      await query(
+        `INSERT INTO agent_discussions (id, discussion_type, messages, started_at, completed_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (id) DO UPDATE SET messages = $3, completed_at = NOW()`,
+        [
+          discussion.id,
+          topic.toLowerCase().replace(/\s+/g, '_'),
+          JSON.stringify(discussion.messages),
+          discussion.startedAt,
+        ]
+      );
+      console.log(`[CollaborativeDaemon] Saved discussion ${discussion.id} to database`);
+    } catch (err) {
+      console.error('[CollaborativeDaemon] Failed to save discussion:', err);
+    }
     
     return discussion;
   }
