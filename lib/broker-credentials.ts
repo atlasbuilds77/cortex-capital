@@ -1,6 +1,15 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.BROKER_ENCRYPTION_KEY || 'cortex-default-encryption-key-2026!';
+const BROKER_KEY_DERIVATION_SALT = process.env.BROKER_ENCRYPTION_SALT || 'cortex-broker-credentials-v1';
+
+function deriveEncryptionKey(): Buffer {
+  const encryptionSecret = process.env.BROKER_ENCRYPTION_KEY;
+  if (!encryptionSecret) {
+    throw new Error('BROKER_ENCRYPTION_KEY environment variable is required');
+  }
+
+  return crypto.scryptSync(encryptionSecret, BROKER_KEY_DERIVATION_SALT, 32);
+}
 
 /**
  * Encrypts a token using AES-256-GCM.
@@ -8,7 +17,7 @@ const ENCRYPTION_KEY = process.env.BROKER_ENCRYPTION_KEY || 'cortex-default-encr
  */
 export function encryptToken(token: string): { encrypted: string; iv: string; authTag: string } {
   const iv = crypto.randomBytes(16);
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const key = deriveEncryptionKey();
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   
   let encrypted = cipher.update(token, 'utf8', 'hex');
@@ -29,7 +38,7 @@ export function encryptToken(token: string): { encrypted: string; iv: string; au
 export function decryptToken(encrypted: string, iv: string, authTag: string): string {
   const ivBuffer = Buffer.from(iv, 'hex');
   const authTagBuffer = Buffer.from(authTag, 'hex');
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const key = deriveEncryptionKey();
   
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, ivBuffer);
   decipher.setAuthTag(authTagBuffer);
@@ -51,5 +60,8 @@ export function encryptTokenCompact(token: string): string {
 
 export function decryptTokenCompact(compactEncrypted: string): string {
   const [iv, authTag, encrypted] = compactEncrypted.split(':');
+  if (!iv || !authTag || !encrypted) {
+    throw new Error('Invalid encrypted token format');
+  }
   return decryptToken(encrypted, iv, authTag);
 }

@@ -6,10 +6,9 @@ import { requireTier } from '@/lib/tier-gate';
 import { query } from '@/lib/db';
 import { decryptToken } from '@/lib/broker-credentials';
 
-// Demo Alpaca paper account (fallback)
-const DEMO_ALPACA_KEY = 'PKXPAHHSVOFCAXOXINQXP6UXST';
-const DEMO_ALPACA_SECRET = '4rwKDqN7nUfYztpB24ts7h3Zsp2ZtaccjvXBQsGJQuWV';
-const DEMO_ALPACA_URL = 'https://paper-api.alpaca.markets';
+const DEMO_ALPACA_KEY = process.env.DEMO_ALPACA_API_KEY || process.env.ALPACA_API_KEY || '';
+const DEMO_ALPACA_SECRET =
+  process.env.DEMO_ALPACA_SECRET_KEY || process.env.ALPACA_SECRET || process.env.ALPACA_SECRET_KEY || '';
 
 interface Position {
   symbol: string;
@@ -142,11 +141,27 @@ async function fetchTradierPortfolio(accessToken: string): Promise<AccountData> 
   };
 }
 
-/**
- * Fetch demo portfolio (Alpaca paper account)
- */
+function getSyntheticDemoPortfolio(): AccountData {
+  return {
+    equity: 94620.17,
+    cash: 21458.4,
+    buying_power: 42916.8,
+    positions: [],
+    broker: 'demo',
+    account_id: 'DEMO-ACCOUNT',
+  };
+}
+
 async function fetchDemoPortfolio(): Promise<AccountData> {
-  return fetchAlpacaPortfolio(DEMO_ALPACA_KEY, DEMO_ALPACA_SECRET);
+  if (DEMO_ALPACA_KEY && DEMO_ALPACA_SECRET) {
+    try {
+      return await fetchAlpacaPortfolio(DEMO_ALPACA_KEY, DEMO_ALPACA_SECRET);
+    } catch (error) {
+      console.error('Demo portfolio fetch failed, using synthetic data:', error);
+    }
+  }
+
+  return getSyntheticDemoPortfolio();
 }
 
 export const GET = requireAuth(
@@ -189,7 +204,7 @@ export const GET = requireAuth(
             isDemo: false,
             userTier: tier,
           });
-        } catch (error: any) {
+        } catch (error) {
           console.error('Failed to fetch user portfolio, falling back to demo:', error);
           // Fallback to demo if user's credentials fail
           const demoData = await fetchDemoPortfolio();
@@ -197,7 +212,6 @@ export const GET = requireAuth(
             ...demoData,
             isDemo: true,
             userTier: tier,
-            error: 'Failed to fetch your portfolio. Showing demo data.',
           });
         }
       }
@@ -209,10 +223,10 @@ export const GET = requireAuth(
         isDemo: true,
         userTier: tier,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Portfolio fetch error:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch portfolio', details: error.message },
+        { error: 'Failed to fetch portfolio' },
         { status: 500 }
       );
     }

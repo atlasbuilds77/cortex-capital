@@ -30,9 +30,10 @@ export const POST = requireAuth(
         success: true, 
         message: `Trade pipeline started for ${symbol} ${direction}` 
       });
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Trade signal route error:', error);
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Failed to start trade pipeline' },
         { status: 500 }
       );
     }

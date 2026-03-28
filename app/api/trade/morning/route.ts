@@ -10,9 +10,10 @@ export async function POST(request: NextRequest) {
       success: true, 
       message: 'Morning routine started' 
     });
-  } catch (error: any) {
+  } catch (error) {
+    console.error('Morning route error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Failed to start morning routine' },
       { status: 500 }
     );
   }

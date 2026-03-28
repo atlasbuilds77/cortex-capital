@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { startExpiryGuardianCron } from '@/lib/agents/expiry-guardian';
+import { safeEqual } from '@/lib/env';
 
 /**
  * GET /api/guardian - Check guardian status
@@ -20,10 +21,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const secret = request.headers.get('x-guardian-secret');
-    
-    // Simple secret protection (set GUARDIAN_SECRET in env)
-    const expectedSecret = process.env.GUARDIAN_SECRET || 'cortex-guardian-2026';
-    if (secret !== expectedSecret) {
+
+    const expectedSecret = process.env.GUARDIAN_SECRET;
+    if (!expectedSecret) {
+      return NextResponse.json(
+        { error: 'Guardian endpoint unavailable' },
+        { status: 503 }
+      );
+    }
+
+    if (!secret || !safeEqual(secret, expectedSecret)) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -37,10 +44,10 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Expiry Guardian started',
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Guardian start error:', error);
     return NextResponse.json(
-      { error: 'Failed to start guardian', details: error.message },
+      { error: 'Failed to start guardian' },
       { status: 500 }
     );
   }

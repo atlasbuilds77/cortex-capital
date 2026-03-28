@@ -3,26 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { requireTier } from '@/lib/tier-gate';
-import crypto from 'crypto';
-
-// Encryption key from env (32 bytes for AES-256)
-const ENCRYPTION_KEY = process.env.BROKER_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex').slice(0, 64);
-
-function encrypt(text: string): { encrypted: string; iv: string; tag: string } {
-  const iv = crypto.randomBytes(12);
-  const key = Buffer.from(ENCRYPTION_KEY, 'hex');
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const tag = cipher.getAuthTag();
-  
-  return {
-    encrypted,
-    iv: iv.toString('hex'),
-    tag: tag.toString('hex'),
-  };
-}
+import { encryptToken } from '@/lib/broker-credentials';
 
 export const POST = requireAuth(
   requireTier('recovery')(async (request: NextRequest, user, tier) => {
@@ -56,7 +37,7 @@ export const POST = requireAuth(
       const accountName = profile.profile?.account?.account_number || accountId || 'Connected';
 
       // Encrypt token before storage
-      const encryptedToken = encrypt(apiToken);
+      const encryptedToken = encryptToken(apiToken);
 
       // TODO: Store in database
       // await db.query(`
@@ -74,10 +55,10 @@ export const POST = requireAuth(
           accountNumber: accountName,
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Tradier connect error:', error);
       return NextResponse.json(
-        { error: 'Failed to connect Tradier', details: error.message },
+        { error: 'Failed to connect Tradier' },
         { status: 500 }
       );
     }

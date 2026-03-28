@@ -80,10 +80,10 @@ export async function GET(request: NextRequest) {
       source: 'none',
       trades: [],
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('User trades fetch failed:', error);
     return NextResponse.json(
-      { error: error.message, source: 'error', trades: [] },
+      { error: 'Failed to fetch trades', source: 'error', trades: [] },
       { status: 500 }
     );
   }

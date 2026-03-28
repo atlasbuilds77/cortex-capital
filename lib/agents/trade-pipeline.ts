@@ -8,8 +8,17 @@
 import { collaborativeDaemon, discussionEmitter } from './collaborative-daemon';
 
 const ALPACA_BASE = 'https://paper-api.alpaca.markets/v2';
-const ALPACA_KEY = 'PKXPAHHSVOFCAXOXINQXP6UXST';
-const ALPACA_SECRET = '4rwKDqN7nUfYztpB24ts7h3Zsp2ZtaccjvXBQsGJQuWV';
+
+function getAlpacaCredentials() {
+  const apiKey = process.env.ALPACA_API_KEY || process.env.DEMO_ALPACA_API_KEY;
+  const apiSecret = process.env.ALPACA_SECRET_KEY || process.env.ALPACA_SECRET || process.env.DEMO_ALPACA_SECRET_KEY;
+
+  if (!apiKey || !apiSecret) {
+    return null;
+  }
+
+  return { apiKey, apiSecret };
+}
 
 interface TradeSignal {
   symbol: string;
@@ -45,11 +54,17 @@ async function placeAlpacaOrder(
   side: 'buy' | 'sell'
 ): Promise<TradeExecution | null> {
   try {
+    const credentials = getAlpacaCredentials();
+    if (!credentials) {
+      console.error('[EXECUTOR] Missing Alpaca credentials in environment');
+      return null;
+    }
+
     const res = await fetch(`${ALPACA_BASE}/orders`, {
       method: 'POST',
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -88,10 +103,13 @@ async function placeAlpacaOrder(
  */
 async function getPortfolioValue(): Promise<number> {
   try {
+    const credentials = getAlpacaCredentials();
+    if (!credentials) return 0;
+
     const res = await fetch(`${ALPACA_BASE}/account`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
       },
     });
     const account = await res.json();
@@ -106,10 +124,13 @@ async function getPortfolioValue(): Promise<number> {
  */
 async function getCurrentPrice(symbol: string): Promise<number> {
   try {
+    const credentials = getAlpacaCredentials();
+    if (!credentials) return 0;
+
     const res = await fetch(`${ALPACA_BASE}/positions/${symbol}`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
       },
     });
     if (res.ok) {
@@ -119,8 +140,8 @@ async function getCurrentPrice(symbol: string): Promise<number> {
     // If no position, get last trade
     const tradeRes = await fetch(`https://data.alpaca.markets/v2/stocks/${symbol}/trades/latest`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
       },
     });
     const trade = await tradeRes.json();

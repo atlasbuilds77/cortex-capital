@@ -3,21 +3,14 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { encryptToken } from '@/lib/broker-credentials';
-
-const ALPACA_CLIENT_ID = process.env.ALPACA_CLIENT_ID || 'PKXPAHHSVOFCAXOXINQXP6UXST';
-const ALPACA_CLIENT_SECRET = process.env.ALPACA_CLIENT_SECRET || '4rwKDqN7nUfYztpB24ts7h3Zsp2ZtaccjvXBQsGJQuWV';
-const ALPACA_REDIRECT_URI = process.env.ALPACA_REDIRECT_URI || 'http://localhost:3000/api/broker/callback';
-
-const TRADIER_CLIENT_ID = process.env.TRADIER_CLIENT_ID || '';
-const TRADIER_CLIENT_SECRET = process.env.TRADIER_CLIENT_SECRET || '';
-const TRADIER_REDIRECT_URI = process.env.TRADIER_REDIRECT_URI || 'http://localhost:3000/api/broker/callback';
+import { verifyBrokerOAuthState } from '@/lib/broker-oauth-state';
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
-    const state = searchParams.get('state'); // userId
-    const broker = searchParams.get('broker') || 'alpaca'; // Default to alpaca
+    const state = searchParams.get('state');
+    const brokerParam = searchParams.get('broker');
 
     if (!code || !state) {
       return NextResponse.json(
@@ -26,19 +19,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userId = state;
+    const statePayload = verifyBrokerOAuthState(state);
+    const broker = brokerParam || statePayload.broker;
+    if (broker !== statePayload.broker) {
+      return NextResponse.json(
+        { error: 'Broker mismatch in callback state' },
+        { status: 400 }
+      );
+    }
+
+    const userId = statePayload.userId;
 
     // Exchange code for token based on broker
     if (broker === 'alpaca') {
+      const clientId = process.env.ALPACA_CLIENT_ID;
+      const clientSecret = process.env.ALPACA_CLIENT_SECRET;
+      const redirectUri = process.env.ALPACA_REDIRECT_URI;
+      if (!clientId || !clientSecret || !redirectUri) {
+        return NextResponse.json(
+          { error: 'Alpaca integration is not configured' },
+          { status: 503 }
+        );
+      }
+
       const tokenResponse = await fetch('https://api.alpaca.markets/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           grant_type: 'authorization_code',
           code,
-          client_id: ALPACA_CLIENT_ID,
-          client_secret: ALPACA_CLIENT_SECRET,
-          redirect_uri: ALPACA_REDIRECT_URI,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
         }),
       });
 
@@ -46,7 +58,7 @@ export async function GET(request: NextRequest) {
         const errorData = await tokenResponse.text();
         console.error('Alpaca token exchange failed:', errorData);
         return NextResponse.json(
-          { error: 'Failed to exchange authorization code', details: errorData },
+          { error: 'Failed to exchange authorization code' },
           { status: 500 }
         );
       }
@@ -57,7 +69,7 @@ export async function GET(request: NextRequest) {
       // Fetch account info
       const accountResponse = await fetch('https://api.alpaca.markets/v2/account', {
         headers: {
-          'APCA-API-KEY-ID': ALPACA_CLIENT_ID,
+          'APCA-API-KEY-ID': clientId,
           'APCA-API-SECRET-KEY': access_token,
         },
       });
@@ -97,15 +109,25 @@ export async function GET(request: NextRequest) {
     }
 
     if (broker === 'tradier') {
+      const clientId = process.env.TRADIER_CLIENT_ID;
+      const clientSecret = process.env.TRADIER_CLIENT_SECRET;
+      const redirectUri = process.env.TRADIER_REDIRECT_URI;
+      if (!clientId || !clientSecret || !redirectUri) {
+        return NextResponse.json(
+          { error: 'Tradier integration is not configured' },
+          { status: 503 }
+        );
+      }
+
       const tokenResponse = await fetch('https://api.tradier.com/v1/oauth/accesstoken', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'authorization_code',
           code,
-          client_id: TRADIER_CLIENT_ID,
-          client_secret: TRADIER_CLIENT_SECRET,
-          redirect_uri: TRADIER_REDIRECT_URI,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
         }),
       });
 
@@ -113,7 +135,7 @@ export async function GET(request: NextRequest) {
         const errorData = await tokenResponse.text();
         console.error('Tradier token exchange failed:', errorData);
         return NextResponse.json(
-          { error: 'Failed to exchange authorization code', details: errorData },
+          { error: 'Failed to exchange authorization code' },
           { status: 500 }
         );
       }
@@ -154,10 +176,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Unsupported broker' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Broker callback error:', error);
     return NextResponse.json(
-      { error: 'Failed to complete broker connection', details: error.message },
+      { error: 'Failed to complete broker connection' },
       { status: 500 }
     );
   }

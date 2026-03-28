@@ -10,9 +10,10 @@ export async function POST(request: NextRequest) {
       success: true, 
       message: 'EOD routine started' 
     });
-  } catch (error: any) {
+  } catch (error) {
+    console.error('EOD route error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Failed to start EOD routine' },
       { status: 500 }
     );
   }

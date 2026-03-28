@@ -3,12 +3,27 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 
 // PnL endpoint - wraps fishtank/live data for the demo overlay
-const ALPACA_API_KEY = process.env.ALPACA_API_KEY || 'PKXPAHHSVOFCAXOXINQXP6UXST';
-const ALPACA_SECRET = process.env.ALPACA_SECRET || '4rwKDqN7nUfYztpB24ts7h3Zsp2ZtaccjvXBQsGJQuWV';
-const ALPACA_URL = 'https://paper-api.alpaca.markets';
+const ALPACA_API_KEY = process.env.DEMO_ALPACA_API_KEY || process.env.ALPACA_API_KEY || '';
+const ALPACA_SECRET =
+  process.env.DEMO_ALPACA_SECRET_KEY || process.env.ALPACA_SECRET || process.env.ALPACA_SECRET_KEY || '';
+const ALPACA_URL = process.env.DEMO_ALPACA_URL || 'https://paper-api.alpaca.markets';
+
+function getSyntheticPnlData() {
+  return {
+    accountValue: 93467.54,
+    todayPnL: -2913.06,
+    openPositions: 7,
+    cash: 45000,
+    buyingPower: 90000,
+  };
+}
 
 export async function GET() {
   try {
+    if (!ALPACA_API_KEY || !ALPACA_SECRET) {
+      return NextResponse.json(getSyntheticPnlData());
+    }
+
     // Fetch account data from Alpaca
     const accountRes = await fetch(`${ALPACA_URL}/v2/account`, {
       headers: {
@@ -45,16 +60,10 @@ export async function GET() {
       cash: parseFloat(account.cash),
       buyingPower: parseFloat(account.buying_power),
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('PnL fetch error:', error);
-    
-    // Return demo data on error
-    return NextResponse.json({
-      accountValue: 93467.54,
-      todayPnL: -2913.06,
-      openPositions: 7,
-      cash: 45000,
-      buyingPower: 90000,
-    });
+
+    // Return synthetic demo data on error
+    return NextResponse.json(getSyntheticPnlData());
   }
 }

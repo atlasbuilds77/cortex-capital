@@ -4,26 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { requireTier } from '@/lib/tier-gate';
 import { query } from '@/lib/db';
-import crypto from 'crypto';
-
-// Encryption key from env (32 bytes for AES-256)
-const ENCRYPTION_KEY = process.env.BROKER_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex').slice(0, 64);
-
-function encrypt(text: string): { encrypted: string; iv: string; tag: string } {
-  const iv = crypto.randomBytes(12);
-  const key = Buffer.from(ENCRYPTION_KEY, 'hex');
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const tag = cipher.getAuthTag();
-  
-  return {
-    encrypted,
-    iv: iv.toString('hex'),
-    tag: tag.toString('hex'),
-  };
-}
+import { encryptToken } from '@/lib/broker-credentials';
 
 export const POST = requireAuth(
   requireTier('recovery')(async (request: NextRequest, user, tier) => {
@@ -39,8 +20,8 @@ export const POST = requireAuth(
       }
 
       // Encrypt credentials
-      const encryptedUsername = encrypt(username);
-      const encryptedPassword = encrypt(password);
+      const encryptedUsername = encryptToken(username);
+      const encryptedPassword = encryptToken(password);
 
       // Store encrypted credentials in database
       await query(`
@@ -65,10 +46,10 @@ export const POST = requireAuth(
         user.userId,
         encryptedUsername.encrypted,
         encryptedUsername.iv,
-        encryptedUsername.tag,
+        encryptedUsername.authTag,
         encryptedPassword.encrypted,
         encryptedPassword.iv,
-        encryptedPassword.tag,
+        encryptedPassword.authTag,
       ]);
 
       // Optionally validate credentials with Robinhood service
@@ -133,10 +114,10 @@ export const POST = requireAuth(
           status: 'pending_verification',
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Robinhood connect error:', error);
       return NextResponse.json(
-        { error: 'Failed to connect Robinhood', details: error.message },
+        { error: 'Failed to connect Robinhood' },
         { status: 500 }
       );
     }
@@ -166,10 +147,10 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
       connectedAt: cred.created_at,
       lastUpdated: cred.updated_at,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Robinhood status error:', error);
     return NextResponse.json(
-      { error: 'Failed to get status', details: error.message },
+      { error: 'Failed to get status' },
       { status: 500 }
     );
   }

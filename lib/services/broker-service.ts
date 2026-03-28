@@ -14,8 +14,14 @@ import * as crypto from 'crypto';
 import axios from 'axios';
 import { query } from '../integrations/database';
 
-// Encryption key from env (should be 32 bytes for AES-256)
-const ENCRYPTION_KEY = process.env.CREDENTIAL_ENCRYPTION_KEY || 'cortex-capital-dev-key-32-bytes!';
+function deriveBrokerServiceKey(): Buffer {
+  const encryptionSecret = process.env.CREDENTIAL_ENCRYPTION_KEY || process.env.BROKER_ENCRYPTION_KEY;
+  if (!encryptionSecret) {
+    throw new Error('CREDENTIAL_ENCRYPTION_KEY or BROKER_ENCRYPTION_KEY environment variable is required');
+  }
+
+  return crypto.scryptSync(encryptionSecret, 'cortex-salt', 32);
+}
 
 // Standard portfolio format across all brokers
 export interface UnifiedPortfolio {
@@ -66,7 +72,7 @@ function decryptCredentials(encrypted: string): DecryptedCredentials {
     const authTag = Buffer.from(authTagHex, 'hex');
     const encryptedData = Buffer.from(encryptedHex, 'hex');
     
-    const key = crypto.scryptSync(ENCRYPTION_KEY, 'cortex-salt', 32);
+    const key = deriveBrokerServiceKey();
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
     
@@ -87,7 +93,7 @@ function decryptCredentials(encrypted: string): DecryptedCredentials {
  */
 export function encryptCredentials(credentials: DecryptedCredentials): string {
   const iv = crypto.randomBytes(16);
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'cortex-salt', 32);
+  const key = deriveBrokerServiceKey();
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   
   const data = JSON.stringify(credentials);

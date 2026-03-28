@@ -98,11 +98,11 @@ export async function GET(request: NextRequest) {
       openPositions: 0,
       positions: [],
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('User portfolio fetch failed:', error);
     return NextResponse.json(
       { 
-        error: error.message, 
+        error: 'Failed to fetch portfolio', 
         source: 'error',
         accountValue: 0,
         positions: [],

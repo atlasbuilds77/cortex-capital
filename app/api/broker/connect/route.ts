@@ -3,12 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { requireTier } from '@/lib/tier-gate';
-
-const ALPACA_CLIENT_ID = process.env.ALPACA_CLIENT_ID || 'PKXPAHHSVOFCAXOXINQXP6UXST';
-const ALPACA_REDIRECT_URI = process.env.ALPACA_REDIRECT_URI || 'http://localhost:3000/api/broker/callback';
-
-const TRADIER_CLIENT_ID = process.env.TRADIER_CLIENT_ID || '';
-const TRADIER_REDIRECT_URI = process.env.TRADIER_REDIRECT_URI || 'http://localhost:3000/api/broker/callback';
+import { createBrokerOAuthState } from '@/lib/broker-oauth-state';
 
 export const POST = requireAuth(
   requireTier('operator')(async (request: NextRequest, user, tier) => {
@@ -25,12 +20,22 @@ export const POST = requireAuth(
 
       // Generate OAuth URL based on broker
       if (broker === 'alpaca') {
+        const clientId = process.env.ALPACA_CLIENT_ID;
+        const redirectUri = process.env.ALPACA_REDIRECT_URI;
+        if (!clientId || !redirectUri) {
+          return NextResponse.json(
+            { error: 'Alpaca integration is not configured' },
+            { status: 503 }
+          );
+        }
+
         const authUrl = new URL('https://app.alpaca.markets/oauth/authorize');
-        authUrl.searchParams.set('client_id', ALPACA_CLIENT_ID);
-        authUrl.searchParams.set('redirect_uri', ALPACA_REDIRECT_URI);
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
         authUrl.searchParams.set('response_type', 'code');
         authUrl.searchParams.set('scope', 'account:write trading');
-        authUrl.searchParams.set('state', user.userId); // Pass user ID in state
+        authUrl.searchParams.set('state', createBrokerOAuthState(user.userId, 'alpaca'));
+        authUrl.searchParams.set('broker', 'alpaca');
 
         return NextResponse.json({
           broker: 'alpaca',
@@ -39,12 +44,22 @@ export const POST = requireAuth(
       }
 
       if (broker === 'tradier') {
+        const clientId = process.env.TRADIER_CLIENT_ID;
+        const redirectUri = process.env.TRADIER_REDIRECT_URI;
+        if (!clientId || !redirectUri) {
+          return NextResponse.json(
+            { error: 'Tradier integration is not configured' },
+            { status: 503 }
+          );
+        }
+
         const authUrl = new URL('https://api.tradier.com/v1/oauth/authorize');
-        authUrl.searchParams.set('client_id', TRADIER_CLIENT_ID);
-        authUrl.searchParams.set('redirect_uri', TRADIER_REDIRECT_URI);
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
         authUrl.searchParams.set('response_type', 'code');
         authUrl.searchParams.set('scope', 'read write trade market');
-        authUrl.searchParams.set('state', user.userId);
+        authUrl.searchParams.set('state', createBrokerOAuthState(user.userId, 'tradier'));
+        authUrl.searchParams.set('broker', 'tradier');
 
         return NextResponse.json({
           broker: 'tradier',
@@ -56,7 +71,7 @@ export const POST = requireAuth(
     } catch (error: any) {
       console.error('Broker connect error:', error);
       return NextResponse.json(
-        { error: 'Failed to initiate broker connection', details: error.message },
+        { error: 'Failed to initiate broker connection' },
         { status: 500 }
       );
     }

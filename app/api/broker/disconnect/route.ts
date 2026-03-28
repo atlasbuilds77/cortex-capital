@@ -26,10 +26,10 @@ export const POST = requireAuth(async (request: NextRequest, user) => {
       success: true,
       message: `${broker} disconnected successfully`,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Broker disconnect error:', error);
     return NextResponse.json(
-      { error: 'Failed to disconnect broker', details: error.message },
+      { error: 'Failed to disconnect broker' },
       { status: 500 }
     );
   }

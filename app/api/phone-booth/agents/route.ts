@@ -7,9 +7,10 @@ export async function GET(request: NextRequest) {
   try {
     const agents = getAvailableAgents();
     return NextResponse.json(agents);
-  } catch (error: any) {
+  } catch (error) {
+    console.error('Phone booth agents route error:', error);
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Failed to fetch agents' },
       { status: 500 }
     );
   }
