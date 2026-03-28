@@ -20,3 +20,18 @@ services:
         value: 3000
     autoDeploy: true
     branch: main
+
+  # Auto-trading cron job
+  - type: cron
+    name: cortex-auto-trade
+    runtime: node
+    region: oregon
+    schedule: "*/15 13-20 * * 1-5"  # Every 15 min, 9am-4pm ET (13-20 UTC), Mon-Fri
+    buildCommand: npm ci
+    startCommand: npx tsx lib/agents/run-cron.ts
+    nodeVersion: "20"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
