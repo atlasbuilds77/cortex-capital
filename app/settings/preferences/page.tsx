@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { BarChart3, Target, Zap, TrendingUp, Dices, Clock, Rocket } from 'lucide-react'
+import { BarChart3, Target, Zap, TrendingUp, Dices, Clock, Rocket, Loader2 } from 'lucide-react'
+import { useAuth } from '@/lib/auth'
 
 interface PreferencesData {
-  riskProfile: 'conservative' | 'moderate' | 'aggressive'
+  riskProfile: 'conservative' | 'moderate' | 'aggressive' | 'ultra_aggressive'
   tradingGoals: string[]
   sectorInterests: string[]
   exclusions: string[]
@@ -78,28 +79,81 @@ const AgentIcon = ({ iconType }: { iconType: string }) => {
 
 export default function PreferencesPage() {
   const router = useRouter()
+  const { token } = useAuth()
+  const [loading, setLoading] = useState(true)
   const [preferences, setPreferences] = useState<PreferencesData>({
     riskProfile: 'moderate',
     tradingGoals: ['Long-term growth', 'Tax optimization'],
     sectorInterests: ['Technology', 'Healthcare'],
-    exclusions: ['Tobacco', 'Weapons'],
+    exclusions: [],
     enabledAgents: {
       analyst: true,
       strategist: true,
       executor: true,
       reporter: true,
-      options_strategist: false,
-      day_trader: false,
+      options_strategist: true,
+      day_trader: true,
       momentum: true,
     },
   })
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  // Load preferences on mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const res = await fetch('/api/user/preferences', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setPreferences({
+            riskProfile: data.riskProfile || 'moderate',
+            tradingGoals: data.tradingGoals || ['Long-term growth'],
+            sectorInterests: data.sectorInterests || ['Technology'],
+            exclusions: data.exclusions || [],
+            enabledAgents: data.enabledAgents || preferences.enabledAgents,
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load preferences:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadPreferences()
+  }, [token])
 
   const handleSave = async () => {
     setSaving(true)
-    // TODO: API call to update preferences
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setSaving(false)
+    setSaved(false)
+    try {
+      const res = await fetch('/api/user/preferences', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(preferences),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      }
+    } catch (error) {
+      console.error('Failed to save preferences:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    )
   }
 
   const toggleGoal = (goal: string) => {
@@ -321,13 +375,16 @@ export default function PreferencesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-3 bg-primary text-background rounded-lg hover:bg-primary/90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {saving ? 'Saving...' : 'Save Preferences'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-3 bg-primary text-background rounded-lg hover:bg-primary/90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? 'Saving...' : 'Save Preferences'}
+          </button>
+          {saved && <span className="text-green-400 text-sm">✓ Preferences saved! Agents will use these settings.</span>}
+        </div>
       </motion.div>
     </div>
   )

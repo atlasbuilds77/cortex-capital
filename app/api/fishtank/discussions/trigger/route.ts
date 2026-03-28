@@ -43,11 +43,32 @@ export async function POST(request: NextRequest) {
         // Full portfolio review - uses userId if provided, else demo
         const reviewPortfolio = await portfolioDiscussionEngine.fetchPortfolio(userId);
         if (reviewPortfolio) {
-          await portfolioDiscussionEngine.discussPortfolio(reviewPortfolio, {
-            risk_tolerance: params?.risk_tolerance || 'moderate',
-            investment_horizon: params?.horizon || 'medium',
-            goals: params?.goals || ['Growth', 'Capital Preservation']
-          });
+          // Load user preferences from database
+          const { query: dbQuery } = await import('@/lib/db');
+          let userPrefs = {
+            risk_tolerance: 'moderate' as const,
+            investment_horizon: 'medium' as const,
+            goals: ['Growth', 'Capital Preservation'],
+            excluded_sectors: [] as string[],
+          };
+          
+          if (userId) {
+            const prefsResult = await dbQuery(
+              'SELECT risk_profile, trading_goals, sector_interests, exclusions FROM users WHERE id = $1',
+              [userId]
+            );
+            if (prefsResult.rows.length > 0) {
+              const row = prefsResult.rows[0];
+              userPrefs = {
+                risk_tolerance: row.risk_profile || 'moderate',
+                investment_horizon: 'medium',
+                goals: row.trading_goals || ['Growth'],
+                excluded_sectors: row.exclusions || [],
+              };
+            }
+          }
+          
+          await portfolioDiscussionEngine.discussPortfolio(reviewPortfolio, userPrefs);
         }
         return NextResponse.json({ 
           success: true, 
