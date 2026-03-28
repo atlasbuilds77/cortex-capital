@@ -12,7 +12,7 @@ import {
   Search, Zap, Crown, Sparkles
 } from 'lucide-react'
 
-type Step = 'risk' | 'brokerage' | 'welcome'
+type Step = 'risk' | 'goals' | 'brokerage' | 'welcome'
 type RiskProfile = 'conservative' | 'moderate' | 'aggressive' | 'ultra_aggressive'
 
 const API_URL = ""; // API is same-origin
@@ -128,12 +128,30 @@ function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState<Step>('risk')
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const [selectedRisk, setSelectedRisk] = useState<RiskProfile | null>(null)
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([])
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([])
   // Tier is already set from Stripe checkout - no need to select here
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const steps: Step[] = ['risk', 'brokerage', 'welcome']
-  const stepNames = ['Risk Profile', 'Connect Brokerage', 'Choose Plan']
+  const steps: Step[] = ['risk', 'goals', 'brokerage', 'welcome']
+  const stepNames = ['Risk Profile', 'Goals', 'Connect', 'Start']
+  
+  const TRADING_GOALS = [
+    { id: 'Long-term growth', emoji: '📈', desc: 'Build wealth over time' },
+    { id: 'Income generation', emoji: '💵', desc: 'Dividends and yield' },
+    { id: 'Capital preservation', emoji: '🛡️', desc: 'Protect what you have' },
+    { id: 'Sector exposure', emoji: '🎯', desc: 'Target specific industries' },
+  ]
+  
+  const SECTORS = [
+    { id: 'Technology', emoji: '💻' },
+    { id: 'Healthcare', emoji: '🏥' },
+    { id: 'Financials', emoji: '🏦' },
+    { id: 'Energy', emoji: '⚡' },
+    { id: 'Consumer', emoji: '🛍️' },
+    { id: 'Real Estate', emoji: '🏠' },
+  ]
   const currentStepIndex = steps.indexOf(currentStep)
 
   const goToStep = (step: Step, dir: 'forward' | 'backward' = 'forward') => {
@@ -163,12 +181,53 @@ function OnboardingFlow() {
       }
 
       updateUser({ risk_profile: selectedRisk })
+      goToStep('goals', 'forward')
+    } catch (err: any) {
+      setError(err.message || 'Failed to save. Try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveGoals = async () => {
+    setSaving(true)
+    setError('')
+    
+    try {
+      const res = await fetch(`${API_URL}/api/user/preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ 
+          tradingGoals: selectedGoals,
+          sectorInterests: selectedSectors,
+        }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to save preferences')
+      }
+
       goToStep('brokerage', 'forward')
     } catch (err: any) {
       setError(err.message || 'Failed to save. Try again.')
     } finally {
       setSaving(false)
     }
+  }
+
+  const toggleGoal = (goal: string) => {
+    setSelectedGoals(prev => 
+      prev.includes(goal) ? prev.filter(g => g !== goal) : [...prev, goal]
+    )
+  }
+
+  const toggleSector = (sector: string) => {
+    setSelectedSectors(prev => 
+      prev.includes(sector) ? prev.filter(s => s !== sector) : [...prev, sector]
+    )
   }
 
   const handleTradierConnect = () => {
@@ -278,7 +337,87 @@ function OnboardingFlow() {
               </div>
             )}
 
-            {/* STEP 2: Connect Brokerage */}
+            {/* STEP 2: Trading Goals */}
+            {currentStep === 'goals' && (
+              <div className="space-y-6">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">🎯</span>
+                  </div>
+                  <h2 className="text-3xl font-bold mb-2">What are your goals?</h2>
+                  <p className="text-text-secondary">
+                    Help our AI agents understand what you want to achieve
+                  </p>
+                </div>
+
+                {/* Trading Goals */}
+                <div>
+                  <h3 className="text-sm font-medium text-text-secondary mb-3">TRADING GOALS</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {TRADING_GOALS.map((goal) => {
+                      const isSelected = selectedGoals.includes(goal.id)
+                      return (
+                        <button
+                          key={goal.id}
+                          onClick={() => toggleGoal(goal.id)}
+                          className={`p-4 rounded-xl border-2 transition-all text-left ${
+                            isSelected
+                              ? 'border-primary bg-primary/10'
+                              : 'border-white/[0.08] bg-surface hover:border-gray-600'
+                          }`}
+                        >
+                          <span className="text-2xl mb-2 block">{goal.emoji}</span>
+                          <div className="font-medium text-sm">{goal.id}</div>
+                          <div className="text-xs text-text-secondary mt-0.5">{goal.desc}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Sector Interests */}
+                <div>
+                  <h3 className="text-sm font-medium text-text-secondary mb-3">SECTOR INTERESTS</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {SECTORS.map((sector) => {
+                      const isSelected = selectedSectors.includes(sector.id)
+                      return (
+                        <button
+                          key={sector.id}
+                          onClick={() => toggleSector(sector.id)}
+                          className={`px-4 py-2 rounded-lg border transition-all flex items-center gap-2 ${
+                            isSelected
+                              ? 'border-secondary bg-secondary/10 text-secondary'
+                              : 'border-white/[0.08] text-text-secondary hover:border-gray-600'
+                          }`}
+                        >
+                          <span>{sector.emoji}</span>
+                          <span className="text-sm">{sector.id}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => goToStep('risk', 'backward')}
+                    className="px-6 py-4 rounded-lg font-semibold border border-white/[0.08] text-text-secondary hover:bg-surface-elevated transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={saveGoals}
+                    disabled={saving}
+                    className="flex-1 py-4 rounded-lg font-semibold bg-primary text-white hover:bg-purple-500 shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Continue'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Connect Brokerage */}
             {currentStep === 'brokerage' && (
               <div className="space-y-6">
                 <div className="text-center mb-8">
