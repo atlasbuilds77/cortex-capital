@@ -22,6 +22,7 @@ import { recallGate } from './recall-gate';
 import { query } from '../db';
 import { getMarketContextForAgents } from './data/market-data';
 import { loadUserPreferences, generatePreferencesContext, UserPreferences } from './user-preferences-context';
+import { getFullResearchContext } from './data/research-engine';
 
 // Agent definitions with personalities
 const AGENTS = {
@@ -308,6 +309,21 @@ RULES:
         if (prefs) {
           const prefsContext = generatePreferencesContext(prefs);
           enrichedContext = `USER PREFERENCES:\n${prefsContext}\n\n${enrichedContext}`;
+          
+          // Add research for user's sectors and positions
+          try {
+            // Extract position symbols from context if available
+            const positionMatches = context.match(/([A-Z]{1,5}):/g) || [];
+            const positions = positionMatches.map(m => m.replace(':', '')).slice(0, 5);
+            
+            const researchContext = await getFullResearchContext(
+              prefs.sectorInterests || ['Technology', 'Healthcare'],
+              positions
+            );
+            enrichedContext = `LIVE RESEARCH:\n${researchContext}\n\n${enrichedContext}`;
+          } catch (researchErr) {
+            console.error('[CollaborativeDaemon] Research failed:', researchErr);
+          }
         }
       } catch (err) {
         console.error('[CollaborativeDaemon] Failed to load user preferences:', err);
