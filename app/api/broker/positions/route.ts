@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth-middleware'
+import { query } from '@/lib/db'
+import { listAccounts, getPositions } from '@/lib/integrations/snaptrade'
 
 // Tradier API for fetching positions (read-only)
 const TRADIER_BASE_URL = 'https://api.tradier.com/v1'
@@ -45,7 +48,49 @@ function getSector(symbol: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { token, broker } = await req.json()
+    const { token, broker, userId } = await req.json()
+    
+    // If userId provided, try SnapTrade first
+    if (userId) {
+      const snapResult = await query(
+        'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+        [userId]
+      )
+      
+      const snapUserId = snapResult.rows[0]?.snaptrade_user_id
+      const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret
+      
+      if (snapUserId && snapUserSecret) {
+        try {
+          const accounts = await listAccounts(snapUserId, snapUserSecret)
+          const allHoldings: any[] = []
+          
+          for (const account of accounts as any[]) {
+            const positions = await getPositions(snapUserId, snapUserSecret, account.id)
+            
+            for (const pos of positions as any[]) {
+              allHoldings.push({
+                id: pos.id || String(allHoldings.length + 1),
+                symbol: pos.symbol?.symbol || 'UNKNOWN',
+                shares: pos.units || 0,
+                sector: getSector(pos.symbol?.symbol || ''),
+                costBasis: (pos.average_purchase_price || 0) * (pos.units || 0),
+                currentValue: (pos.price || 0) * (pos.units || 0),
+              })
+            }
+          }
+          
+          return NextResponse.json({
+            broker: 'snaptrade',
+            holdings: allHoldings,
+            count: allHoldings.length,
+          })
+        } catch (err) {
+          console.error('SnapTrade positions fetch failed:', err)
+          // Fall through to legacy
+        }
+      }
+    }
     
     if (!token) {
       return NextResponse.json({ error: 'Token required' }, { status: 400 })

@@ -1,6 +1,9 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth-middleware';
+import { query } from '@/lib/db';
+import { listAccounts, getPositions, getBalances } from '@/lib/integrations/snaptrade';
 
 // PnL endpoint - wraps fishtank/live data for the demo overlay
 const ALPACA_API_KEY = process.env.DEMO_ALPACA_API_KEY || process.env.ALPACA_API_KEY || '';
@@ -18,7 +21,64 @@ function getSyntheticPnlData() {
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Check if user is authenticated and has SnapTrade
+  const user = await getAuthUser(request);
+  
+  if (user) {
+    const snapResult = await query(
+      'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+      [user.userId]
+    );
+    
+    const snapUserId = snapResult.rows[0]?.snaptrade_user_id;
+    const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret;
+    
+    if (snapUserId && snapUserSecret) {
+      try {
+        const accounts = await listAccounts(snapUserId, snapUserSecret);
+        
+        let totalEquity = 0;
+        let totalCash = 0;
+        let totalBuyingPower = 0;
+        let totalPnL = 0;
+        let positionCount = 0;
+        
+        for (const account of accounts as any[]) {
+          const [positions, balances] = await Promise.all([
+            getPositions(snapUserId, snapUserSecret, account.id),
+            getBalances(snapUserId, snapUserSecret, account.id),
+          ]);
+          
+          for (const b of balances as any[]) {
+            totalCash += b.cash || 0;
+            totalBuyingPower += b.buying_power || 0;
+          }
+          
+          for (const p of positions as any[]) {
+            const marketValue = (p.units || 0) * (p.price || 0);
+            totalEquity += marketValue;
+            totalPnL += ((p.price || 0) - (p.average_purchase_price || 0)) * (p.units || 0);
+            positionCount++;
+          }
+        }
+        
+        totalEquity += totalCash;
+        
+        return NextResponse.json({
+          accountValue: totalEquity,
+          todayPnL: totalPnL,
+          openPositions: positionCount,
+          cash: totalCash,
+          buyingPower: totalBuyingPower,
+          source: 'snaptrade',
+        });
+      } catch (err) {
+        console.error('SnapTrade PnL fetch failed:', err);
+        // Fall through to demo
+      }
+    }
+  }
   try {
     if (!ALPACA_API_KEY || !ALPACA_SECRET) {
       return NextResponse.json(getSyntheticPnlData());

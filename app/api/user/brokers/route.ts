@@ -3,10 +3,52 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
 import { pool } from '@/lib/db';
+import { listAccounts, listConnections } from '@/lib/integrations/snaptrade';
 
 export const GET = requireAuth(async (request: NextRequest, user) => {
   try {
-    // Query user's connected brokers from database
+    const brokers: any[] = [];
+
+    // Check for SnapTrade connections first
+    const snapResult = await pool.query(
+      'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+      [user.userId]
+    );
+    
+    const snapUserId = snapResult.rows[0]?.snaptrade_user_id;
+    const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret;
+
+    if (snapUserId && snapUserSecret) {
+      try {
+        const accounts = await listAccounts(snapUserId, snapUserSecret);
+        
+        // Group by brokerage
+        const brokerageMap = new Map<string, any>();
+        for (const account of accounts as any[]) {
+          const brokerageName = account.brokerage_authorization?.brokerage?.name || 'Unknown';
+          const slug = account.brokerage_authorization?.brokerage?.slug || 'unknown';
+          
+          if (!brokerageMap.has(slug)) {
+            brokerageMap.set(slug, {
+              id: `snaptrade_${slug}`,
+              name: brokerageName,
+              icon: 'chart',
+              status: 'connected' as const,
+              accountType: 'live',
+              lastSync: 'Just now',
+              accountNumber: account.number ? `****${account.number.slice(-4)}` : undefined,
+              via: 'snaptrade',
+            });
+          }
+        }
+        
+        brokers.push(...brokerageMap.values());
+      } catch (err) {
+        console.error('SnapTrade list accounts failed:', err);
+      }
+    }
+
+    // Also check legacy broker tokens
     const result = await pool.query(
       `SELECT 
         broker,
@@ -19,15 +61,18 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
       [user.userId]
     );
 
-    const brokers = result.rows.map(row => ({
-      id: row.broker,
-      name: row.broker === 'alpaca' ? 'Alpaca' : row.broker === 'tradier' ? 'Tradier' : row.broker,
-      icon: 'chart',
-      status: 'connected' as const,
-      accountType: row.account_type || 'paper',
-      lastSync: row.last_sync ? formatTimeAgo(new Date(row.last_sync)) : 'Never',
-      accountNumber: row.account_id ? `****${row.account_id.slice(-4)}` : undefined,
-    }));
+    for (const row of result.rows) {
+      brokers.push({
+        id: row.broker,
+        name: row.broker === 'alpaca' ? 'Alpaca' : row.broker === 'tradier' ? 'Tradier' : row.broker,
+        icon: 'chart',
+        status: 'connected' as const,
+        accountType: row.account_type || 'paper',
+        lastSync: row.last_sync ? formatTimeAgo(new Date(row.last_sync)) : 'Never',
+        accountNumber: row.account_id ? `****${row.account_id.slice(-4)}` : undefined,
+        via: 'direct',
+      });
+    }
 
     return NextResponse.json({ brokers });
   } catch (error: any) {

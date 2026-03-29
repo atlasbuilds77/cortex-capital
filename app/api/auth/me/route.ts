@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Check for SnapTrade connection
+    const snapResult = await query(
+      'SELECT snaptrade_user_id FROM users WHERE id = $1 AND snaptrade_user_id IS NOT NULL',
+      [authUser.userId]
+    );
+    const hasSnapTrade = snapResult.rows.length > 0;
+
     // Get broker type from broker_credentials if exists
     const brokerResult = await query(
       'SELECT broker_type FROM broker_credentials WHERE user_id = $1 AND is_active = true LIMIT 1',
@@ -39,6 +46,8 @@ export async function GET(request: NextRequest) {
       email: user.email,
       tier: user.tier,
       brokerType: brokerResult.rows[0]?.broker_type || null,
+      hasBrokerConnected: hasSnapTrade || brokerResult.rows.length > 0,
+      brokerSource: hasSnapTrade ? 'snaptrade' : (brokerResult.rows[0]?.broker_type || null),
       createdAt: user.created_at,
     });
   } catch (error) {
