@@ -26,6 +26,7 @@ export default function BrokersPage() {
   const [connected, setConnected] = useState(false)
   const [connections, setConnections] = useState<BrokerConnection[]>([])
   const [accounts, setAccounts] = useState<BrokerAccount[]>([])
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   // Check URL for success callback
@@ -51,6 +52,7 @@ export default function BrokersPage() {
         setConnected(true)
         setConnections(data.connections || [])
         setAccounts(data.accounts || [])
+        setSelectedAccount(data.selectedAccount || null)
       } else {
         setConnected(false)
         setConnections([])
@@ -195,24 +197,54 @@ export default function BrokersPage() {
             <Wallet className="w-5 h-5 text-purple-400" />
             Connected Accounts
           </h3>
+          {accounts.length > 1 && (
+            <p className="text-text-secondary text-sm mb-3">
+              Click an account to set it as your active portfolio view
+            </p>
+          )}
           <div className="space-y-3">
-            {accounts.map((account) => (
-              <div
-                key={account.id}
-                className="p-4 bg-background rounded-lg border border-gray-700 flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-medium">{account.name || account.brokerage}</div>
-                  <div className="text-text-secondary text-sm">
-                    {account.type && <span className="capitalize">{account.type} • </span>}
-                    {account.number && <span>****{account.number.slice(-4)}</span>}
+            {accounts.map((account) => {
+              const isSelected = selectedAccount === account.id
+              return (
+                <button
+                  key={account.id}
+                  onClick={async () => {
+                    const token = localStorage.getItem('cortex_token')
+                    await fetch('/api/broker/snaptrade/accounts/select', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                      },
+                      body: JSON.stringify({ accountId: account.id }),
+                    })
+                    setSelectedAccount(account.id)
+                  }}
+                  className={`w-full p-4 bg-background rounded-lg border flex items-center justify-between transition-colors text-left ${
+                    isSelected 
+                      ? 'border-purple-500 bg-purple-500/5' 
+                      : 'border-gray-700 hover:border-gray-600'
+                  }`}
+                >
+                  <div>
+                    <div className="font-medium">{account.name || account.brokerage}</div>
+                    <div className="text-text-secondary text-sm">
+                      {account.type && <span className="capitalize">{account.type} • </span>}
+                      {account.number && <span>****{account.number.slice(-4)}</span>}
+                    </div>
                   </div>
-                </div>
-                <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded text-xs font-medium">
-                  Active
-                </span>
-              </div>
-            ))}
+                  {isSelected ? (
+                    <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs font-medium">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 bg-gray-700 text-text-secondary rounded text-xs font-medium">
+                      Select
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </motion.div>
       )}

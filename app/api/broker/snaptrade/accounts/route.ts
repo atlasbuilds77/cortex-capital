@@ -12,14 +12,15 @@ import { listAccounts, listConnections } from '@/lib/integrations/snaptrade';
  */
 export const GET = requireAuth(async (request: NextRequest, user) => {
   try {
-    // Get SnapTrade credentials
+    // Get SnapTrade credentials and selected account
     const result = await query(
-      'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+      'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
       [user.userId]
     );
 
     const snaptradeUserId = result.rows[0]?.snaptrade_user_id;
     const snaptradeUserSecret = result.rows[0]?.snaptrade_user_secret;
+    const selectedAccount = result.rows[0]?.selected_snaptrade_account;
 
     if (!snaptradeUserId || !snaptradeUserSecret) {
       return NextResponse.json({
@@ -35,8 +36,21 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
       listAccounts(snaptradeUserId, snaptradeUserSecret),
     ]);
 
+    // Determine which account is selected (default to first if none)
+    const accountList = accounts.map((a: any) => ({
+      id: a.id,
+      name: a.name,
+      number: a.number,
+      type: a.meta?.type || 'Unknown',
+      brokerage: a.brokerage_authorization?.brokerage?.name,
+      syncStatus: a.sync_status?.holdings?.last_successful_sync,
+    }));
+
+    const activeAccount = selectedAccount || (accountList.length > 0 ? accountList[0].id : null);
+
     return NextResponse.json({
       connected: accounts.length > 0,
+      selectedAccount: activeAccount,
       connections: connections.map((c: any) => ({
         id: c.id,
         brokerage: c.brokerage?.name,
@@ -44,14 +58,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
         status: c.disabled ? 'disabled' : 'active',
         createdAt: c.created_date,
       })),
-      accounts: accounts.map((a: any) => ({
-        id: a.id,
-        name: a.name,
-        number: a.number,
-        type: a.meta?.type,
-        brokerage: a.brokerage_authorization?.brokerage?.name,
-        syncStatus: a.sync_status?.holdings?.last_successful_sync,
-      })),
+      accounts: accountList,
     });
 
   } catch (error: any) {

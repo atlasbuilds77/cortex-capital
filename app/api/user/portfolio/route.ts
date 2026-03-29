@@ -19,23 +19,36 @@ export async function GET(request: NextRequest) {
     if (user) {
       // First check for SnapTrade connection (universal broker API)
       const snaptradeResult = await query(
-        'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+        'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
         [user.userId]
       );
       
       const snaptradeUserId = snaptradeResult.rows[0]?.snaptrade_user_id;
       const snaptradeUserSecret = snaptradeResult.rows[0]?.snaptrade_user_secret;
+      const selectedAccountId = snaptradeResult.rows[0]?.selected_snaptrade_account;
 
       if (snaptradeUserId && snaptradeUserSecret) {
         try {
-          const accounts = await listAccounts(snaptradeUserId, snaptradeUserSecret);
+          const allAccounts = await listAccounts(snaptradeUserId, snaptradeUserSecret);
           
-          if (accounts.length > 0) {
+          if (allAccounts.length > 0) {
+            // Filter to selected account only, or use first if none selected
+            const accounts = selectedAccountId 
+              ? allAccounts.filter((a: any) => a.id === selectedAccountId)
+              : [allAccounts[0]];
+            
+            // If selected account not found, fall back to first
+            if (accounts.length === 0 && allAccounts.length > 0) {
+              accounts.push(allAccounts[0]);
+            }
+
             let totalValue = 0;
             let totalBuyingPower = 0;
             let totalPnL = 0;
             const allPositions: any[] = [];
             let brokerName = 'snaptrade';
+            let accountName = '';
+            let accountType = '';
 
             for (const account of accounts) {
               try {
@@ -47,6 +60,8 @@ export async function GET(request: NextRequest) {
                 if ((account as any).brokerage_authorization?.brokerage?.name) {
                   brokerName = (account as any).brokerage_authorization.brokerage.name.toLowerCase();
                 }
+                accountName = (account as any).name || '';
+                accountType = (account as any).meta?.type || '';
 
                 for (const b of balances as any[]) {
                   totalValue += b.cash || 0;
@@ -75,6 +90,9 @@ export async function GET(request: NextRequest) {
 
             return NextResponse.json({
               source: brokerName,
+              accountName,
+              accountType,
+              accountId: accounts[0]?.id,
               accountValue: totalValue,
               buyingPower: totalBuyingPower,
               todayPnL: totalPnL,
