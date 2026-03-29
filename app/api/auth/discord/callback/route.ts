@@ -164,9 +164,21 @@ export async function GET(request: NextRequest) {
     );
     console.log('Generated JWT with tier:', currentTier);
 
-    // Redirect to dashboard with token (use production URL, not request.url which may have internal port)
+    // Check if user needs onboarding (new user created this session OR never completed onboarding)
+    const userProfileResult = await query(
+      'SELECT risk_profile, onboarding_completed, created_at FROM users WHERE id = $1',
+      [userId]
+    );
+    const profile = userProfileResult.rows[0];
+    // Needs onboarding if: explicitly not completed, OR created in last 30 seconds (new signup)
+    const isNewUser = profile?.created_at && (Date.now() - new Date(profile.created_at).getTime() < 30000);
+    const needsOnboarding = profile?.onboarding_completed === false || isNewUser;
+    
+    // Redirect to onboarding or dashboard
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cortexcapitalgroup.com';
-    const redirectUrl = new URL('/dashboard', baseUrl);
+    const redirectPath = needsOnboarding ? '/onboarding' : '/dashboard';
+    const redirectUrl = new URL(redirectPath, baseUrl);
+    console.log('Redirecting to:', redirectPath, 'isNewUser:', isNewUser, 'onboarding_completed:', profile?.onboarding_completed);
     
     // Set token in cookie (use 'cortex_token' to match middleware check)
     const response = NextResponse.redirect(redirectUrl);

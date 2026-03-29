@@ -23,8 +23,9 @@ export const PUT = requireAuth(async (request: NextRequest, user) => {
       );
     }
 
+    // Also mark onboarding as completed when they set their risk profile
     const result = await query(
-      `UPDATE users SET risk_profile = $1, updated_at = NOW()
+      `UPDATE users SET risk_profile = $1, onboarding_completed = true, updated_at = NOW()
        WHERE id = $2
        RETURNING id, email, tier, risk_profile`,
       [risk_profile, user.userId]
