@@ -3864,34 +3864,18 @@ export function RetroOffice3D({
         setManualPhoneBoothOpen(true);
         return;
       }
-      if (item.type === "server_terminal") {
-        setFollowAgentId(null);
-        setActiveAtmUid(null);
-        setActiveQaTerminalUid(null);
-        onMonitorSelect?.(null);
-        setActiveGithubTerminalUid(uid);
+      // Code review station - disabled (not built yet)
+      if (item.type === "server_terminal" || item.type === "server_rack") {
+        // TODO: Wire up GitHub integration
         return;
       }
-      if (item.type === "server_rack") {
-        setFollowAgentId(null);
-        setActiveAtmUid(null);
-        setActiveQaTerminalUid(null);
-        onMonitorSelect?.(null);
-        setActiveGithubTerminalUid(serverTerminal?._uid ?? uid);
-        return;
-      }
+      // QA Lab - disabled (internal dev tool)
       if (
         item.type === "qa_terminal" ||
         item.type === "device_rack" ||
         item.type === "test_bench"
       ) {
-        setFollowAgentId(null);
-        setActiveAtmUid(null);
-        setActiveGithubTerminalUid(null);
-        onMonitorSelect?.(null);
-        setActiveQaTerminalUid(
-          item.type === "qa_terminal" ? uid : (qaTerminal?._uid ?? uid),
-        );
+        // TODO: QA Lab is for internal testing only
         return;
       }
       if (
@@ -3990,11 +3974,7 @@ export function RetroOffice3D({
       hoveredItem?.type === "atm" ||
       hoveredItem?.type === "sms_booth" ||
       hoveredItem?.type === "phone_booth" ||
-      hoveredItem?.type === "server_rack" ||
-      hoveredItem?.type === "qa_terminal" ||
-      hoveredItem?.type === "device_rack" ||
-      hoveredItem?.type === "test_bench" ||
-      hoveredItem?.type === "server_terminal" ||
+      // Disabled: server_rack, qa_terminal, device_rack, test_bench, server_terminal
       hoveredMeetingTable
         ? "pointer"
         : "";
