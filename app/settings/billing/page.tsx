@@ -12,13 +12,14 @@ interface Plan {
   recommended?: boolean
 }
 
-interface Invoice {
-  id: string
-  date: string
-  amount: number
-  status: 'paid' | 'pending' | 'failed'
-  downloadUrl?: string
-}
+// Invoice interface - will be used when we pull from Stripe
+// interface Invoice {
+//   id: string
+//   date: string
+//   amount: number
+//   status: 'paid' | 'pending' | 'failed'
+//   downloadUrl?: string
+// }
 
 const PLANS: Plan[] = [
   {
@@ -67,11 +68,8 @@ export default function BillingPage() {
   const storedUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('cortex_user') || '{}') : {}
   const [currentPlan] = useState(storedUser.tier || 'free')
   const [billingInterval, setBillingInterval] = useState<'month' | 'year'>('month')
-  const [invoices] = useState<Invoice[]>([
-    { id: 'inv_001', date: '2026-03-01', amount: 99, status: 'paid' },
-    { id: 'inv_002', date: '2026-02-01', amount: 99, status: 'paid' },
-    { id: 'inv_003', date: '2026-01-01', amount: 99, status: 'paid' },
-  ])
+  // Invoices will be pulled from Stripe later
+  // const [invoices] = useState<Invoice[]>([])
   const [showCancelModal, setShowCancelModal] = useState(false)
 
   const handleUpgrade = async (planId: string) => {
@@ -275,43 +273,17 @@ export default function BillingPage() {
         </div>
       </motion.div>
 
-      {/* Billing History */}
+      {/* Billing History - Coming soon, will pull from Stripe */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
         <h3 className="text-lg font-semibold mb-4">Billing History</h3>
-        <div className="space-y-2">
-          {invoices.map((invoice) => (
-            <div
-              key={invoice.id}
-              className="p-4 bg-background rounded-lg border border-gray-700 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-4">
-                <div>
-                  <div className="font-medium">{formatDate(invoice.date)}</div>
-                  <div className="text-text-secondary text-sm">${invoice.amount.toFixed(2)}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    invoice.status === 'paid'
-                      ? 'bg-success/10 text-success'
-                      : invoice.status === 'pending'
-                      ? 'bg-warning/10 text-warning'
-                      : 'bg-danger/10 text-danger'
-                  }`}
-                >
-                  {invoice.status.toUpperCase()}
-                </span>
-                <button className="text-primary hover:text-primary/80 transition-colors text-sm">
-                  Download
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="p-4 bg-background rounded-lg border border-gray-700 text-center">
+          <div className="text-text-secondary text-sm">
+            No billing history yet. Invoices will appear here after your first payment.
+          </div>
         </div>
       </motion.div>
 

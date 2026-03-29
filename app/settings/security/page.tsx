@@ -200,57 +200,25 @@ export default function SecurityPage() {
         </div>
       </motion.div>
 
-      {/* Active Sessions */}
+      {/* Active Sessions - Coming soon */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Smartphone className="w-5 h-5 text-purple-400" /> Active Sessions
-          </h3>
-          <button
-            onClick={handleLogoutAll}
-            className="text-danger hover:text-danger/80 transition-colors text-sm"
-          >
-            Logout All Devices
-          </button>
-        </div>
-        <div className="space-y-3">
-          {sessions.map((session, index) => (
-            <motion.div
-              key={session.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.35 + index * 0.05 }}
-              className="p-4 bg-background rounded-lg border border-gray-700"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium">{session.device}</div>
-                    {session.current && (
-                      <span className="px-2 py-0.5 bg-success/10 text-success rounded text-xs font-medium">
-                        Current
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-text-secondary text-sm mt-1">
-                    {session.location} • {session.lastActive}
-                  </div>
-                </div>
-                {!session.current && (
-                  <button
-                    onClick={() => handleLogoutSession(session.id)}
-                    className="text-danger hover:text-danger/80 transition-colors text-sm"
-                  >
-                    Logout
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          ))}
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Smartphone className="w-5 h-5 text-purple-400" /> Active Sessions
+        </h3>
+        <div className="p-4 bg-background rounded-lg border border-gray-700">
+          <div className="flex items-center gap-2">
+            <div className="font-medium">Current Session</div>
+            <span className="px-2 py-0.5 bg-success/10 text-success rounded text-xs font-medium">
+              Active
+            </span>
+          </div>
+          <div className="text-text-secondary text-sm mt-1">
+            Session tracking coming soon
+          </div>
         </div>
       </motion.div>
 
