@@ -20,7 +20,7 @@ interface BrokerAccount {
   brokerage: string
 }
 
-export default function BrokersPage() {
+export default function BrokerPage() {
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState(false)
   const [connected, setConnected] = useState(false)
@@ -35,7 +35,7 @@ export default function BrokersPage() {
       // Refresh data after successful connection
       fetchBrokerData()
       // Clean URL
-      window.history.replaceState({}, '', '/settings/brokers')
+      window.history.replaceState({}, '', '/settings/broker')
     }
   }, [])
 
@@ -80,7 +80,7 @@ export default function BrokersPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          redirectUri: `${window.location.origin}/settings/brokers?connected=true`,
+          redirectUri: `${window.location.origin}/settings/broker?connected=true`,
         }),
       })
       
@@ -124,7 +124,7 @@ export default function BrokersPage() {
         animate={{ opacity: 1, y: 0 }}
         className="p-6 bg-background rounded-xl border border-gray-700"
       >
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
               connected ? 'bg-green-500/20' : 'bg-gray-700'
@@ -178,7 +178,7 @@ export default function BrokersPage() {
 
         {error && (
           <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-red-400">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4" />
             {error}
           </div>
         )}

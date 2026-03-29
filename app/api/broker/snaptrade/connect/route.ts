@@ -14,7 +14,7 @@ import { registerUser, getConnectionPortalUrl } from '@/lib/integrations/snaptra
 export const POST = requireAuth(async (request: NextRequest, user) => {
   try {
     const body = await request.json().catch(() => ({}));
-    const redirectUri = body.redirectUri || `${process.env.NEXT_PUBLIC_APP_URL || 'https://cortexcapitalgroup.com'}/settings/broker?connected=true`;
+    const redirectUri = body.redirectUri || `${process.env.NEXT_PUBLIC_APP_URL || 'https://cortexcapitalgroup.com'}/settings/brokers?connected=true`;
 
     // Check if user already has SnapTrade credentials
     const existing = await query(
