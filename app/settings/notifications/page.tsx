@@ -6,6 +6,7 @@ import { Bell, Mail, MessageSquare, Smartphone, Lock, Loader2 } from 'lucide-rea
 import { useAuth } from '@/lib/auth'
 
 interface NotificationSettings {
+  notification_email: string
   email_trade_executed: boolean
   email_stop_loss: boolean
   email_trade_signals: boolean
@@ -68,6 +69,7 @@ export default function NotificationsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [settings, setSettings] = useState<NotificationSettings>({
+    notification_email: '',
     email_trade_executed: true,
     email_stop_loss: true,
     email_trade_signals: true,
@@ -148,14 +150,42 @@ export default function NotificationsPage() {
         </p>
       </div>
 
-      {/* Email Notifications */}
+      {/* Notification Email */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="flex items-center gap-3 mb-4">
           <Mail className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold">Email Notifications</h3>
+          <h3 className="text-lg font-semibold">Notification Email</h3>
+        </div>
+        <div className="p-4 rounded-lg border border-gray-700 bg-background">
+          <label htmlFor="notification-email" className="block text-sm font-medium mb-2">
+            Send notifications to
+          </label>
+          <input
+            id="notification-email"
+            type="email"
+            value={settings.notification_email}
+            onChange={(e) => setSettings({ ...settings, notification_email: e.target.value })}
+            placeholder={user?.email || "Enter email address"}
+            className="w-full px-4 py-3 rounded-lg bg-surface border border-gray-700 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+          />
+          <p className="text-text-secondary text-sm mt-2">
+            Leave empty to use your account email ({user?.email})
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Email Notifications */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <Bell className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold">Email Alerts</h3>
         </div>
         <div className="space-y-3">
           {NOTIFICATION_OPTIONS.map((option) => {
