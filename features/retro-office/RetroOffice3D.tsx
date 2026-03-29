@@ -2075,6 +2075,25 @@ export function RetroOffice3D({
     target: [number, number, number];
     zoom?: number;
   } | null>(null);
+  
+  // Responsive zoom - scale camera for different screen sizes
+  const [responsiveZoom, setResponsiveZoom] = useState(40);
+  useEffect(() => {
+    const updateZoom = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      // Base zoom 40 for 1920x1080, scale proportionally
+      // For larger screens, zoom out slightly to show more of the office
+      // For smaller screens, zoom in to keep it usable
+      const baseWidth = 1920;
+      const scale = Math.min(w / baseWidth, 1.3); // Cap at 1.3x for very large screens
+      const newZoom = Math.max(30, Math.min(50, 40 * scale));
+      setResponsiveZoom(newZoom);
+    };
+    updateZoom();
+    window.addEventListener('resize', updateZoom);
+    return () => window.removeEventListener('resize', updateZoom);
+  }, []);
   // New Idea 7: heatmap mode.
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [trailMode, setTrailMode] = useState(false);
@@ -4377,7 +4396,7 @@ export function RetroOffice3D({
           <Canvas
             orthographic
             dpr={[0.85, 1.5]}
-            camera={{ position: CAM_POS, zoom: 40, near: 0.1, far: 160 }}
+            camera={{ position: CAM_POS, zoom: responsiveZoom, near: 0.1, far: 160 }}
             shadows={{ type: THREE.PCFShadowMap }}
             gl={{ antialias: true, powerPreference: "high-performance" }}
             style={{ width: "100%", height: "100%" }}
