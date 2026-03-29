@@ -4351,7 +4351,9 @@ export function RetroOffice3D({
   const CAM_POS: [number, number, number] = [14, 16, 18];
 
   return (
-    <div className="relative w-full h-full bg-[#1a1008] font-mono text-white overflow-hidden">
+    <div className="relative w-full h-full bg-[#1a1008] font-mono text-white overflow-hidden flex items-center justify-center">
+      {/* Constrain aspect ratio for ultrawide/TV displays */}
+      <div className="relative w-full h-full max-w-[2560px] max-h-[1440px]" style={{ aspectRatio: '16/9' }}>
       {/* 3D Canvas — fills everything. */}
       <div
         className="absolute inset-0"
@@ -6159,6 +6161,7 @@ export function RetroOffice3D({
           100% { transform: translateX(-50%) translateY(-28px); opacity: 0; }
         }
       `}</style>
+      </div>{/* End aspect ratio container */}
     </div>
   );
 }
