@@ -33,7 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('cortex_token')
+    // Check localStorage first
+    let savedToken = localStorage.getItem('cortex_token')
+    
+    // If no localStorage token, check cookie (Discord OAuth sets cookie)
+    if (!savedToken) {
+      const cookieToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('cortex_token='))
+        ?.split('=')[1]
+      
+      if (cookieToken) {
+        // Sync cookie to localStorage for consistency
+        savedToken = cookieToken
+        localStorage.setItem('cortex_token', cookieToken)
+      }
+    }
     
     if (savedToken) {
       setToken(savedToken)
@@ -117,8 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    // Clear localStorage
     localStorage.removeItem('cortex_token')
     localStorage.removeItem('cortex_user')
+    // Clear cookie (set expiry in past)
+    document.cookie = 'cortex_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
     setToken(null)
     setUser(null)
   }
