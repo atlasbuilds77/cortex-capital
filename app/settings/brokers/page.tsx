@@ -243,9 +243,20 @@ export default function BrokersPage() {
       >
         <h3 className="text-lg font-semibold mb-4">Direct API Connection</h3>
         <p className="text-text-secondary text-sm mb-4">
-          For Tradier and Alpaca, connect directly with your API keys
+          For Robinhood, Tradier, and Alpaca - connect directly for full trading execution
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <a
+            href="/settings/brokers/robinhood"
+            className="p-4 bg-background rounded-lg border border-gray-700 flex items-center gap-3 hover:border-green-500/50 transition-colors"
+          >
+            <span className="text-2xl">🪶</span>
+            <div className="flex-1">
+              <div className="font-medium text-sm">Robinhood</div>
+              <div className="text-text-secondary text-xs">Stocks & options</div>
+            </div>
+            <span className="text-xs text-green-400">Connect →</span>
+          </a>
           <a
             href="/api/broker/tradier/auth"
             className="p-4 bg-background rounded-lg border border-gray-700 flex items-center gap-3 hover:border-blue-500/50 transition-colors"
