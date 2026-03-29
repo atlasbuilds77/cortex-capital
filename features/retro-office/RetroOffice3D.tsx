@@ -3362,13 +3362,17 @@ export function RetroOffice3D({
                 setPhoneCallStep("reply");
                 stageTimer = window.setTimeout(() => {
                   setPhoneCallStep("complete");
-                  stageTimer = window.setTimeout(() => {
-                    if (phoneBoothAgentIdRef.current) {
-                      onPhoneCallCompleteRef.current?.(phoneBoothAgentIdRef.current);
-                    } else {
-                      closeManualPhoneBoothView();
-                    }
-                  }, 2000);
+                  // Don't auto-close if in manual phone booth mode (chat interface)
+                  // Only auto-close for scripted calls with spoken text
+                  if (scenario.spokenText) {
+                    stageTimer = window.setTimeout(() => {
+                      if (phoneBoothAgentIdRef.current) {
+                        onPhoneCallCompleteRef.current?.(phoneBoothAgentIdRef.current);
+                      } else {
+                        closeManualPhoneBoothView();
+                      }
+                    }, 2000);
+                  }
                 }, 1600);
               }, speechDurationMs);
             }, ringDurationMs);
