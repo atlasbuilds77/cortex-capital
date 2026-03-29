@@ -71,7 +71,7 @@ All pages now use the new professional fintech color palette:
 
 ### Environment Variables Added (`.env.local`):
 ```env
-STRIPE_SECRET_KEY=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
+STRIPE_SECRET_KEY=ROTATE_THIS_KEY_IN_STRIPE_DASHBOARD
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_51R5DkFQVfeouH9H6eJ5TdNaRlnPJgTjBWFWQWOMVSmZylfY8m14Df46QYh2ijMyBgLIBLagwvKpE6AmWbnO4RC0z00fyIpALwQ
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
