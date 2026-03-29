@@ -3816,8 +3816,8 @@ export function RetroOffice3D({
         setSmsBoothDoorOpen(true);
         setManualTextMessageScenario(
           buildMockTextMessageScenario({
-            recipient: "Joseph",
-            message: "I will be late for the soccer game.",
+            recipient: "Support",
+            message: null, // Will prompt user for message
           }),
         );
         setManualSmsBoothOpen(true);

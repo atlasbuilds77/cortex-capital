@@ -42,6 +42,29 @@ export async function POST(request: NextRequest) {
       case 'portfolio_review':
         // Full portfolio review - uses userId if provided, else demo
         const reviewPortfolio = await portfolioDiscussionEngine.fetchPortfolio(userId);
+        
+        // Check if user has a broker connected
+        if (userId) {
+          const { query: brokerCheck } = await import('@/lib/db');
+          const brokerResult = await brokerCheck(
+            'SELECT broker_type FROM broker_credentials WHERE user_id = $1 AND is_active = true LIMIT 1',
+            [userId]
+          );
+          
+          if (brokerResult.rows.length === 0) {
+            // No broker - send a friendly message instead of spamming with demo data
+            await collaborativeDaemon.broadcastMessage(
+              'cortex-analyst',
+              "👋 Welcome! To get personalized portfolio insights, connect your broker in Settings → Brokers. Until then, I'll share general market analysis."
+            );
+            return NextResponse.json({ 
+              success: true, 
+              message: 'No broker connected - prompted user to connect',
+              needsBroker: true
+            });
+          }
+        }
+        
         if (reviewPortfolio) {
           // Load user preferences from database
           const { query: dbQuery } = await import('@/lib/db');
