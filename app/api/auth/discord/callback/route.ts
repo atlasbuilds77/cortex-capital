@@ -103,25 +103,40 @@ export async function GET(request: NextRequest) {
     const tier = hasSingularityRole ? 'operator' : 'recovery';
     console.log('Final tier assigned:', tier);
 
-    // Check if user exists in DB
+    // Check if user exists in DB (by discord_id OR email)
     const existingUser = await query(
-      'SELECT id, email, tier FROM users WHERE discord_id = $1',
-      [discordUser.id]
+      'SELECT id, email, tier, discord_id FROM users WHERE discord_id = $1 OR email = $2',
+      [discordUser.id, discordUser.email]
     );
 
     let userId: string;
     let userEmail = discordUser.email;
+    let currentTier = tier; // Start with calculated tier
 
     if (existingUser.rows.length > 0) {
       // Update existing user
       userId = existingUser.rows[0].id;
       
-      // If they gained SINGULARITY role, upgrade them
-      if (hasSingularityRole && existingUser.rows[0].tier !== 'operator') {
+      // Link Discord if not already linked
+      if (!existingUser.rows[0].discord_id) {
+        await query(
+          'UPDATE users SET discord_id = $1, discord_username = $2, updated_at = NOW() WHERE id = $3',
+          [discordUser.id, discordUser.username, userId]
+        );
+        console.log('Linked Discord to existing user:', userId);
+      }
+      
+      // SINGULARITY role = upgrade to operator
+      if (hasSingularityRole && existingUser.rows[0].tier !== 'operator' && existingUser.rows[0].tier !== 'partner') {
         await query(
           'UPDATE users SET tier = $1, updated_at = NOW() WHERE id = $2',
           ['operator', userId]
         );
+        currentTier = 'operator';
+        console.log('Upgraded user to operator via SINGULARITY role');
+      } else {
+        // Keep existing tier if higher
+        currentTier = existingUser.rows[0].tier;
       }
     } else {
       // Create new user (password_hash set to 'oauth' placeholder for OAuth users)
@@ -132,20 +147,22 @@ export async function GET(request: NextRequest) {
         [discordUser.email || `${discordUser.id}@discord.user`, 'OAUTH_USER_NO_PASSWORD', discordUser.id, discordUser.username, tier]
       );
       userId = result.rows[0].id;
+      console.log('Created new Discord user:', userId, 'with tier:', tier);
     }
 
-    // Generate JWT
+    // Generate JWT with actual tier (may have been preserved from existing user)
     const token = jwt.sign(
       {
         userId,
         email: userEmail,
         discordId: discordUser.id,
-        tier,
+        tier: currentTier,
         hasSingularity: hasSingularityRole,
       },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+    console.log('Generated JWT with tier:', currentTier);
 
     // Redirect to dashboard with token (use production URL, not request.url which may have internal port)
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cortexcapitalgroup.com';
