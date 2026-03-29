@@ -77,18 +77,12 @@ export default function SecurityPage() {
   }
 
   const handleToggle2FA = () => {
-    if (twoFactorEnabled) {
-      // Disable 2FA
-      setTwoFactorEnabled(false)
-    } else {
-      // Show setup modal
-      setShow2FAModal(true)
-    }
+    // 2FA coming soon - show message instead of fake modal
+    alert('Two-factor authentication coming soon!')
   }
 
   const handleEnable2FA = () => {
-    // TODO: Implement 2FA setup flow
-    setTwoFactorEnabled(true)
+    // Not implemented yet
     setShow2FAModal(false)
   }
 
