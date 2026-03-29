@@ -98,13 +98,19 @@ export default function HealthScorePage() {
   const analyzePortfolio = async () => {
     setStep('analyzing')
     
+    // Minimum 3 second delay for psychological effect - feels more "real"
+    const minDelay = new Promise(resolve => setTimeout(resolve, 3000))
+    
     try {
-      // Call API with real Polygon data
-      const response = await fetch('/api/health-score', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings })
-      })
+      // Call API with real Polygon data (runs in parallel with delay)
+      const [response] = await Promise.all([
+        fetch('/api/health-score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ holdings })
+        }),
+        minDelay
+      ])
       
       if (!response.ok) {
         throw new Error('API request failed')
