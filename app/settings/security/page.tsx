@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Key, ShieldCheck, Smartphone, Lightbulb } from 'lucide-react'
 
@@ -16,6 +16,7 @@ export default function SecurityPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [show2FAModal, setShow2FAModal] = useState(false)
+  const [isOAuthUser, setIsOAuthUser] = useState(false)
   // Session tracking coming soon - for now just show current session
   const [sessions] = useState<ActiveSession[]>([
     {
@@ -30,6 +31,20 @@ export default function SecurityPage() {
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  
+  // Check if user logged in via OAuth (Discord, Google, etc.)
+  useEffect(() => {
+    const token = localStorage.getItem('cortex_token')
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        // OAuth users have provider set (discord, google, etc.)
+        setIsOAuthUser(!!payload.provider)
+      } catch {
+        setIsOAuthUser(false)
+      }
+    }
+  }, [])
 
   const handleChangePassword = async () => {
     setPasswordError('')
@@ -118,16 +133,27 @@ export default function SecurityPage() {
           <Key className="w-5 h-5 text-purple-400" /> Password
         </h3>
         <div className="p-4 bg-background rounded-lg border border-gray-700 flex items-center justify-between">
-          <div>
-            <div className="font-medium">Password</div>
-            <div className="text-text-secondary text-sm">Last changed 3 months ago</div>
-          </div>
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-all font-medium"
-          >
-            Change Password
-          </button>
+          {isOAuthUser ? (
+            <div>
+              <div className="font-medium">Signed in with Discord</div>
+              <div className="text-text-secondary text-sm">
+                Password managed by your Discord account
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <div className="font-medium">Password</div>
+                <div className="text-text-secondary text-sm">Change your account password</div>
+              </div>
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition-all font-medium"
+              >
+                Change Password
+              </button>
+            </>
+          )}
         </div>
       </motion.div>
 
