@@ -16,27 +16,14 @@ export default function SecurityPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [show2FAModal, setShow2FAModal] = useState(false)
+  // Session tracking coming soon - for now just show current session
   const [sessions] = useState<ActiveSession[]>([
     {
-      id: 'session_1',
-      device: 'MacBook Pro (Chrome)',
-      location: 'Los Angeles, CA',
-      lastActive: 'Just now',
+      id: 'current',
+      device: 'Current Session',
+      location: '',
+      lastActive: 'Now',
       current: true,
-    },
-    {
-      id: 'session_2',
-      device: 'iPhone 15 Pro (Safari)',
-      location: 'Los Angeles, CA',
-      lastActive: '2 hours ago',
-      current: false,
-    },
-    {
-      id: 'session_3',
-      device: 'iPad Air (Safari)',
-      location: 'San Francisco, CA',
-      lastActive: '3 days ago',
-      current: false,
     },
   ])
 
