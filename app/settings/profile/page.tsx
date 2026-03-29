@@ -183,35 +183,7 @@ export default function ProfilePage() {
         </p>
       </motion.div>
 
-      {/* Risk Profile */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.35 }}
-      >
-        <label className="block text-sm font-medium mb-2">
-          Risk Profile
-        </label>
-        <p className="text-text-secondary text-sm mb-3">
-          This affects how your AI agents give recommendations
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {riskProfiles.map((rp) => (
-            <button
-              key={rp.id}
-              onClick={() => setProfile({ ...profile, risk_profile: rp.id })}
-              className={`p-4 rounded-lg border text-left transition-all ${
-                profile.risk_profile === rp.id
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-700 bg-surface hover:border-gray-600'
-              }`}
-            >
-              <div className="font-medium">{rp.label}</div>
-              <div className="text-sm text-text-secondary">{rp.desc}</div>
-            </button>
-          ))}
-        </div>
-      </motion.div>
+      {/* Risk Profile moved to Preferences page */}
 
       {/* Phone */}
       <motion.div
