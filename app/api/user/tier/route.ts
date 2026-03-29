@@ -7,7 +7,6 @@ import {
   getAgentsForTier, 
   getAllAgentsWithAccess, 
   getTierDisplayInfo,
-  TIER_RESPONSE_DETAIL,
   type Tier 
 } from '@/lib/tier-agents';
 
@@ -40,12 +39,10 @@ export async function GET(request: NextRequest) {
     const agents = getAllAgentsWithAccess(tier);
     const visibleAgents = getAgentsForTier(tier);
     const tierInfo = getTierDisplayInfo(tier);
-    const responseDetail = TIER_RESPONSE_DETAIL[tier];
     
     return NextResponse.json({
       tier,
       tierInfo,
-      responseDetail,
       agents: {
         all: agents,
         visible: visibleAgents,

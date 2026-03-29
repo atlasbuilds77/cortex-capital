@@ -5,7 +5,7 @@
 import type { CortexAgentConfig } from '@/agents/cortex-agents';
 import { CORTEX_AGENTS } from '@/agents/cortex-agents';
 
-export type Tier = 'recovery' | 'scout' | 'operator';
+export type Tier = 'free' | 'recovery' | 'scout' | 'operator' | 'partner';
 
 // All agent IDs - everyone gets all agents
 const ALL_AGENTS = [
