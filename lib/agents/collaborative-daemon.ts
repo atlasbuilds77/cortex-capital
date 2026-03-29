@@ -313,6 +313,7 @@ RULES:
 
     if (userId) {
       try {
+        // Load user preferences (trading settings)
         const prefs = await loadUserPreferences(userId);
         if (prefs) {
           const prefsContext = generatePreferencesContext(prefs);
@@ -332,6 +333,27 @@ RULES:
           } catch (researchErr) {
             console.error('[CollaborativeDaemon] Research failed:', researchErr);
           }
+        }
+
+        // CRITICAL: Load per-user agent context (memories, trade history, personality)
+        // This ensures agents remember THIS user specifically with NO context bleeding
+        try {
+          const { getUserAgentContext } = await import('./user-universe-db');
+          
+          // Get context for each participating agent
+          const agentContexts: string[] = [];
+          for (const agentId of participants) {
+            const agentContext = await getUserAgentContext(userId, agentId);
+            if (agentContext.trim()) {
+              agentContexts.push(`[${agentId} MEMORY FOR THIS CLIENT]:\n${agentContext}`);
+            }
+          }
+          
+          if (agentContexts.length > 0) {
+            enrichedContext = `AGENT MEMORIES FOR THIS SPECIFIC CLIENT (user_id: ${userId}):\n${agentContexts.join('\n\n')}\n\n${enrichedContext}`;
+          }
+        } catch (universeErr) {
+          console.error('[CollaborativeDaemon] Failed to load user universe:', universeErr);
         }
       } catch (err) {
         console.error('[CollaborativeDaemon] Failed to load user preferences:', err);
@@ -396,6 +418,30 @@ RULES:
         ]
       );
       console.log(`[CollaborativeDaemon] Saved discussion ${discussion.id} to database`);
+      
+      // CRITICAL: Save agent memories for this user (if userId provided)
+      // This builds the per-user agent memory that prevents context bleeding
+      if (userId) {
+        try {
+          const { addAgentMemory } = await import('./user-universe-db');
+          
+          // Each agent that participated saves a memory of what they discussed
+          for (const msg of discussion.messages) {
+            const agentId = msg.agent.toUpperCase().replace(' ', '_');
+            if (participants.includes(agentId as any)) {
+              // Summarize what this agent contributed (first 200 chars)
+              const memorySummary = msg.content.slice(0, 200) + (msg.content.length > 200 ? '...' : '');
+              await addAgentMemory(userId, agentId, {
+                type: 'discussion',
+                content: `Discussed "${topic}": ${memorySummary}`,
+              });
+            }
+          }
+          console.log(`[CollaborativeDaemon] Saved agent memories for user ${userId}`);
+        } catch (memErr) {
+          console.error('[CollaborativeDaemon] Failed to save agent memories:', memErr);
+        }
+      }
     } catch (err) {
       console.error('[CollaborativeDaemon] Failed to save discussion:', err);
     }
