@@ -135,20 +135,20 @@ export function PortfolioAtmScreen({ token }: { token?: string | null }) {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-900/20 p-5">
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-900/20 p-4 overflow-hidden">
             <div className="text-xs uppercase tracking-widest text-emerald-400/60 mb-2">
               Buying Power
             </div>
-            <div className="text-2xl font-semibold text-emerald-100">
+            <div className="text-lg sm:text-xl font-semibold text-emerald-100 truncate">
               {formatCurrency(portfolio.buyingPower)}
             </div>
           </div>
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-900/20 p-5">
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-900/20 p-4">
             <div className="text-xs uppercase tracking-widest text-emerald-400/60 mb-2">
               Positions
             </div>
-            <div className="text-2xl font-semibold text-emerald-100">
+            <div className="text-lg sm:text-xl font-semibold text-emerald-100">
               {portfolio.positions.length}
             </div>
           </div>
