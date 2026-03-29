@@ -3935,9 +3935,18 @@ export function RetroOffice3D({
     ],
   );
 
+  // Disabled item types - don't show hover for these
+  const DISABLED_ITEM_TYPES = new Set([
+    'qa_terminal', 'device_rack', 'test_bench', 'server_terminal', 'server_rack'
+  ]);
+  
   const handleFurniturePointerOver = useCallback(
-    (uid: string) => setHoverUid(uid),
-    [],
+    (uid: string) => {
+      const item = furniture.find(f => f._uid === uid);
+      if (item && DISABLED_ITEM_TYPES.has(item.type)) return; // Don't hover disabled items
+      setHoverUid(uid);
+    },
+    [furniture],
   );
   const handleFurniturePointerOut = useCallback(() => setHoverUid(null), []);
   const closeStandupBoard = useCallback(() => {
