@@ -235,13 +235,49 @@ export default function BrokersPage() {
         </motion.div>
       )}
 
-      {/* Supported Brokers */}
+      {/* Direct API Connections (Tradier, Alpaca) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: connected ? 0.3 : 0.1 }}
       >
-        <h3 className="text-lg font-semibold mb-4">Supported Brokers</h3>
+        <h3 className="text-lg font-semibold mb-4">Direct API Connection</h3>
+        <p className="text-text-secondary text-sm mb-4">
+          For Tradier and Alpaca, connect directly with your API keys
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <a
+            href="/api/broker/tradier/auth"
+            className="p-4 bg-background rounded-lg border border-gray-700 flex items-center gap-3 hover:border-blue-500/50 transition-colors"
+          >
+            <span className="text-2xl">📊</span>
+            <div className="flex-1">
+              <div className="font-medium text-sm">Tradier</div>
+              <div className="text-text-secondary text-xs">Options trading</div>
+            </div>
+            <span className="text-xs text-blue-400">Connect →</span>
+          </a>
+          <a
+            href="/settings/brokers/alpaca"
+            className="p-4 bg-background rounded-lg border border-gray-700 flex items-center gap-3 hover:border-yellow-500/50 transition-colors"
+          >
+            <span className="text-2xl">🦙</span>
+            <div className="flex-1">
+              <div className="font-medium text-sm">Alpaca</div>
+              <div className="text-text-secondary text-xs">API-first trading</div>
+            </div>
+            <span className="text-xs text-yellow-400">Connect →</span>
+          </a>
+        </div>
+      </motion.div>
+
+      {/* SnapTrade Supported Brokers */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: connected ? 0.4 : 0.2 }}
+      >
+        <h3 className="text-lg font-semibold mb-4">More Brokers via SnapTrade</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {supportedBrokers.map((broker) => (
             <div
@@ -257,7 +293,7 @@ export default function BrokersPage() {
           ))}
         </div>
         <p className="text-text-secondary text-sm mt-3">
-          + 20 more brokers supported via SnapTrade
+          Click "Connect Broker" above to link any of these
         </p>
       </motion.div>
 
