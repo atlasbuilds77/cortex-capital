@@ -18,12 +18,12 @@ export async function GET(request: NextRequest) {
     if (user) {
       // Check if user has broker connected
       const brokerResult = await query(
-        `SELECT broker, status FROM broker_credentials WHERE user_id = $1 AND status = 'verified'`,
+        `SELECT broker_type, is_active FROM broker_credentials WHERE user_id = $1 AND is_active = true`,
         [user.userId]
       );
       
       if (brokerResult.rows.length > 0) {
-        const broker = brokerResult.rows[0].broker;
+        const broker = brokerResult.rows[0].broker_type;
         
         if (broker === 'robinhood') {
           // Get real Robinhood account data
