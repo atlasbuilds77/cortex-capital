@@ -320,7 +320,87 @@ async function fetchRobinhoodPortfolio(
  * MAIN FUNCTION: Fetch portfolio for any user
  */
 export async function fetchUserPortfolio(userId: string): Promise<UnifiedPortfolio | null> {
-  // Get user's broker connection
+  // First check for SnapTrade connection
+  try {
+    const snapResult = await query(
+      'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    const snapUserId = snapResult.rows[0]?.snaptrade_user_id;
+    const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret;
+    const selectedAccount = snapResult.rows[0]?.selected_snaptrade_account;
+
+    if (snapUserId && snapUserSecret) {
+      const { listAccounts, getPositions, getBalances } = await import('../integrations/snaptrade');
+      
+      const allAccounts = await listAccounts(snapUserId, snapUserSecret);
+      
+      if (allAccounts.length > 0) {
+        // Use selected account or first one
+        const accounts = selectedAccount 
+          ? allAccounts.filter((a: any) => a.id === selectedAccount)
+          : [allAccounts[0]];
+        
+        const account = accounts[0] || allAccounts[0];
+        
+        const [positions, balances] = await Promise.all([
+          getPositions(snapUserId, snapUserSecret, account.id),
+          getBalances(snapUserId, snapUserSecret, account.id),
+        ]);
+
+        // Sum up balances
+        let cash = 0;
+        let buyingPower = 0;
+        for (const b of balances as any[]) {
+          cash += b.cash || 0;
+          buyingPower += b.buying_power || 0;
+        }
+
+        // Map positions
+        const unifiedPositions: UnifiedPosition[] = (positions as any[]).map((p) => {
+          const qty = p.units || 0;
+          const currentPrice = p.price || 0;
+          const avgEntry = p.average_purchase_price || 0;
+          const marketValue = qty * currentPrice;
+          const unrealizedPnl = (currentPrice - avgEntry) * qty;
+          const unrealizedPnlPct = avgEntry > 0 ? ((currentPrice - avgEntry) / avgEntry) * 100 : 0;
+          
+          return {
+            symbol: p.symbol?.symbol || 'UNKNOWN',
+            qty,
+            avgEntryPrice: avgEntry,
+            currentPrice,
+            marketValue,
+            unrealizedPnl,
+            unrealizedPnlPct,
+            side: qty > 0 ? 'long' as const : 'short' as const,
+          };
+        });
+
+        const portfolioValue = cash + unifiedPositions.reduce((sum, p) => sum + p.marketValue, 0);
+        const brokerName = (account as any).brokerage_authorization?.brokerage?.name || 'snaptrade';
+
+        return {
+          userId,
+          broker: brokerName.toLowerCase() as any,
+          account: {
+            accountId: account.id,
+            cash,
+            portfolioValue,
+            buyingPower,
+          },
+          positions: unifiedPositions,
+          fetchedAt: new Date().toISOString(),
+        };
+      }
+    }
+  } catch (error: any) {
+    console.error('[BrokerService] SnapTrade fetch failed:', error.message);
+    // Fall through to legacy brokers
+  }
+
+  // Fallback to legacy broker connections (Alpaca, Tradier, Robinhood)
   const connection = await getBrokerConnection(userId);
   
   if (!connection) {

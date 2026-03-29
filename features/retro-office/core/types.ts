@@ -29,6 +29,8 @@ export type SceneActor = OfficeAgent | JanitorActor;
 export type RenderAgent = SceneActor & {
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   targetX: number;
   targetY: number;
   path: { x: number; y: number }[];

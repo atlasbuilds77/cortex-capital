@@ -48,6 +48,8 @@ import type { SkillStatusEntry } from "@/lib/skills/types";
 import { extractSpeechImage } from "@/lib/text/speech-image";
 import { MonitorImmersiveContent as MonitorImmersiveOverlay } from "@/features/retro-office/overlays/MonitorImmersiveContent";
 import {
+  AGENT_MAX_FORCE,
+  AGENT_MAX_SPEED,
   AGENT_RADIUS,
   BUMP_FREEZE_MS,
   BUMP_RECOVERY_MS,
@@ -63,10 +65,17 @@ import {
   SCALE,
   SEPARATION_STRENGTH,
   SNAP_GRID,
+  STEERING_SEPARATION_DISTANCE,
   WALK_SPEED,
   WALL_THICKNESS,
   WORKING_WALK_SPEED_MULTIPLIER,
 } from "@/features/retro-office/core/constants";
+import {
+  applySteering,
+  limit,
+  smoothRotation,
+  type Agent as SteeringAgent,
+} from "@/features/retro-office/lib/steering";
 import {
   ensureOfficeAtm,
   ensureOfficeGymRoom,
@@ -552,6 +561,8 @@ function useAgentTick(
           ...agent,
           x: spawn.x,
           y: spawn.y,
+          vx: 0,
+          vy: 0,
           targetX: initialTarget.x,
           targetY: initialTarget.y,
           path:
@@ -1220,6 +1231,8 @@ function useAgentTick(
         ns = {
           x: sx,
           y: sy,
+          vx: 0,
+          vy: 0,
           targetX: initialTarget.x,
           targetY: initialTarget.y,
           path: planPath(sx, sy, initialTarget.x, initialTarget.y),
@@ -1417,7 +1430,7 @@ function useAgentTick(
         };
       }
       const baseSpeed = agent.walkSpeed ?? WALK_SPEED;
-      const speed =
+      const maxSpeed =
         agent.status === "working" && agent.state !== "sitting"
           ? baseSpeed * WORKING_WALK_SPEED_MULTIPLIER
           : baseSpeed;
@@ -1432,20 +1445,87 @@ function useAgentTick(
       let ns = agent.state,
         nx = agent.x,
         ny = agent.y,
+        nvx = agent.vx ?? 0,
+        nvy = agent.vy ?? 0,
         nf = agent.facing,
         npath = path;
 
-      if (dist > speed) {
-        nx = agent.x + (dx / dist) * speed;
-        ny = agent.y + (dy / dist) * speed;
-        // atan2(dx, dy) gives the rotation.y angle for the direction of travel
-        // (local +Z aligns with the movement vector when rotation.y = atan2(dx, dy)).
-        nf = Math.atan2(dx, dy);
+      if (dist > maxSpeed * 1.5) {
+        // Build steering agent for this tick
+        const steeringAgent: SteeringAgent = {
+          x: agent.x,
+          y: agent.y,
+          vx: nvx,
+          vy: nvy,
+          targetX: wpX,
+          targetY: wpY,
+          maxSpeed,
+          maxForce: AGENT_MAX_FORCE,
+          radius: AGENT_RADIUS,
+        };
+
+        // Build neighbors list for steering (other agents nearby)
+        const neighbors = renderAgentsRef.current
+          .filter((other) => {
+            if (other.id === agent.id) return false;
+            if ("role" in other && other.role === "janitor") return false;
+            if (other.state === "sitting" || other.state === "working_out") return false;
+            const d = Math.hypot(other.x - agent.x, other.y - agent.y);
+            return d < STEERING_SEPARATION_DISTANCE * 3;
+          })
+          .map((other) => ({
+            x: other.x,
+            y: other.y,
+            vx: other.vx ?? 0,
+            vy: other.vy ?? 0,
+            radius: AGENT_RADIUS,
+          }));
+
+        // Apply steering behaviors
+        const steeringForce = applySteering(
+          steeringAgent,
+          { x: wpX, y: wpY },
+          neighbors,
+          [], // walls handled by A* pathing
+          {
+            seek: 1.0,
+            separation: 2.0,
+            predictive: 2.5,
+            walls: 0, // A* already routes around obstacles
+          }
+        );
+
+        // Update velocity with steering force
+        nvx = nvx + steeringForce.x;
+        nvy = nvy + steeringForce.y;
+
+        // Limit velocity to max speed
+        const velMag = Math.hypot(nvx, nvy);
+        if (velMag > maxSpeed) {
+          nvx = (nvx / velMag) * maxSpeed;
+          nvy = (nvy / velMag) * maxSpeed;
+        }
+
+        // Update position
+        nx = agent.x + nvx;
+        ny = agent.y + nvy;
+
+        // Clamp to canvas bounds
+        nx = Math.max(AGENT_RADIUS, Math.min(CANVAS_W - AGENT_RADIUS, nx));
+        ny = Math.max(AGENT_RADIUS, Math.min(CANVAS_H - AGENT_RADIUS, ny));
+
+        // Smooth rotation toward movement direction (only if actually moving)
+        if (velMag > 0.05) {
+          const targetFacing = Math.atan2(nvx, nvy);
+          nf = smoothRotation(agent.facing, targetFacing, 0.15);
+        }
         ns = "walking";
       } else {
         // Reached current waypoint — advance or finalise.
         nx = wpX;
         ny = wpY;
+        nvx = 0;
+        nvy = 0;
         if (path.length > 1) {
           npath = path.slice(1);
           ns = "walking";
@@ -1459,6 +1539,8 @@ function useAgentTick(
               ...agent,
               x: nx,
               y: ny,
+              vx: 0,
+              vy: 0,
               facing: currentStop?.facing ?? nf,
               state: "standing" as const,
               path: [],
@@ -1729,6 +1811,8 @@ function useAgentTick(
         ...agent,
         x: nx,
         y: ny,
+        vx: nvx,
+        vy: nvy,
         facing: nf,
         state: ns,
         path: npath,
@@ -1822,6 +1906,8 @@ function useAgentTick(
         // route here when the timer expires.
         state: "standing",
         path: [],
+        vx: 0,
+        vy: 0,
         targetX: escapeTarget.x,
         targetY: escapeTarget.y,
         bumpedUntil: now + BUMP_FREEZE_MS,
