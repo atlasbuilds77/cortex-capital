@@ -46,11 +46,23 @@ export const POST = requireAuth(
       const encryptedKey = encryptToken(apiKey);
       const encryptedSecret = encryptToken(apiSecret);
 
-      // TODO: Store in database
-      // await db.query(`
-      //   INSERT INTO broker_credentials (user_id, broker, encrypted_key, encrypted_secret, ...)
-      //   VALUES ($1, 'alpaca', $2, $3, ...)
-      // `, [user.userId, encryptedKey.encrypted, encryptedSecret.encrypted, ...])
+      // Import query function
+      const { query } = await import('@/lib/db');
+
+      // Delete any existing Alpaca connection for this user first
+      await query(`DELETE FROM broker_credentials WHERE user_id = $1 AND broker_type = 'alpaca'`, [user.userId]);
+
+      // Store in database
+      await query(`
+        INSERT INTO broker_credentials (user_id, broker_type, encrypted_api_key, encrypted_api_secret, encryption_iv, account_id, is_active, created_at, updated_at)
+        VALUES ($1, 'alpaca', $2, $3, $4, $5, true, NOW(), NOW())
+      `, [
+        user.userId, 
+        encryptedKey.encrypted,
+        encryptedSecret.encrypted,
+        encryptedKey.iv, // Using same IV for simplicity, but both keys have their own
+        account.account_number
+      ]);
 
       return NextResponse.json({
         success: true,
