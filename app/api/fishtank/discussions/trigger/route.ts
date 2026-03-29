@@ -68,6 +68,25 @@ export async function POST(request: NextRequest) {
         }
         
         if (reviewPortfolio) {
+          // Check if portfolio is empty/unallocated
+          const hasPositions = reviewPortfolio.positions && reviewPortfolio.positions.length > 0;
+          const hasValue = reviewPortfolio.portfolio_value && reviewPortfolio.portfolio_value > 0;
+          
+          if (!hasPositions && !hasValue) {
+            // Empty portfolio - give a short welcome instead
+            await collaborativeDaemon.runDiscussion(
+              'Welcome',
+              ['ANALYST'],
+              "The user has an empty portfolio with no positions. Give a SHORT (2-3 sentences max) friendly welcome. Suggest they can ask you about market opportunities or get started with their first trade. No long briefings.",
+              1
+            );
+            return NextResponse.json({ 
+              success: true, 
+              message: 'Empty portfolio - short welcome',
+              emptyPortfolio: true
+            });
+          }
+          
           // Load user preferences from database
           const { query: dbQuery } = await import('@/lib/db');
           let userPrefs = {
