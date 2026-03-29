@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 // Demo embedded directly via /demo route (no iframe cross-origin issues)
 import { useRouter } from 'next/navigation'
 import { motion, useScroll, useTransform, useInView } from 'framer-motion'
-import { HEADLINES, VALUE_PROPS, TRUST_SIGNALS, CTA, TESTIMONIALS, FAQ } from '@/lib/copy'
+import { HEADLINES, VALUE_PROPS, TRUST_SIGNALS, CTA, FAQ } from '@/lib/copy'
 import { 
   RefreshCw, 
   DollarSign, 
@@ -194,48 +194,6 @@ function PricingCard({
       </button>
     </Card>
     </div>
-  )
-}
-
-// Testimonial card
-function TestimonialCard({ quote, author, role, verified, index }: {
-  quote: string
-  author: string
-  role: string
-  verified: boolean
-  index: number
-}) {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: "-100px" })
-  
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-    >
-      <Card className="p-6 h-full">
-        <div className="flex gap-1 mb-4">
-          {[...Array(5)].map((_, i) => (
-            <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
-          ))}
-        </div>
-        <p className="text-white mb-6 leading-relaxed">"{quote}"</p>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-semibold">{author}</p>
-            <p className="text-sm text-gray-400">{role}</p>
-          </div>
-          {verified && (
-            <div className="flex items-center gap-1 text-green-500 text-sm">
-              <CheckCircle className="w-4 h-4" />
-              <span>Verified</span>
-            </div>
-          )}
-        </div>
-      </Card>
-    </motion.div>
   )
 }
 
@@ -638,26 +596,6 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </AnimatedSection>
-
-      {/* Testimonials */}
-      <AnimatedSection className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-semibold mb-4">
-              Trusted by Traders
-            </h2>
-            <p className="text-xl text-text-secondary">
-              Join thousands of investors who've upgraded to AI-powered trading
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((testimonial, idx) => (
-              <TestimonialCard key={idx} {...testimonial} index={idx} />
-            ))}
           </div>
         </div>
       </AnimatedSection>
