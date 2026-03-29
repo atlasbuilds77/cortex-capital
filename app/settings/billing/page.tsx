@@ -222,9 +222,12 @@ export default function BillingPage() {
             <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
             <div className="mb-6">
               <span className="text-3xl font-bold">
-                ${billingInterval === 'year' ? Math.floor(plan.price * 0.8) : plan.price}
+                ${billingInterval === 'year' ? Math.floor(plan.price * 12 * 0.8) : plan.price}
               </span>
               <span className="text-text-secondary">/{billingInterval === 'year' ? 'year' : 'month'}</span>
+              {billingInterval === 'year' && (
+                <div className="text-xs text-success mt-1">Save ${Math.floor(plan.price * 12 * 0.2)}/year</div>
+              )}
             </div>
             <ul className="space-y-3 mb-6">
               {plan.features.map((feature, i) => (
