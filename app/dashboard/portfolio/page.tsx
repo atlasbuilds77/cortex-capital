@@ -83,14 +83,18 @@ export default function PortfolioPage() {
     )
   }
 
-  const { positions, accountValue, buyingPower, todayPnL } = portfolio
-  const totalCost = positions.reduce((sum, p) => sum + (p.quantity * p.averageCost), 0)
-  const totalGain = positions.reduce((sum, p) => sum + p.unrealizedPnL, 0)
+  const positions = portfolio.positions || []
+  const accountValue = portfolio.accountValue || 0
+  const buyingPower = portfolio.buyingPower || 0
+  const todayPnL = portfolio.todayPnL || 0
+  
+  const totalCost = positions.reduce((sum, p) => sum + ((p.quantity || 0) * (p.averageCost || 0)), 0)
+  const totalGain = positions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0)
   const totalGainPercent = totalCost > 0 ? (totalGain / totalCost) * 100 : 0
   const cashBalance = buyingPower
 
   // Calculate sector data (simplified - just use "Equity" for now since we don't have sector info)
-  const investedValue = positions.reduce((sum, p) => sum + (p.quantity * p.currentPrice), 0)
+  const investedValue = positions.reduce((sum, p) => sum + ((p.quantity || 0) * (p.currentPrice || 0)), 0)
   const cashPercent = accountValue > 0 ? (cashBalance / accountValue) * 100 : 0
   const equityPercent = 100 - cashPercent
 
