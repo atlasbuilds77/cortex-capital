@@ -115,17 +115,23 @@ export function TradingFloorShell({
   });
 
   // Fetch user tier on mount (dashboard context only)
+  // Wait for auth context to be ready (token synced from cookie if needed)
   useEffect(() => {
     if (context === 'demo' || propTier) return;
+    if (!token) {
+      // Auth context still loading or not logged in
+      setTierLoaded(true);
+      return;
+    }
     
     async function fetchTier() {
       try {
-        const token = localStorage.getItem('cortex_token');
         const res = await fetch('/api/user/tier', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
           const data = await res.json();
+          console.log('Fetched tier:', data.tier, 'user:', data.user?.email);
           setTier(data.tier || 'free');
         }
       } catch (err) {
@@ -136,7 +142,7 @@ export function TradingFloorShell({
     }
     
     fetchTier();
-  }, [context, propTier]);
+  }, [context, propTier, token]);
 
   // Update locked agents when tier changes
   useEffect(() => {
