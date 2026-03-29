@@ -2,12 +2,18 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getAuthUser } from '@/lib/auth-middleware';
 
 export async function GET(request: NextRequest) {
   try {
     const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50');
     
-    // Get recent discussions with their messages
+    // Get authenticated user to filter discussions
+    const authUser = await getAuthUser(request);
+    const userId = authUser?.userId;
+    
+    // CRITICAL: Only show discussions for THIS user (or public/demo discussions)
+    // This prevents context bleeding between users
     const result = await query(
       `SELECT 
         id,
@@ -17,8 +23,10 @@ export async function GET(request: NextRequest) {
         completed_at,
         CASE WHEN completed_at IS NULL THEN 'active' ELSE 'completed' END as status
       FROM agent_discussions
+      WHERE user_id = $1 OR user_id IS NULL
       ORDER BY started_at DESC
-      LIMIT 10`
+      LIMIT 10`,
+      [userId]
     );
 
     // Flatten messages from all discussions

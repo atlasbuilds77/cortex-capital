@@ -404,20 +404,21 @@ RULES:
     discussion.status = 'concluded';
     discussionEmitter.emit('discussion_end', discussion);
     
-    // Persist to database
+    // Persist to database - CRITICAL: Include user_id to prevent context bleeding
     try {
       await query(
-        `INSERT INTO agent_discussions (id, discussion_type, messages, started_at, completed_at)
-         VALUES ($1, $2, $3, $4, NOW())
+        `INSERT INTO agent_discussions (id, discussion_type, messages, started_at, completed_at, user_id)
+         VALUES ($1, $2, $3, $4, NOW(), $5)
          ON CONFLICT (id) DO UPDATE SET messages = $3, completed_at = NOW()`,
         [
           discussion.id,
           topic.toLowerCase().replace(/\s+/g, '_'),
           JSON.stringify(discussion.messages),
           discussion.startedAt,
+          userId || null,  // null = public/demo discussion
         ]
       );
-      console.log(`[CollaborativeDaemon] Saved discussion ${discussion.id} to database`);
+      console.log(`[CollaborativeDaemon] Saved discussion ${discussion.id} for user ${userId || 'demo'}`);
       
       // CRITICAL: Save agent memories for this user (if userId provided)
       // This builds the per-user agent memory that prevents context bleeding
