@@ -133,6 +133,7 @@ function OnboardingFlow() {
   // Tier is already set from Stripe checkout - no need to select here
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [connectingBroker, setConnectingBroker] = useState(false)
 
   const steps: Step[] = ['risk', 'goals', 'brokerage', 'welcome']
   const stepNames = ['Risk Profile', 'Goals', 'Connect', 'Start']
@@ -233,6 +234,37 @@ function OnboardingFlow() {
   const handleTradierConnect = () => {
     // Redirect to Tradier OAuth flow on the backend
     window.location.href = `${API_URL}/api/broker/tradier/auth`
+  }
+
+  const handleSnapTradeConnect = async () => {
+    setConnectingBroker(true)
+    setError('')
+    
+    try {
+      const token = localStorage.getItem('cortex_token')
+      const res = await fetch('/api/broker/snaptrade/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          redirectUri: `${window.location.origin}/onboarding?step=brokerage&connected=true`,
+        }),
+      })
+      
+      const data = await res.json()
+      
+      if (data.portalUrl) {
+        window.location.href = data.portalUrl
+      } else {
+        setError(data.error || 'Failed to connect broker')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect')
+    } finally {
+      setConnectingBroker(false)
+    }
   }
 
   const handleComplete = async () => {
@@ -430,73 +462,65 @@ function OnboardingFlow() {
                   </p>
                 </div>
 
-                {/* Available Brokers */}
-                <div className="space-y-3">
-                  {/* Robinhood */}
-                  <div className="p-5 bg-surface rounded-xl border border-white/[0.08]">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                        <span className="text-green-400 font-bold text-lg">🪶</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-text-primary">Robinhood</h3>
-                        <p className="text-sm text-text-secondary">Commission-free trading</p>
-                      </div>
+                {/* SnapTrade Universal Connect */}
+                <div className="p-6 bg-gradient-to-br from-purple-500/10 to-cyan-500/10 rounded-xl border border-purple-500/20">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 bg-primary/20 rounded-xl flex items-center justify-center">
+                      <Link2 className="w-7 h-7 text-primary" />
                     </div>
-                    <a
-                      href="/settings/brokers"
-                      className="w-full py-3 px-4 bg-green-600 text-white font-medium rounded-lg hover:bg-green-500 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Connect Robinhood
-                    </a>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg text-text-primary">Connect Any Broker</h3>
+                      <p className="text-sm text-text-secondary">20+ supported brokerages</p>
+                    </div>
+                  </div>
+                  
+                  {/* Supported broker logos */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {[
+                      { name: 'Wealthsimple', emoji: '🇨🇦' },
+                      { name: 'Webull', emoji: '📈' },
+                      { name: 'Schwab', emoji: '💼' },
+                      { name: 'Questrade', emoji: '🍁' },
+                      { name: 'IBKR', emoji: '🌐' },
+                      { name: 'Alpaca', emoji: '🦙' },
+                    ].map((broker) => (
+                      <span key={broker.name} className="px-3 py-1.5 bg-surface rounded-lg text-sm flex items-center gap-1.5">
+                        <span>{broker.emoji}</span>
+                        <span className="text-text-secondary">{broker.name}</span>
+                      </span>
+                    ))}
                   </div>
 
-                  {/* Tradier */}
-                  <div className="p-5 bg-surface rounded-xl border border-white/[0.08]">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                        <span className="text-blue-400 font-bold text-lg">T</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-text-primary">Tradier</h3>
-                        <p className="text-sm text-text-secondary">Commission-free stock & options</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleTradierConnect}
-                      className="w-full py-3 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-500 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Connect Tradier
-                    </button>
-                  </div>
-
-                  {/* Alpaca */}
-                  <div className="p-5 bg-surface rounded-xl border border-white/[0.08]">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center">
-                        <span className="text-yellow-400 font-bold text-lg">🦙</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-text-primary">Alpaca</h3>
-                        <p className="text-sm text-text-secondary">API-first trading</p>
-                      </div>
-                    </div>
-                    <a
-                      href="/settings/brokers"
-                      className="w-full py-3 px-4 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-500 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Connect Alpaca
-                    </a>
-                  </div>
+                  <button
+                    onClick={handleSnapTradeConnect}
+                    disabled={connectingBroker}
+                    className="w-full py-3.5 px-4 bg-primary text-white font-medium rounded-lg hover:bg-purple-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {connectingBroker ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-4 h-4" />
+                        Connect Broker
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                {/* Coming soon */}
-                <div className="p-4 bg-surface/50 rounded-xl border border-white/[0.05] flex items-center justify-between opacity-60">
-                  <div className="flex items-center gap-3">
-                    <span className="text-text-muted">Interactive Brokers, Webull, TD Ameritrade</span>
+                {/* Security note */}
+                <div className="p-4 bg-surface/50 rounded-xl border border-white/[0.05] flex items-start gap-3">
+                  <span className="text-lg">🔒</span>
+                  <div>
+                    <p className="text-sm text-text-secondary">
+                      <strong className="text-text-primary">Bank-level security.</strong> Your credentials are never shared with us - you authenticate directly with your broker via SnapTrade's secure portal.
+                    </p>
+                  </div>
                   </div>
                   <span className="text-xs text-text-muted bg-surface-elevated px-2 py-1 rounded">Coming Soon</span>
                 </div>
