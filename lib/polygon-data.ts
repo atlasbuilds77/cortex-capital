@@ -228,3 +228,52 @@ function getDefaultMetrics(): PortfolioRealMetrics {
     expenseRatio: 0.005
   }
 }
+
+// Quick price lookup for a symbol (latest price + change)
+export async function getQuote(symbol: string): Promise<{ price: number; change: number; changePercent: number; volume: number } | null> {
+  try {
+    // Get previous close and current price
+    const url = `${BASE_URL}/v2/aggs/ticker/${symbol.toUpperCase()}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
+    const response = await fetch(url)
+    const data = await response.json()
+    
+    if (data.results && data.results.length > 0) {
+      const bar = data.results[0]
+      const prevClose = bar.o // Use open as approximation for prev close
+      const currentPrice = bar.c
+      const change = currentPrice - prevClose
+      const changePercent = (change / prevClose) * 100
+      
+      return {
+        price: currentPrice,
+        change,
+        changePercent,
+        volume: bar.v || 0
+      }
+    }
+    return null
+  } catch (error) {
+    console.error(`[Polygon] Quote failed for ${symbol}:`, error)
+    return null
+  }
+}
+
+// Get intraday bars (for more recent data)
+export async function getIntradayBars(symbol: string, minutes: number = 60): Promise<DailyBar[]> {
+  const now = new Date()
+  const from = new Date(now.getTime() - minutes * 60 * 1000)
+  
+  const fromStr = from.toISOString()
+  const toStr = now.toISOString()
+  
+  const url = `${BASE_URL}/v2/aggs/ticker/${symbol.toUpperCase()}/range/1/minute/${fromStr}/${toStr}?adjusted=true&sort=asc&apiKey=${POLYGON_API_KEY}`
+  
+  try {
+    const response = await fetch(url)
+    const data = await response.json()
+    return data.results || []
+  } catch (error) {
+    console.error(`[Polygon] Intraday failed for ${symbol}:`, error)
+    return []
+  }
+}

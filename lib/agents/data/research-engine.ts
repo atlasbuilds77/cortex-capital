@@ -9,7 +9,7 @@
  * Agents call this to get real research, not hallucinate.
  */
 
-import alpaca from '../../integrations/alpaca';
+import { getQuote } from '../../polygon-data';
 
 // Brave API key - get from environment or hardcoded fallback
 const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 'BSAGCUFwmAYKm6tdjsO5FTnq_QR6ewc';
@@ -85,8 +85,8 @@ async function searchBrave(query: string, count: number = 5): Promise<NewsItem[]
  * Research a specific stock
  */
 export async function researchStock(symbol: string): Promise<StockResearch> {
-  const [snapshot, news] = await Promise.all([
-    alpaca.getSnapshot(symbol).catch(() => null),
+  const [quote, news] = await Promise.all([
+    getQuote(symbol),
     searchBrave(`${symbol} stock news today`, 5),
   ]);
 
@@ -122,12 +122,10 @@ export async function researchStock(symbol: string): Promise<StockResearch> {
 
   return {
     symbol,
-    price: snapshot?.latestTrade?.p || snapshot?.dailyBar?.c || 0,
-    change: snapshot?.dailyBar ? (snapshot.dailyBar.c - snapshot.dailyBar.o) : 0,
-    changePercent: snapshot?.dailyBar 
-      ? ((snapshot.dailyBar.c - snapshot.dailyBar.o) / snapshot.dailyBar.o) * 100 
-      : 0,
-    volume: snapshot?.dailyBar?.v || 0,
+    price: quote?.price || 0,
+    change: quote?.change || 0,
+    changePercent: quote?.changePercent || 0,
+    volume: quote?.volume || 0,
     news,
     sentiment,
     catalysts: [...new Set(catalysts)].slice(0, 3),
@@ -149,30 +147,27 @@ export async function researchSector(sector: string): Promise<SectorResearch> {
 
   const sectorInfo = sectorETFs[sector] || sectorETFs['Technology'];
   
-  const [etfSnapshot, news] = await Promise.all([
-    alpaca.getSnapshot(sectorInfo.etf).catch(() => null),
+  const [etfQuote, news] = await Promise.all([
+    getQuote(sectorInfo.etf),
     searchBrave(`${sector} sector stocks market news today`, 5),
   ]);
 
   // Get top movers in sector
   const topMovers: { symbol: string; change: number }[] = [];
   try {
-    const snapshots = await alpaca.getSnapshots(sectorInfo.stocks);
-    for (const [sym, snap] of Object.entries(snapshots)) {
-      const s = snap as any;
-      if (s.dailyBar) {
-        const change = ((s.dailyBar.c - s.dailyBar.o) / s.dailyBar.o) * 100;
-        topMovers.push({ symbol: sym, change });
+    const quotes = await Promise.all(sectorInfo.stocks.map(s => getQuote(s)));
+    sectorInfo.stocks.forEach((sym, i) => {
+      const q = quotes[i];
+      if (q) {
+        topMovers.push({ symbol: sym, change: q.changePercent });
       }
-    }
+    });
     topMovers.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
   } catch (err) {
     console.error('[Research] Failed to get sector stocks:', err);
   }
 
-  const performance = etfSnapshot?.dailyBar 
-    ? ((etfSnapshot.dailyBar.c - etfSnapshot.dailyBar.o) / etfSnapshot.dailyBar.o) * 100 
-    : 0;
+  const performance = etfQuote?.changePercent || 0;
 
   // Generate outlook based on performance and news
   let outlook = 'Mixed signals in the sector.';
@@ -205,29 +200,17 @@ export async function getMarketResearch(): Promise<{
   marketSentiment: 'risk-on' | 'risk-off' | 'neutral';
   keyLevels: { spy: { support: number; resistance: number } };
 }> {
-  const [spySnap, qqqSnap, iwmSnap, news] = await Promise.all([
-    alpaca.getSnapshot('SPY').catch(() => null),
-    alpaca.getSnapshot('QQQ').catch(() => null),
-    alpaca.getSnapshot('IWM').catch(() => null),
+  const [spyQuote, qqqQuote, iwmQuote, news] = await Promise.all([
+    getQuote('SPY'),
+    getQuote('QQQ'),
+    getQuote('IWM'),
     searchBrave('stock market news today', 5),
   ]);
 
   const indices = [
-    { 
-      symbol: 'SPY', 
-      price: spySnap?.latestTrade?.p || 0, 
-      change: spySnap?.dailyBar ? ((spySnap.dailyBar.c - spySnap.dailyBar.o) / spySnap.dailyBar.o) * 100 : 0 
-    },
-    { 
-      symbol: 'QQQ', 
-      price: qqqSnap?.latestTrade?.p || 0, 
-      change: qqqSnap?.dailyBar ? ((qqqSnap.dailyBar.c - qqqSnap.dailyBar.o) / qqqSnap.dailyBar.o) * 100 : 0 
-    },
-    { 
-      symbol: 'IWM', 
-      price: iwmSnap?.latestTrade?.p || 0, 
-      change: iwmSnap?.dailyBar ? ((iwmSnap.dailyBar.c - iwmSnap.dailyBar.o) / iwmSnap.dailyBar.o) * 100 : 0 
-    },
+    { symbol: 'SPY', price: spyQuote?.price || 0, change: spyQuote?.changePercent || 0 },
+    { symbol: 'QQQ', price: qqqQuote?.price || 0, change: qqqQuote?.changePercent || 0 },
+    { symbol: 'IWM', price: iwmQuote?.price || 0, change: iwmQuote?.changePercent || 0 },
   ];
 
   // Determine market sentiment
