@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth-middleware';
 import { query } from '@/lib/db';
+import { listAccounts, getOrders } from '@/lib/integrations/snaptrade';
 
 // Alpaca fallback for demo
 const ALPACA_KEY = process.env.ALPACA_API_KEY || '';
@@ -15,7 +16,57 @@ export async function GET(request: NextRequest) {
     const user = await getAuthUser(request);
     
     if (user) {
-      // Check if user has broker connected
+      // First check for SnapTrade connection
+      const snapResult = await query(
+        'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
+        [user.userId]
+      );
+      
+      const snapUserId = snapResult.rows[0]?.snaptrade_user_id;
+      const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret;
+      const selectedAccount = snapResult.rows[0]?.selected_snaptrade_account;
+
+      if (snapUserId && snapUserSecret) {
+        try {
+          const allAccounts = await listAccounts(snapUserId, snapUserSecret);
+          const accounts = selectedAccount 
+            ? allAccounts.filter((a: any) => a.id === selectedAccount)
+            : allAccounts.slice(0, 1);
+          
+          const allTrades: any[] = [];
+          
+          for (const account of accounts) {
+            try {
+              const orders = await getOrders(snapUserId, snapUserSecret, account.id);
+              
+              for (const o of orders as any[]) {
+                allTrades.push({
+                  id: o.brokerage_order_id || o.id,
+                  symbol: o.symbol?.symbol || o.universal_symbol?.symbol || 'UNKNOWN',
+                  side: o.action?.toLowerCase() || 'buy',
+                  qty: o.filled_quantity || o.total_quantity || 0,
+                  price: o.execution_price || o.limit_price || 0,
+                  timestamp: o.time_placed || o.time_executed,
+                  status: o.status?.toLowerCase() || 'filled',
+                });
+              }
+            } catch (err) {
+              console.error(`Failed to fetch orders for account ${account.id}:`, err);
+            }
+          }
+          
+          if (allTrades.length > 0) {
+            return NextResponse.json({
+              source: 'snaptrade',
+              trades: allTrades.slice(0, 20),
+            });
+          }
+        } catch (err) {
+          console.error('SnapTrade orders fetch failed:', err);
+        }
+      }
+
+      // Check legacy broker_credentials
       const brokerResult = await query(
         `SELECT broker, status FROM broker_credentials WHERE user_id = $1 AND status = 'verified'`,
         [user.userId]
