@@ -57,7 +57,7 @@ export default function SecurityPage() {
       const token = localStorage.getItem('cortex_token')
       const API_URL = ""; // API is same-origin
       const res = await fetch(`${API_URL}/api/auth/change-password`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
