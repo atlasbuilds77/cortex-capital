@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth-middleware';
 import { requireTier } from '@/lib/tier-gate';
 import { query } from '@/lib/db';
 import { decryptToken } from '@/lib/broker-credentials';
+import { listAccounts, getPositions, getBalances } from '@/lib/integrations/snaptrade';
 
 const DEMO_ALPACA_KEY = process.env.DEMO_ALPACA_API_KEY || process.env.ALPACA_API_KEY || '';
 const DEMO_ALPACA_SECRET =
@@ -141,6 +142,78 @@ async function fetchTradierPortfolio(accessToken: string): Promise<AccountData> 
   };
 }
 
+/**
+ * Fetch portfolio from SnapTrade (universal broker API)
+ */
+async function fetchSnapTradePortfolio(userId: string, userSecret: string): Promise<AccountData> {
+  // Get all accounts
+  const accounts = await listAccounts(userId, userSecret);
+  
+  if (!accounts.length) {
+    throw new Error('No SnapTrade accounts found');
+  }
+
+  // Aggregate data from all accounts
+  let totalEquity = 0;
+  let totalCash = 0;
+  let totalBuyingPower = 0;
+  const allPositions: Position[] = [];
+  let brokerName = 'snaptrade';
+
+  for (const account of accounts) {
+    try {
+      const [positions, balances] = await Promise.all([
+        getPositions(userId, userSecret, account.id),
+        getBalances(userId, userSecret, account.id),
+      ]);
+
+      // Get broker name from first account
+      if (account.brokerage_authorization?.brokerage?.name) {
+        brokerName = account.brokerage_authorization.brokerage.name.toLowerCase();
+      }
+
+      // Sum up balances
+      for (const b of balances as any[]) {
+        totalCash += b.cash || 0;
+        totalBuyingPower += b.buying_power || 0;
+      }
+
+      // Map positions
+      for (const p of positions as any[]) {
+        const marketValue = (p.units || 0) * (p.price || 0);
+        totalEquity += marketValue;
+        
+        allPositions.push({
+          symbol: p.symbol?.symbol || 'UNKNOWN',
+          qty: p.units || 0,
+          market_value: marketValue,
+          unrealized_pl: ((p.price || 0) - (p.average_purchase_price || 0)) * (p.units || 0),
+          unrealized_plpc: p.average_purchase_price 
+            ? ((p.price - p.average_purchase_price) / p.average_purchase_price) 
+            : 0,
+          current_price: p.price || 0,
+          avg_entry_price: p.average_purchase_price || 0,
+          side: 'long',
+        });
+      }
+    } catch (err) {
+      console.error(`Failed to fetch data for account ${account.id}:`, err);
+    }
+  }
+
+  // Add cash to equity
+  totalEquity += totalCash;
+
+  return {
+    equity: totalEquity,
+    cash: totalCash,
+    buying_power: totalBuyingPower,
+    positions: allPositions,
+    broker: brokerName,
+    account_id: accounts[0]?.id,
+  };
+}
+
 function getSyntheticDemoPortfolio(): AccountData {
   return {
     equity: 94620.17,
@@ -167,7 +240,35 @@ async function fetchDemoPortfolio(): Promise<AccountData> {
 export const GET = requireAuth(
   requireTier('recovery')(async (request: NextRequest, user, tier) => {
     try {
-      // Check if user has broker connected
+      // First check for SnapTrade connection (universal broker API)
+      const snaptradeResult = await query(
+        'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+        [user.userId]
+      );
+      
+      const snaptradeUserId = snaptradeResult.rows[0]?.snaptrade_user_id;
+      const snaptradeUserSecret = snaptradeResult.rows[0]?.snaptrade_user_secret;
+
+      // If user has SnapTrade connected, use that
+      if (snaptradeUserId && snaptradeUserSecret) {
+        try {
+          const portfolioData = await fetchSnapTradePortfolio(snaptradeUserId, snaptradeUserSecret);
+          
+          // Check if they actually have accounts
+          if (portfolioData.positions.length > 0 || portfolioData.equity > 0) {
+            return NextResponse.json({
+              ...portfolioData,
+              isDemo: false,
+              userTier: tier,
+            });
+          }
+        } catch (error) {
+          console.error('SnapTrade portfolio fetch failed:', error);
+          // Fall through to check legacy brokers or demo
+        }
+      }
+
+      // Check for legacy broker connections (Alpaca, Tradier)
       const credentialsResult = await query(
         'SELECT broker_type, encrypted_api_key, encrypted_api_secret, encryption_iv, account_id FROM broker_credentials WHERE user_id = $1 AND is_active = true LIMIT 1',
         [user.userId]

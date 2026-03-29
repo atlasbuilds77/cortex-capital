@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth-middleware';
 import { query } from '@/lib/db';
 import { getAccountInfo } from '@/lib/brokers/robinhood';
+import { listAccounts, getPositions, getBalances } from '@/lib/integrations/snaptrade';
 
 // Alpaca fallback for demo (same env vars as fishtank)
 const ALPACA_KEY = process.env.DEMO_ALPACA_API_KEY || process.env.ALPACA_API_KEY || '';
@@ -16,7 +17,78 @@ export async function GET(request: NextRequest) {
     const user = await getAuthUser(request);
     
     if (user) {
-      // Check if user has broker connected
+      // First check for SnapTrade connection (universal broker API)
+      const snaptradeResult = await query(
+        'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
+        [user.userId]
+      );
+      
+      const snaptradeUserId = snaptradeResult.rows[0]?.snaptrade_user_id;
+      const snaptradeUserSecret = snaptradeResult.rows[0]?.snaptrade_user_secret;
+
+      if (snaptradeUserId && snaptradeUserSecret) {
+        try {
+          const accounts = await listAccounts(snaptradeUserId, snaptradeUserSecret);
+          
+          if (accounts.length > 0) {
+            let totalValue = 0;
+            let totalBuyingPower = 0;
+            let totalPnL = 0;
+            const allPositions: any[] = [];
+            let brokerName = 'snaptrade';
+
+            for (const account of accounts) {
+              try {
+                const [positions, balances] = await Promise.all([
+                  getPositions(snaptradeUserId, snaptradeUserSecret, account.id),
+                  getBalances(snaptradeUserId, snaptradeUserSecret, account.id),
+                ]);
+
+                if ((account as any).brokerage_authorization?.brokerage?.name) {
+                  brokerName = (account as any).brokerage_authorization.brokerage.name.toLowerCase();
+                }
+
+                for (const b of balances as any[]) {
+                  totalValue += b.cash || 0;
+                  totalBuyingPower += b.buying_power || 0;
+                }
+
+                for (const p of positions as any[]) {
+                  const marketValue = (p.units || 0) * (p.price || 0);
+                  const unrealizedPnL = ((p.price || 0) - (p.average_purchase_price || 0)) * (p.units || 0);
+                  totalValue += marketValue;
+                  totalPnL += unrealizedPnL;
+                  
+                  allPositions.push({
+                    symbol: p.symbol?.symbol || 'UNKNOWN',
+                    quantity: p.units || 0,
+                    averageCost: p.average_purchase_price || 0,
+                    currentPrice: p.price || 0,
+                    todayChange: 0, // SnapTrade doesn't provide intraday change
+                    unrealizedPnL,
+                  });
+                }
+              } catch (err) {
+                console.error(`Failed to fetch account ${account.id}:`, err);
+              }
+            }
+
+            return NextResponse.json({
+              source: brokerName,
+              accountValue: totalValue,
+              buyingPower: totalBuyingPower,
+              todayPnL: totalPnL,
+              openPositions: allPositions.length,
+              positions: allPositions,
+            });
+          }
+        } catch (err) {
+          console.error('SnapTrade portfolio fetch failed:', err);
+          // Fall through to check legacy brokers
+        }
+      }
+
+      // Check legacy broker connections (Robinhood, etc.)
       const brokerResult = await query(
         `SELECT broker_type, is_active FROM broker_credentials WHERE user_id = $1 AND is_active = true`,
         [user.userId]
