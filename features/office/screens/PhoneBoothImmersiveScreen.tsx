@@ -14,9 +14,9 @@ export type PhoneCallStep =
 const AGENTS = [
   { id: "ANALYST", name: "Analyst", role: "Market Analyst", avatar: "📊", color: "#3B82F6" },
   { id: "STRATEGIST", name: "Strategist", role: "Chief Strategist", avatar: "🎯", color: "#8B5CF6" },
-  { id: "DAY_TRADER", name: "Day Trader", role: "Day Trader", avatar: "⚡", color: "#F59E0B" },
+  { id: "DAY_TRADER", name: "Trader", role: "Day Trader", avatar: "⚡", color: "#F59E0B" },
   { id: "MOMENTUM", name: "Momentum", role: "Sector Rotation", avatar: "🚀", color: "#10B981" },
-  { id: "OPTIONS_STRATEGIST", name: "Options Strategist", role: "Options Specialist", avatar: "📐", color: "#EC4899" },
+  { id: "OPTIONS_STRATEGIST", name: "Options", role: "Options Specialist", avatar: "📐", color: "#EC4899" },
   { id: "RISK", name: "Risk", role: "Risk Manager", avatar: "🛡️", color: "#EF4444" },
   { id: "EXECUTOR", name: "Executor", role: "Trade Executor", avatar: "🎬", color: "#6366F1" },
   { id: "GROWTH", name: "Growth", role: "Growth Advocate", avatar: "📈", color: "#22C55E" },
