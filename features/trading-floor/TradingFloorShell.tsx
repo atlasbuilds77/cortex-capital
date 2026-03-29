@@ -414,14 +414,14 @@ export function TradingFloorShell({
       <div
         className={`relative h-full transition-all duration-300 ${showDiscussions ? "w-full xl:w-2/3" : "w-full"}`}
       >
-        {/* Tier badge - top left */}
+        {/* Tier badge - below title on mobile, top left on desktop */}
         {context === 'dashboard' && tierLoaded && (
-          <div className="absolute left-4 top-4 z-30 flex items-center gap-2">
-            <div className={`${tierBadge.color} rounded-full px-3 py-1 flex items-center gap-1.5`}>
-              <span>{tierBadge.icon}</span>
-              <span className="text-xs font-bold">{tierBadge.label}</span>
+          <div className="absolute left-1/2 -translate-x-1/2 top-16 md:left-4 md:translate-x-0 md:top-4 z-30 flex items-center gap-2">
+            <div className={`${tierBadge.color} rounded-full px-2 py-0.5 md:px-3 md:py-1 flex items-center gap-1`}>
+              <span className="text-xs">{tierBadge.icon}</span>
+              <span className="text-[10px] md:text-xs font-bold">{tierBadge.label}</span>
             </div>
-            <div className="text-xs text-white/50">
+            <div className="hidden md:block text-xs text-white/50">
               {visibleAgentCount} agents active
               {lockedAgentCount > 0 && ` • ${lockedAgentCount} locked`}
             </div>
@@ -473,30 +473,32 @@ export function TradingFloorShell({
           </div>
         )}
 
-        {/* Quick Actions - hidden on mobile, compact on desktop */}
+        {/* Quick Actions - bottom left on mobile, top right on desktop */}
         {context === 'dashboard' && tier !== 'free' && (
-          <div className="hidden md:flex absolute right-4 top-20 z-30 flex-col gap-1.5">
-            <div className="text-[9px] uppercase tracking-wider text-white/30 mb-0.5">Ask Agents</div>
+          <div className="absolute left-4 bottom-14 md:bottom-auto md:right-4 md:left-auto md:top-20 z-30 flex flex-row md:flex-col gap-1.5">
             <button
               onClick={() => triggerDiscussion('portfolio_review')}
               disabled={discussionLoading !== null}
-              className={`flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1.5 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-[11px] ${discussionLoading === 'portfolio_review' ? 'animate-pulse border-purple-500/50' : ''}`}
+              className={`flex items-center gap-1 rounded-md bg-black/50 px-2 py-1.5 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-[10px] ${discussionLoading === 'portfolio_review' ? 'animate-pulse border-purple-500/50' : ''}`}
             >
-              {discussionLoading === 'portfolio_review' ? '⏳' : '📊'} Review
+              {discussionLoading === 'portfolio_review' ? '⏳' : '📊'}
+              <span className="hidden md:inline">Review</span>
             </button>
             <button
               onClick={() => triggerDiscussion('portfolio_risk')}
               disabled={discussionLoading !== null}
-              className={`flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1.5 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-[11px] ${discussionLoading === 'portfolio_risk' ? 'animate-pulse border-purple-500/50' : ''}`}
+              className={`flex items-center gap-1 rounded-md bg-black/50 px-2 py-1.5 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-[10px] ${discussionLoading === 'portfolio_risk' ? 'animate-pulse border-purple-500/50' : ''}`}
             >
-              {discussionLoading === 'portfolio_risk' ? '⏳' : '🛡️'} Risk
+              {discussionLoading === 'portfolio_risk' ? '⏳' : '🛡️'}
+              <span className="hidden md:inline">Risk</span>
             </button>
             <button
               onClick={() => triggerDiscussion('portfolio_opportunities')}
               disabled={discussionLoading !== null}
-              className={`flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1.5 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-[11px] ${discussionLoading === 'portfolio_opportunities' ? 'animate-pulse border-purple-500/50' : ''}`}
+              className={`flex items-center gap-1 rounded-md bg-black/50 px-2 py-1.5 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-[10px] ${discussionLoading === 'portfolio_opportunities' ? 'animate-pulse border-purple-500/50' : ''}`}
             >
-              {discussionLoading === 'portfolio_opportunities' ? '⏳' : '🚀'} Ideas
+              {discussionLoading === 'portfolio_opportunities' ? '⏳' : '🚀'}
+              <span className="hidden md:inline">Ideas</span>
             </button>
           </div>
         )}
