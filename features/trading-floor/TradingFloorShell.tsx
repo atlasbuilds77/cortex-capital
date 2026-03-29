@@ -94,6 +94,13 @@ export function TradingFloorShell({
   const [showDiscussions, setShowDiscussions] = useState(initialShowDiscussions);
   const [lastMessage, setLastMessage] = useState<string>("");
   const [showUpgradePrompt, setShowUpgradePrompt] = useState<string | null>(null);
+  const [standupMeeting, setStandupMeeting] = useState<{
+    id: string;
+    phase: 'gathering' | 'in_progress' | 'complete';
+    participantOrder: string[];
+    arrivedAgentIds: string[];
+    currentSpeakerAgentId: string | null;
+  } | null>(null);
 
   const [animationState, setAnimationState] = useState<OfficeAnimationState>({
     awaitingApprovalByAgentId: {},
@@ -520,9 +527,35 @@ export function TradingFloorShell({
           officeTitleLoaded
           gatewayStatus="connected"
           onStandupStartRequested={() => {
-            // Round table clicked - trigger portfolio discussion
-            triggerDiscussion('portfolio_review');
+            // Round table clicked - gather agents and trigger discussion
+            const discussingAgents = ['cortex-analyst', 'cortex-strategist', 'cortex-risk', 'cortex-momentum'];
+            
+            // Start gathering phase - agents walk to table
+            setStandupMeeting({
+              id: `meeting-${Date.now()}`,
+              phase: 'gathering',
+              participantOrder: discussingAgents,
+              arrivedAgentIds: [],
+              currentSpeakerAgentId: null,
+            });
+            
+            // After 2s, mark as in_progress and trigger discussion
+            setTimeout(() => {
+              setStandupMeeting(prev => prev ? {
+                ...prev,
+                phase: 'in_progress',
+                arrivedAgentIds: discussingAgents,
+                currentSpeakerAgentId: 'cortex-analyst',
+              } : null);
+              triggerDiscussion('portfolio_review');
+            }, 2000);
+            
+            // End meeting after 30s
+            setTimeout(() => {
+              setStandupMeeting(null);
+            }, 30000);
           }}
+          standupMeeting={standupMeeting as any}
         />
       </div>
 
