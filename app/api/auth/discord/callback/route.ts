@@ -143,9 +143,9 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cortexcapitalgroup.com';
     const redirectUrl = new URL('/dashboard', baseUrl);
     
-    // Set token in cookie
+    // Set token in cookie (use 'cortex_token' to match middleware check)
     const response = NextResponse.redirect(redirectUrl);
-    response.cookies.set('token', token, {
+    response.cookies.set('cortex_token', token, {
       httpOnly: false, // Allow JS access for auth header
       secure: true,
       sameSite: 'lax',
