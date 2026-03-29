@@ -481,32 +481,42 @@ export function TradingFloorShell({
           </div>
         )}
 
-        {/* Quick Actions - bottom left (dashboard only) */}
+        {/* Quick Actions - top right below header (dashboard only) */}
         {context === 'dashboard' && tier !== 'free' && (
-          <div className="absolute left-4 bottom-4 z-30 flex items-center gap-2">
+          <div className="absolute right-4 top-20 z-30 flex flex-col gap-2">
+            <div className="text-[10px] uppercase tracking-wider text-white/40 mb-1">Ask Agents</div>
             <button
               onClick={() => triggerDiscussion('portfolio_review')}
               disabled={discussionLoading !== null}
-              className={`flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs ${discussionLoading === 'portfolio_review' ? 'animate-pulse border-purple-500/50' : ''}`}
-              title="Have agents review your portfolio"
+              className={`flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2.5 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:bg-black/70 transition-all text-xs ${discussionLoading === 'portfolio_review' ? 'animate-pulse border-purple-500/50' : ''}`}
             >
-              {discussionLoading === 'portfolio_review' ? '⏳' : '📊'} Review
+              {discussionLoading === 'portfolio_review' ? '⏳' : '📊'}
+              <div className="text-left">
+                <div className="font-medium">Portfolio Review</div>
+                <div className="text-[10px] text-white/50">Full analysis of your holdings</div>
+              </div>
             </button>
             <button
               onClick={() => triggerDiscussion('portfolio_risk')}
               disabled={discussionLoading !== null}
-              className={`flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs ${discussionLoading === 'portfolio_risk' ? 'animate-pulse border-purple-500/50' : ''}`}
-              title="Risk assessment"
+              className={`flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2.5 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:bg-black/70 transition-all text-xs ${discussionLoading === 'portfolio_risk' ? 'animate-pulse border-purple-500/50' : ''}`}
             >
-              {discussionLoading === 'portfolio_risk' ? '⏳' : '🛡️'} Risk
+              {discussionLoading === 'portfolio_risk' ? '⏳' : '🛡️'}
+              <div className="text-left">
+                <div className="font-medium">Risk Check</div>
+                <div className="text-[10px] text-white/50">Assess portfolio vulnerabilities</div>
+              </div>
             </button>
             <button
               onClick={() => triggerDiscussion('portfolio_opportunities')}
               disabled={discussionLoading !== null}
-              className={`flex items-center gap-1.5 rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm border border-white/10 text-white/70 hover:text-white hover:bg-black/60 transition-all text-xs ${discussionLoading === 'portfolio_opportunities' ? 'animate-pulse border-purple-500/50' : ''}`}
-              title="Find opportunities"
+              className={`flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2.5 backdrop-blur-sm border border-white/10 text-white/80 hover:text-white hover:bg-black/70 transition-all text-xs ${discussionLoading === 'portfolio_opportunities' ? 'animate-pulse border-purple-500/50' : ''}`}
             >
-              {discussionLoading === 'portfolio_opportunities' ? '⏳' : '🚀'} Ideas
+              {discussionLoading === 'portfolio_opportunities' ? '⏳' : '🚀'}
+              <div className="text-left">
+                <div className="font-medium">Find Ideas</div>
+                <div className="text-[10px] text-white/50">Discover new opportunities</div>
+              </div>
             </button>
           </div>
         )}
