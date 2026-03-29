@@ -555,9 +555,7 @@ function OnboardingFlow() {
                   </div>
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-surface border border-white/[0.08]">
                     <Check className="w-5 h-5 text-green-400" />
-                    <span className="text-text-primary">
-                      {selectedBroker ? `${selectedBroker.name} connected` : 'Broker setup complete'}
-                    </span>
+                    <span className="text-text-primary">Broker setup available in settings</span>
                   </div>
                   <div className="flex items-center gap-3 p-4 rounded-lg bg-surface border border-white/[0.08]">
                     <Check className="w-5 h-5 text-green-400" />
