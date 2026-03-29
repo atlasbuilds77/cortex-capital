@@ -139,8 +139,9 @@ export async function GET(request: NextRequest) {
       { expiresIn: '7d' }
     );
 
-    // Redirect to dashboard with token
-    const redirectUrl = new URL('/dashboard', request.url);
+    // Redirect to dashboard with token (use production URL, not request.url which may have internal port)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cortexcapitalgroup.com';
+    const redirectUrl = new URL('/dashboard', baseUrl);
     
     // Set token in cookie
     const response = NextResponse.redirect(redirectUrl);
