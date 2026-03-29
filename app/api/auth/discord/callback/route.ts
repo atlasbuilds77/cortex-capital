@@ -116,12 +116,12 @@ export async function GET(request: NextRequest) {
         );
       }
     } else {
-      // Create new user
+      // Create new user (password_hash set to 'oauth' placeholder for OAuth users)
       const result = await query(
-        `INSERT INTO users (email, discord_id, discord_username, tier, risk_profile, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'moderate', NOW(), NOW())
+        `INSERT INTO users (email, password_hash, discord_id, discord_username, tier, risk_profile, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, 'moderate', NOW(), NOW())
          RETURNING id`,
-        [discordUser.email || `${discordUser.id}@discord.user`, discordUser.id, discordUser.username, tier]
+        [discordUser.email || `${discordUser.id}@discord.user`, 'OAUTH_USER_NO_PASSWORD', discordUser.id, discordUser.username, tier]
       );
       userId = result.rows[0].id;
     }
