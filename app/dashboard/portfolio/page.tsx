@@ -59,10 +59,25 @@ export default function PortfolioPage() {
 
   if (error || !portfolio) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center p-8">
+        <div className="text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-danger mx-auto mb-4" />
-          <p className="text-text-secondary">{error || 'Failed to load portfolio'}</p>
+          <h2 className="text-xl font-semibold text-text-primary mb-2">Unable to Load Portfolio</h2>
+          <p className="text-text-secondary mb-6">{error || 'Something went wrong. Please try again.'}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-purple-500 transition-colors"
+            >
+              Retry
+            </button>
+            <a
+              href="/settings/brokers"
+              className="px-4 py-2 bg-surface border border-gray-700 text-text-secondary rounded-lg hover:bg-surface-elevated transition-colors"
+            >
+              Check Connection
+            </a>
+          </div>
         </div>
       </div>
     )
@@ -215,12 +230,26 @@ export default function PortfolioPage() {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#1F2937',
-                      border: '1px solid #374151',
+                      backgroundColor: '#111827',
+                      border: '1px solid #6366F1',
                       borderRadius: '8px',
-                      color: '#fff'
+                      color: '#fff',
+                      padding: '12px 16px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
                     }}
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                    itemStyle={{
+                      color: '#E5E7EB',
+                      fontWeight: 500,
+                      fontSize: '14px'
+                    }}
+                    labelStyle={{
+                      color: '#9CA3AF',
+                      marginBottom: '4px'
+                    }}
+                    formatter={(value: number, name: string, props: any) => [
+                      `$${value.toLocaleString()}`, 
+                      props.payload.name
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>

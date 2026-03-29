@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, RefreshCw, DollarSign, PieChart } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { TrendingUp, TrendingDown, Wallet, RefreshCw, DollarSign, PieChart, ArrowUpDown } from "lucide-react";
 
 interface PortfolioData {
   source: string;
@@ -18,10 +18,46 @@ interface PortfolioData {
   message?: string;
 }
 
+type SortKey = 'symbol' | 'value' | 'pnl' | 'change';
+type SortDir = 'asc' | 'desc';
+
 export function PortfolioAtmScreen({ token }: { token?: string | null }) {
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('value');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const sortedPositions = useMemo(() => {
+    if (!portfolio?.positions) return [];
+    return [...portfolio.positions].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'symbol':
+          cmp = a.symbol.localeCompare(b.symbol);
+          break;
+        case 'value':
+          cmp = (a.quantity * a.currentPrice) - (b.quantity * b.currentPrice);
+          break;
+        case 'pnl':
+          cmp = a.unrealizedPnL - b.unrealizedPnL;
+          break;
+        case 'change':
+          cmp = a.todayChange - b.todayChange;
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [portfolio?.positions, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
 
   const fetchPortfolio = async () => {
     setLoading(true);
@@ -157,14 +193,36 @@ export function PortfolioAtmScreen({ token }: { token?: string | null }) {
         {/* Positions */}
         {portfolio.positions.length > 0 && (
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-900/10 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <PieChart className="h-5 w-5 text-emerald-400" />
-              <span className="text-sm uppercase tracking-widest text-emerald-400/70">
-                Holdings
-              </span>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <PieChart className="h-5 w-5 text-emerald-400" />
+                <span className="text-sm uppercase tracking-widest text-emerald-400/70">
+                  Holdings
+                </span>
+              </div>
+              {/* Sort buttons */}
+              <div className="flex gap-1">
+                {[
+                  { key: 'symbol' as SortKey, label: 'A-Z' },
+                  { key: 'value' as SortKey, label: '$' },
+                  { key: 'pnl' as SortKey, label: 'P/L' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleSort(key)}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      sortKey === key
+                        ? 'bg-emerald-500/30 text-emerald-300'
+                        : 'bg-emerald-900/30 text-emerald-500/60 hover:bg-emerald-900/50'
+                    }`}
+                  >
+                    {label} {sortKey === key && (sortDir === 'asc' ? '↑' : '↓')}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-3">
-              {portfolio.positions.slice(0, 8).map((pos) => (
+              {sortedPositions.slice(0, 8).map((pos) => (
                 <div
                   key={pos.symbol}
                   className="flex items-center justify-between py-3 border-b border-emerald-500/10 last:border-0"
