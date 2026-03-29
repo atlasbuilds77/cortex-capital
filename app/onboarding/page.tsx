@@ -521,8 +521,6 @@ function OnboardingFlow() {
                       <strong className="text-text-primary">Bank-level security.</strong> Your credentials are never shared with us - you authenticate directly with your broker via SnapTrade's secure portal.
                     </p>
                   </div>
-                  </div>
-                  <span className="text-xs text-text-muted bg-surface-elevated px-2 py-1 rounded">Coming Soon</span>
                 </div>
 
                 {/* Trust signals */}
