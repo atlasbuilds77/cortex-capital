@@ -25,6 +25,7 @@ import { Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { SettingsPanel } from "@/features/office/components/panels/SettingsPanel";
 import { AtmImmersiveScreen } from "@/features/office/screens/AtmImmersiveScreen";
+import { PortfolioAtmScreen } from "@/features/office/screens/PortfolioAtmScreen";
 import { GithubImmersiveScreen } from "@/features/office/screens/GithubImmersiveScreen";
 import {
   PhoneBoothImmersiveScreen,
@@ -5765,7 +5766,7 @@ export function RetroOffice3D({
           <div className="absolute inset-[7vh_8vw_10vh_8vw] rounded-[34px] border border-[#7dfff0]/22 bg-[#010708] shadow-[0_0_0_18px_rgba(1,8,9,0.96),0_0_0_22px_rgba(86,255,234,0.18),0_28px_100px_rgba(0,0,0,0.72)]" />
           <div className="absolute inset-[7.8vh_8.8vw_10.8vh_8.8vw] rounded-[24px] border border-[#8efff2]/16 bg-[#021112] shadow-[inset_0_0_0_1px_rgba(130,255,232,0.04)]" />
           <div className="pointer-events-auto absolute inset-[8vh_9vw_11vh_9vw] overflow-hidden rounded-[22px] bg-[#031011]">
-            {atmAnalytics ? <AtmImmersiveScreen {...atmAnalytics} /> : null}
+            {atmAnalytics ? <AtmImmersiveScreen {...atmAnalytics} /> : <PortfolioAtmScreen />}
             <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:repeating-linear-gradient(to_bottom,rgba(255,255,255,0.22)_0px,rgba(255,255,255,0.22)_1px,transparent_2px,transparent_4px)]" />
           </div>
           <div className="absolute bottom-[4vh] left-1/2 h-[1.6vh] w-[16vw] -translate-x-1/2 rounded-full bg-[#071617] shadow-[0_0_0_1px_rgba(86,255,234,0.24)]" />

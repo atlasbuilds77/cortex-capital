@@ -519,6 +519,10 @@ export function TradingFloorShell({
           officeTitle="Cortex Capital"
           officeTitleLoaded
           gatewayStatus="connected"
+          onStandupStartRequested={() => {
+            // Round table clicked - trigger portfolio discussion
+            triggerDiscussion('portfolio_review');
+          }}
         />
       </div>
 
