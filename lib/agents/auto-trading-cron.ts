@@ -131,4 +131,5 @@ export function startCronDaemon(): void {
   setInterval(tick, CYCLE_INTERVAL_MS);
 }
 
+export { isMarketOpen };
 export default { runCronCycle, startCronDaemon, isMarketOpen };

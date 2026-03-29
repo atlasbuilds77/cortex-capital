@@ -8,6 +8,7 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
   try {
     const result = await query(
       `SELECT u.id, u.email, u.tier, u.risk_profile, u.email_verified, u.created_at, u.updated_at,
+              u.name, u.phone, u.avatar_url,
               up.investment_horizon, up.constraints, up.day_trading_allocation, up.options_allocation
        FROM users u
        LEFT JOIN user_preferences up ON u.id = up.user_id
@@ -70,6 +71,21 @@ export const PUT = requireAuth(async (request: NextRequest, user) => {
     if (data.risk_profile) {
       updates.push(`risk_profile = $${paramIndex++}`);
       values.push(data.risk_profile);
+    }
+
+    if (data.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(data.name);
+    }
+
+    if (data.phone !== undefined) {
+      updates.push(`phone = $${paramIndex++}`);
+      values.push(data.phone);
+    }
+
+    if (data.avatar_url !== undefined) {
+      updates.push(`avatar_url = $${paramIndex++}`);
+      values.push(data.avatar_url);
     }
     
     if (updates.length === 0) {
