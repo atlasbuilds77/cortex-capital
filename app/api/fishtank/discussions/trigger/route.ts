@@ -52,14 +52,16 @@ export async function POST(request: NextRequest) {
           );
           
           if (brokerResult.rows.length === 0) {
-            // No broker - send a friendly message instead of spamming with demo data
-            await collaborativeDaemon.broadcastMessage(
-              'cortex-analyst',
-              "👋 Welcome! To get personalized portfolio insights, connect your broker in Settings → Brokers. Until then, I'll share general market analysis."
+            // No broker - run a welcome discussion instead of portfolio analysis
+            await collaborativeDaemon.runDiscussion(
+              'Welcome',
+              ['ANALYST'],
+              "Welcome the user to Cortex Capital. Let them know they can connect their broker in Settings → Brokers to get personalized portfolio insights. Until then, you'll share general market analysis. Keep it brief and friendly - one short paragraph.",
+              1
             );
             return NextResponse.json({ 
               success: true, 
-              message: 'No broker connected - prompted user to connect',
+              message: 'No broker connected - welcomed user',
               needsBroker: true
             });
           }
