@@ -153,7 +153,7 @@ export default function HealthScorePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
+    <div className="min-h-screen bg-background text-white">
       {/* Header */}
       <header className="border-b border-white/5">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -166,7 +166,7 @@ export default function HealthScorePage() {
           </button>
           
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-secondary flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <span className="font-semibold">Cortex</span>
@@ -233,7 +233,7 @@ export default function HealthScorePage() {
                           value={holding.symbol}
                           onChange={(e) => updateHolding(holding.id, 'symbol', e.target.value.toUpperCase())}
                           placeholder="AAPL"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition-colors uppercase"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 transition-colors uppercase"
                         />
                       </div>
                       <div className="col-span-3">
@@ -242,14 +242,14 @@ export default function HealthScorePage() {
                           value={holding.shares || ''}
                           onChange={(e) => updateHolding(holding.id, 'shares', parseInt(e.target.value) || 0)}
                           placeholder="100"
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-primary/50 transition-colors"
                         />
                       </div>
                       <div className="col-span-4">
                         <select
                           value={holding.sector}
                           onChange={(e) => updateHolding(holding.id, 'sector', e.target.value)}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none cursor-pointer"
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary/50 transition-colors appearance-none cursor-pointer"
                         >
                           {SECTORS.map(sector => (
                             <option key={sector} value={sector} className="bg-[#1a1a1a]">
@@ -285,7 +285,7 @@ export default function HealthScorePage() {
               <button
                 onClick={analyzePortfolio}
                 disabled={!holdings.some(h => h.symbol && h.shares > 0)}
-                className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full py-4 bg-primary hover:bg-accent disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
                 Analyze My Portfolio
                 <ArrowRight className="w-5 h-5" />
@@ -308,17 +308,17 @@ export default function HealthScorePage() {
             >
               <div className="relative w-24 h-24 mb-8">
                 <motion.div
-                  className="absolute inset-0 rounded-full border-4 border-emerald-500/30"
+                  className="absolute inset-0 rounded-full border-4 border-primary/30"
                   animate={{ rotate: 360 }}
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                 />
                 <motion.div
-                  className="absolute inset-2 rounded-full border-4 border-t-emerald-500 border-r-transparent border-b-transparent border-l-transparent"
+                  className="absolute inset-2 rounded-full border-4 border-t-primary border-r-transparent border-b-transparent border-l-transparent"
                   animate={{ rotate: -360 }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <BarChart3 className="w-8 h-8 text-emerald-400" />
+                  <BarChart3 className="w-8 h-8 text-accent" />
                 </div>
               </div>
               
@@ -331,7 +331,7 @@ export default function HealthScorePage() {
                   transition={{ delay: 0.3 }}
                   className="flex items-center gap-2"
                 >
-                  <Check className="w-4 h-4 text-emerald-500" />
+                  <Check className="w-4 h-4 text-primary" />
                   Calculating risk metrics...
                 </motion.p>
                 <motion.p
@@ -340,7 +340,7 @@ export default function HealthScorePage() {
                   transition={{ delay: 0.8 }}
                   className="flex items-center gap-2"
                 >
-                  <Check className="w-4 h-4 text-emerald-500" />
+                  <Check className="w-4 h-4 text-primary" />
                   Analyzing diversification...
                 </motion.p>
                 <motion.p
@@ -349,7 +349,7 @@ export default function HealthScorePage() {
                   transition={{ delay: 1.3 }}
                   className="flex items-center gap-2"
                 >
-                  <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+                  <Loader2 className="w-4 h-4 text-primary animate-spin" />
                   Generating recommendations...
                 </motion.p>
               </div>
@@ -377,7 +377,7 @@ export default function HealthScorePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.5 }}
-                className="mt-8 p-8 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-2xl text-center"
+                className="mt-8 p-8 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl text-center"
               >
                 <h3 className="text-2xl font-semibold mb-3">
                   Ready to Improve Your Score?
@@ -390,7 +390,7 @@ export default function HealthScorePage() {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <button
                     onClick={handleSignup}
-                    className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                    className="px-8 py-4 bg-primary hover:bg-accent text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
                   >
                     Start with Recovery - $29/mo
                     <ArrowRight className="w-5 h-5" />
