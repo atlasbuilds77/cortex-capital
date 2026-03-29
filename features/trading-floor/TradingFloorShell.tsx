@@ -379,27 +379,19 @@ export function TradingFloorShell({
     }
   };
 
-  // Auto-trigger portfolio discussion when user opens their dashboard
-  useEffect(() => {
-    if (context !== 'dashboard') return;
-    if (hasTriggeredPortfolioDiscussion.current) return;
-    if (!tierLoaded) return;
-    
-    // Only for paid tiers with agent access
-    if (tier === 'free') return;
-    
-    // Wait a moment for the UI to settle, then trigger discussion
-    const timer = setTimeout(() => {
-      hasTriggeredPortfolioDiscussion.current = true;
-      triggerDiscussion('portfolio_review', {
-        risk_tolerance: 'moderate',
-        horizon: 'medium',
-        goals: ['Growth', 'Capital Preservation'],
-      });
-    }, 3000);
-    
-    return () => clearTimeout(timer);
-  }, [context, tierLoaded, tier, user?.id]);
+  // Auto-trigger disabled - users can click Ask Agents buttons if they want a discussion
+  // The auto-briefings were too spammy, especially for empty portfolios
+  // useEffect(() => {
+  //   if (context !== 'dashboard') return;
+  //   if (hasTriggeredPortfolioDiscussion.current) return;
+  //   if (!tierLoaded) return;
+  //   if (tier === 'free') return;
+  //   const timer = setTimeout(() => {
+  //     hasTriggeredPortfolioDiscussion.current = true;
+  //     triggerDiscussion('portfolio_review', {});
+  //   }, 3000);
+  //   return () => clearTimeout(timer);
+  // }, [context, tierLoaded, tier, user?.id]);
 
   // Get tier badge info
   const getTierBadge = () => {
