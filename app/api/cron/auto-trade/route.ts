@@ -4,19 +4,9 @@ export const maxDuration = 300; // 5 minutes max for Vercel
 import { NextRequest, NextResponse } from 'next/server';
 import { runCronCycle, isMarketOpen } from '@/lib/agents/auto-trading-cron';
 
-/**
- * Vercel Cron endpoint for auto-trading
- * 
- * Add to vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/auto-trade",
- *     "schedule": "*/15 9-16 * * 1-5"  // Every 15 min, 9am-4pm ET, Mon-Fri
- *   }]
- * }
- * 
- * Or call manually with CRON_SECRET header for testing
- */
+// Vercel Cron endpoint for auto-trading
+// Schedule: every 15 min, 9am-4pm ET, Mon-Fri
+// Or call manually with CRON_SECRET header for testing
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
   const authHeader = request.headers.get('authorization');
