@@ -86,14 +86,22 @@ export async function GET(request: NextRequest) {
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
 
+      console.log('Guild member response status:', guildMemberResponse.status);
+      
       if (guildMemberResponse.ok) {
         const member = await guildMemberResponse.json();
+        console.log('Member roles:', member.roles);
+        console.log('Looking for SINGULARITY_ROLE_ID:', SINGULARITY_ROLE_ID);
         hasSingularityRole = member.roles?.includes(SINGULARITY_ROLE_ID) || false;
+        console.log('hasSingularityRole:', hasSingularityRole);
+      } else {
+        console.log('Guild member fetch failed:', await guildMemberResponse.text());
       }
     }
 
     // Determine tier based on SINGULARITY role
     const tier = hasSingularityRole ? 'operator' : 'recovery';
+    console.log('Final tier assigned:', tier);
 
     // Check if user exists in DB
     const existingUser = await query(

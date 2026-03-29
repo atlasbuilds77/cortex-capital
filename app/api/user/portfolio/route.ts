@@ -89,14 +89,16 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // No data available
+    // No broker connected - return placeholder prompting connection
     return NextResponse.json({
       source: 'none',
-      accountValue: 0,
-      buyingPower: 0,
-      todayPnL: 0,
+      tier: user?.tier || 'free',
+      accountValue: null,
+      buyingPower: null,
+      todayPnL: null,
       openPositions: 0,
       positions: [],
+      message: 'Connect your broker to see portfolio data',
     });
   } catch (error) {
     console.error('User portfolio fetch failed:', error);
