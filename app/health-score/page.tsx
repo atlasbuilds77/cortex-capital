@@ -392,7 +392,7 @@ export default function HealthScorePage() {
                     onClick={handleSignup}
                     className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
                   >
-                    Start Free Trial
+                    Start with Recovery - $29/mo
                     <ArrowRight className="w-5 h-5" />
                   </button>
                   <button
@@ -404,7 +404,7 @@ export default function HealthScorePage() {
                 </div>
 
                 <p className="mt-4 text-sm text-gray-500">
-                  No credit card required • Cancel anytime
+                  Cancel anytime • See what the agents see
                 </p>
               </motion.div>
 
