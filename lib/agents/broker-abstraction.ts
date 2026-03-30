@@ -614,3 +614,120 @@ async function webullPlaceOrder(credentials: any, params: PlaceOrderParams): Pro
     status: 'pending',
   };
 }
+
+// ============================================================================
+// ROBINHOOD OPTIONS (different endpoint + format)
+// ============================================================================
+
+interface OptionOrderParams extends PlaceOrderParams {
+  isOption: true;
+  optionDetails: {
+    expiry: string;      // YYYY-MM-DD
+    strike: number;
+    type: 'call' | 'put';
+  };
+}
+
+async function robinhoodPlaceOptionOrder(
+  credentials: any, 
+  params: OptionOrderParams
+): Promise<BrokerOrder> {
+  const baseUrl = 'https://api.robinhood.com';
+  const token = credentials.accessToken;
+  
+  // 1. Find the option instrument
+  // Robinhood uses a chain_id and then finds specific option
+  const chainResp = await fetch(
+    `${baseUrl}/options/chains/?equity_instrument_ids=${params.symbol}&state=active`,
+    { headers: { 'Authorization': `Bearer ${token}` } }
+  );
+  const chainData = await chainResp.json();
+  const chain = chainData.results?.[0];
+  
+  if (!chain) {
+    throw new Error(`No options chain found for ${params.symbol}`);
+  }
+  
+  // 2. Find the specific option contract
+  const optionsResp = await fetch(
+    `${baseUrl}/options/instruments/?chain_id=${chain.id}&expiration_dates=${params.optionDetails.expiry}&strike_price=${params.optionDetails.strike}&type=${params.optionDetails.type}`,
+    { headers: { 'Authorization': `Bearer ${token}` } }
+  );
+  const optionsData = await optionsResp.json();
+  const option = optionsData.results?.[0];
+  
+  if (!option) {
+    throw new Error(`Option not found: ${params.symbol} ${params.optionDetails.strike}${params.optionDetails.type[0].toUpperCase()} ${params.optionDetails.expiry}`);
+  }
+  
+  // 3. Get account
+  const accountResp = await fetch(`${baseUrl}/accounts/`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const accountData = await accountResp.json();
+  const account = accountData.results?.[0]?.url;
+  
+  // 4. Place options order
+  // Robinhood options use "legs" format
+  const orderBody = {
+    account,
+    direction: params.side === 'buy' ? 'debit' : 'credit',
+    legs: [{
+      option: option.url,
+      side: params.side,
+      position_effect: params.side === 'buy' ? 'open' : 'close',
+      ratio_quantity: 1,
+    }],
+    time_in_force: 'gfd',
+    trigger: 'immediate',
+    type: params.orderType,
+    quantity: params.quantity.toString(),
+    ...(params.orderType === 'limit' && params.limitPrice && {
+      price: params.limitPrice.toFixed(2)
+    }),
+  };
+  
+  const response = await fetch(`${baseUrl}/options/orders/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(orderBody),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Robinhood options order failed: ${JSON.stringify(error)}`);
+  }
+  
+  const order = await response.json();
+  
+  return {
+    orderId: order.id,
+    symbol: `${params.symbol} ${params.optionDetails.strike}${params.optionDetails.type[0].toUpperCase()} ${params.optionDetails.expiry}`,
+    side: params.side,
+    quantity: params.quantity,
+    orderType: params.orderType,
+    limitPrice: params.limitPrice,
+    status: order.state === 'filled' ? 'filled' : 'pending',
+  };
+}
+
+/**
+ * Place order with automatic routing (stocks vs options)
+ */
+export async function placeOrderSmart(
+  userId: string, 
+  params: PlaceOrderParams & { isOption?: boolean; optionDetails?: any }
+): Promise<BrokerOrder> {
+  const broker = await getUserBroker(userId);
+  
+  // If it's an option and Robinhood, use special handler
+  if (params.isOption && params.optionDetails && broker.type === 'robinhood') {
+    return robinhoodPlaceOptionOrder(broker.credentials, params as OptionOrderParams);
+  }
+  
+  // Otherwise use standard placeOrder
+  return placeOrder(userId, params);
+}
