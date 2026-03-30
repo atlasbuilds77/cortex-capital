@@ -125,12 +125,13 @@ OPTIONS RULES:
 - Cash allocation can be minimal
 
 OPTIONS RULES:
-- All expirations allowed (weeklies, monthlies, LEAPS)
+- MINIMUM 2 weeks to expiry (no weeklies, no 0DTE)
+- Bi-weekly or monthly options for day trading
+- LEAPS for swing positions (3+ months)
 - Delta range: 0.30-0.80 based on conviction
 - Max 30% of portfolio in options
 - Stop loss at -50% for options (high conviction plays)
-- Scale out: +30% sell 1/3, +50% sell 1/2, +100% sell rest
-- 0DTE only on high-probability setups with strict -25% stop`,
+- Scale out: +30% sell 1/3, +50% sell 1/2, +100% sell rest`,
   };
   
   sections.push(riskGuidance[prefs.riskProfile] || riskGuidance.moderate);
