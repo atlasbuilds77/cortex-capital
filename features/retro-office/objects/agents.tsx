@@ -159,6 +159,16 @@ export const AgentModel = memo(function AgentModel({
         leftArmRef.current.rotation.x = 0.2 + Math.sin(agent.frame * 0.08) * 0.28;
       } else if (agent.state === "sitting") {
         leftArmRef.current.rotation.x = 0.3;
+      } else if (agent.state === "checking_phone") {
+        // Phone checking animation - both arms up holding phone
+        leftArmRef.current.rotation.x = -1.1;
+        leftArmRef.current.rotation.y = 0.15;
+        leftArmRef.current.rotation.z = -0.2;
+      } else if (agent.state === "celebrating") {
+        // Celebration animation - fist pump
+        const celebPhase = Math.sin(agent.frame * 0.2);
+        leftArmRef.current.rotation.x = -1.8 + celebPhase * 0.3;
+        leftArmRef.current.rotation.z = -0.3;
       }
     }
     if (rightArmRef.current) {
@@ -201,6 +211,16 @@ export const AgentModel = memo(function AgentModel({
         rightArmRef.current.rotation.x = 0.08 - Math.sin(agent.frame * 0.08) * 0.16;
       } else if (agent.state === "sitting") {
         rightArmRef.current.rotation.x = 0.3;
+      } else if (agent.state === "checking_phone") {
+        // Phone checking animation - right arm supports left
+        rightArmRef.current.rotation.x = -1.05;
+        rightArmRef.current.rotation.y = -0.12;
+        rightArmRef.current.rotation.z = 0.15;
+      } else if (agent.state === "celebrating") {
+        // Celebration animation - fist pump (right arm raised)
+        const celebPhase = Math.sin(agent.frame * 0.2);
+        rightArmRef.current.rotation.x = -1.8 + celebPhase * 0.3;
+        rightArmRef.current.rotation.z = 0.3;
       }
     }
     if (leftLegRef.current) {

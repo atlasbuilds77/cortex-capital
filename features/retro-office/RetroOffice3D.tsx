@@ -47,6 +47,11 @@ import type { StandupMeeting } from "@/lib/office/standup/types";
 import type { SkillStatusEntry } from "@/lib/skills/types";
 import { extractSpeechImage } from "@/lib/text/speech-image";
 import { MonitorImmersiveContent as MonitorImmersiveOverlay } from "@/features/retro-office/overlays/MonitorImmersiveContent";
+import { AgentStatsCard } from "@/features/retro-office/modals/AgentStatsCard";
+import { WhiteboardPnL } from "@/features/retro-office/modals/WhiteboardPnL";
+import { DeskWorkPreview } from "@/features/retro-office/components/DeskWorkPreview";
+import { TradeSignalBell } from "@/features/retro-office/objects/TradeSignalBell";
+import { PizzaBoxes } from "@/features/retro-office/objects/PizzaBoxes";
 import {
   AGENT_MAX_FORCE,
   AGENT_MAX_SPEED,
@@ -91,6 +96,16 @@ import {
   buildJanitorActorsForCue,
   pruneExpiredJanitorActors,
 } from "@/features/retro-office/core/janitors";
+import {
+  applyMoodModifiers,
+  determineAgentMood,
+  findNearbyAgentsForCelebration,
+  getRandomSmallTalk,
+  getRandomTradingThought,
+  shouldCheckPhone,
+  shouldShowThoughtBubble,
+  triggerCelebration,
+} from "@/features/retro-office/core/agentPersonality";
 import {
   createWallItem,
   getItemBaseSize,
@@ -207,6 +222,14 @@ import {
   TrailSystem as AgentTrailSystem,
   WeatherOverlay as WeatherAmbientOverlay,
 } from "@/features/retro-office/systems/visualSystems";
+import {
+  CoffeeMachineSteam,
+  SwayingPlants,
+  WallClocks,
+  DayNightWindow,
+  MarketSentimentMonitor,
+  TimeBasedLighting,
+} from "@/features/retro-office/systems/ambientLife";
 import type { OfficeCleaningCue } from "@/lib/office/janitorReset";
 
 type OfficeDeskMonitorMap = Record<string, OfficeDeskMonitor>;
@@ -4537,6 +4560,8 @@ export function RetroOffice3D({
             intensity={0.4}
             color="#7090ff"
           />
+          {/* Time-based lighting adjustments */}
+          <TimeBasedLighting />
 
           {/* Floor + walls — always visible, no async loading. */}
           <SceneFloorAndWalls />
@@ -5015,6 +5040,15 @@ export function RetroOffice3D({
               heatGridRef={heatGridRef}
             />
           ) : null}
+
+          {/* Ambient life: coffee steam, swaying plants, clocks, windows, market monitors */}
+          <Suspense fallback={null}>
+            <CoffeeMachineSteam items={furniture} agentsRef={renderAgentsRef} />
+            <SwayingPlants items={furniture} />
+            <WallClocks items={furniture} />
+            <DayNightWindow items={furniture} />
+            <MarketSentimentMonitor items={furniture} />
+          </Suspense>
 
           {/* Placement ghost. */}
           {editMode &&
