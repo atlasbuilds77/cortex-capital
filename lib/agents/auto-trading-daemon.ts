@@ -3,9 +3,9 @@
  * 
  * Runs periodically during market hours:
  * 1. Fetches user portfolios
- * 2. Runs agent analysis
+ * 2. Runs agent DISCUSSION (agents talk about the trade first)
  * 3. Generates trade recommendations
- * 4. Executes trades (if user has auto-execute enabled)
+ * 4. Executes trades (if user has auto-execute enabled AND agents agree)
  * 5. Sends notifications
  * 
  * Only runs for users with:
@@ -20,6 +20,7 @@ import { loadUserPreferences, generatePreferencesContext, getPositionSizeGuidanc
 import { getMarketContextForAgents } from './data/market-data';
 import { getFullResearchContext } from './data/research-engine';
 import { notifyTradeExecution, notifyTradeSignal } from '../notifications/trade-notifier';
+import { collaborativeDaemon } from './collaborative-daemon';
 import OpenAI from 'openai';
 import * as fs from 'fs';
 
@@ -259,7 +260,13 @@ export async function runAutoTradingCycle(): Promise<{
         const recommendations = await generateRecommendations(user.id, portfolio, prefs);
         console.log(`[AutoTrading] ${user.email}: ${recommendations.length} recommendations`);
 
-        // Execute trades
+        // Skip if no recommendations
+        if (recommendations.length === 0) {
+          continue;
+        }
+
+        // AGENTS DISCUSS THE TRADE FIRST
+        // This streams to the office so user can see the discussion
         for (const trade of recommendations) {
           // Skip options for scout tier
           if (trade.isOption && !TIER_OPTIONS_ALLOWED[user.tier]) {
@@ -267,10 +274,44 @@ export async function runAutoTradingCycle(): Promise<{
             continue;
           }
 
+          // Run agent discussion about this trade
+          const discussionResult = await collaborativeDaemon.discussTradeIdea(
+            trade.symbol,
+            trade.action === 'buy' ? 'long' : 'short',
+            trade.reason
+          );
+          
+          // Check if agents reached consensus (all approved)
+          const agentsApproved = discussionResult?.consensus === true || 
+                                  discussionResult?.approved === true ||
+                                  trade.confidence >= 80; // High confidence = auto-approve
+          
+          if (!agentsApproved) {
+            console.log(`[AutoTrading] Agents did NOT approve ${trade.symbol} for ${user.email}`);
+            // Notify user that agents discussed but didn't execute
+            await notifyTradeSignal(user.id, {
+              symbol: trade.symbol,
+              action: trade.action,
+              reason: `Agents discussed but did not reach consensus: ${trade.reason}`,
+              status: 'rejected'
+            });
+            continue;
+          }
+
+          // Agents approved - execute the trade
           const success = await executeTrade(user.id, trade);
           if (success) {
             results.tradesExecuted++;
             console.log(`[AutoTrading] Executed: ${trade.action} ${trade.quantity} ${trade.symbol} for ${user.email}`);
+            
+            // Notify user
+            await notifyTradeExecution(user.id, {
+              symbol: trade.symbol,
+              action: trade.action,
+              quantity: trade.quantity,
+              reason: trade.reason,
+              confidence: trade.confidence,
+            });
           }
         }
 
