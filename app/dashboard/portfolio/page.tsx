@@ -99,8 +99,8 @@ export default function PortfolioPage() {
   const equityPercent = 100 - cashPercent
 
   const sectorData = [
-    { name: 'Equity', value: investedValue, color: '#00D4AA', percentage: equityPercent.toFixed(1) },
-    { name: 'Cash', value: cashBalance, color: '#6B7280', percentage: cashPercent.toFixed(1) },
+    { name: 'Equity', value: Number(investedValue) || 0, color: '#00D4AA', percentage: String(equityPercent.toFixed(1)) },
+    { name: 'Cash', value: Number(cashBalance) || 0, color: '#6B7280', percentage: String(cashPercent.toFixed(1)) },
   ]
 
   return (
@@ -250,10 +250,11 @@ export default function PortfolioPage() {
                       color: '#9CA3AF',
                       marginBottom: '4px'
                     }}
-                    formatter={(value: number, name: string, props: any) => [
-                      `$${value.toLocaleString()}`, 
-                      props.payload.name
-                    ]}
+                    formatter={(value: number, name: string, props: any) => {
+                      const numValue = typeof value === 'number' ? value : 0
+                      const displayName = props?.payload?.name || name || 'Unknown'
+                      return [`$${numValue.toLocaleString()}`, String(displayName)]
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
