@@ -324,13 +324,15 @@ export function subscribeToDiscussions(
       
       switch (data.type) {
         case 'message':
-          onMessage?.(data.message);
+          // Message fields are spread into root (not nested under data.message)
+          onMessage?.(data);
           break;
         case 'discussion_start':
-          onDiscussionStart?.(data.discussion);
+          // Discussion fields are spread into root
+          onDiscussionStart?.(data);
           break;
         case 'discussion_end':
-          onDiscussionEnd?.(data.discussion);
+          onDiscussionEnd?.(data);
           break;
         case 'history':
           onHistory?.(data.messages);
