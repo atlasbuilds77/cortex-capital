@@ -2768,7 +2768,7 @@ export function RetroOffice3D({
     standupMeeting?.phase === "gathering" ||
     standupMeeting?.phase === "in_progress";
   const standupSpeakerCard =
-    standupMeeting?.cards.find(
+    standupMeeting?.cards?.find(
       (card) => card.agentId === standupMeeting.currentSpeakerAgentId,
     ) ?? null;
   const activeMonitorComputer = useMemo(() => {

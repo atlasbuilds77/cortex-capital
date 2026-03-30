@@ -105,10 +105,17 @@ export function TradingFloorShell({
   const [showUpgradePrompt, setShowUpgradePrompt] = useState<string | null>(null);
   const [standupMeeting, setStandupMeeting] = useState<{
     id: string;
-    phase: 'gathering' | 'in_progress' | 'complete';
+    trigger: 'manual' | 'scheduled';
+    phase: 'gathering' | 'in_progress' | 'complete' | 'scheduled';
+    scheduledFor: string | null;
+    startedAt: string;
+    updatedAt: string;
+    completedAt: string | null;
+    currentSpeakerAgentId: string | null;
+    speakerStartedAt: string | null;
+    speakerDurationMs: number;
     participantOrder: string[];
     arrivedAgentIds: string[];
-    currentSpeakerAgentId: string | null;
     cards: { 
       agentId: string; 
       agentName: string;
@@ -582,9 +589,17 @@ export function TradingFloorShell({
             const discussingAgents = ['cortex-analyst', 'cortex-strategist', 'cortex-risk', 'cortex-momentum'];
             
             // Start gathering phase - agents walk to table
+            const now = new Date().toISOString();
             setStandupMeeting({
               id: `meeting-${Date.now()}`,
+              trigger: 'manual',
               phase: 'gathering',
+              scheduledFor: null,
+              startedAt: now,
+              updatedAt: now,
+              completedAt: null,
+              speakerStartedAt: null,
+              speakerDurationMs: 0,
               participantOrder: discussingAgents,
               arrivedAgentIds: [],
               currentSpeakerAgentId: null,
