@@ -1457,7 +1457,7 @@ function useAgentTick(
         };
       }
       const baseSpeed = agent.walkSpeed ?? WALK_SPEED;
-      const maxSpeed =
+      let maxSpeed =
         agent.status === "working" && agent.state !== "sitting"
           ? baseSpeed * WORKING_WALK_SPEED_MULTIPLIER
           : baseSpeed;
@@ -1835,7 +1835,6 @@ function useAgentTick(
       }
 
       // Apply personality system
-      const isJanitor = "role" in agent && agent.role === "janitor";
       if (!isJanitor) {
         // Check for thought bubbles (idle agents occasionally think)
         if (shouldShowThoughtBubble(agent, now)) {

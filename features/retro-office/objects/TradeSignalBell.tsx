@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { audioManager } from "@/features/retro-office/lib/audio";
 
 type TradeSignalBellProps = {
   position: [number, number, number];
@@ -20,6 +21,9 @@ export function TradeSignalBell({ position, signalActive }: TradeSignalBellProps
     if (signalActive && !lastSignalState.current) {
       setRinging(true);
       ringStartTime.current = Date.now();
+      
+      // Play bell sound
+      audioManager.playSound('tradeBell');
       
       // Stop ringing after 2 seconds
       const timeout = setTimeout(() => {
