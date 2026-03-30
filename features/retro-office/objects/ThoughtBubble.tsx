@@ -10,14 +10,14 @@ interface ThoughtBubbleProps {
 }
 
 // Maximum text length to prevent overflow and scaling issues
-const MAX_TEXT_LENGTH = 80;
-// Fixed bubble dimensions
-const BUBBLE_WIDTH = 1.2;
-const BUBBLE_HEIGHT = 0.42;
+const MAX_TEXT_LENGTH = 60;
+// Fixed bubble dimensions - keep small to not overwhelm the scene
+const BUBBLE_WIDTH = 0.9;
+const BUBBLE_HEIGHT = 0.32;
 // Text constraints
-const MAX_TEXT_WIDTH = 0.85;
-const FONT_SIZE = 0.055;
-const MIN_FONT_SIZE = 0.04;
+const MAX_TEXT_WIDTH = 0.7;
+const FONT_SIZE = 0.045;
+const MIN_FONT_SIZE = 0.035;
 
 export const ThoughtBubble = memo(function ThoughtBubble({
   text,
@@ -71,16 +71,16 @@ export const ThoughtBubble = memo(function ThoughtBubble({
       bubbleMatRef.current.opacity = 0.95;
     }
 
-    // Gentle float animation with clamped offset
-    const floatOffset = Math.sin(elapsed * 0.002) * 0.02;
-    groupRef.current.position.y = position[1] + 0.62 + Math.max(-0.05, Math.min(0.05, floatOffset));
+    // Gentle float animation with clamped offset - keep close to original position
+    const floatOffset = Math.sin(elapsed * 0.002) * 0.015;
+    groupRef.current.position.y = position[1] + 0.4 + Math.max(-0.03, Math.min(0.03, floatOffset));
   });
 
   // Don't render empty bubbles
   if (!displayText) return null;
 
   return (
-    <group ref={groupRef} position={position} scale={0.4}>
+    <group ref={groupRef} position={position} scale={0.5}>
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
         {/* Bubble background - fixed size */}
         <mesh position={[0, 0, -0.01]}>

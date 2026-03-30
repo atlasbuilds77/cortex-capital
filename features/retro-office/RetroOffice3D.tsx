@@ -5218,11 +5218,12 @@ export function RetroOffice3D({
             })
             .map((agent) => {
               const [wx, , wz] = toWorld(agent.x, agent.y);
+              // Position thought bubble above agent head (agent height ~1.1 units with AGENT_SCALE=1.75)
               return (
                 <ThoughtBubble
                   key={`thought-${agent.id}`}
                   text={agent.thoughtText!}
-                  position={[wx, 3.5, wz]}
+                  position={[wx, 1.4, wz]}
                 />
               );
             })}
