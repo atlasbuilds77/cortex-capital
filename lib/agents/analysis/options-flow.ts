@@ -107,7 +107,7 @@ export async function detectLargeBets(symbol: string): Promise<Bet[]> {
     // Calculate average trade size (simplified - in reality we'd need time & sales data)
     // For now, we'll flag any option with volume > 100 contracts as potentially containing large blocks
     if (volume > 100) {
-      const avgPrice = option.last ?? ((option.bid + option.ask) / 2) ?? 0;
+      const avgPrice = option.last ?? ((option.bid + option.ask) / 2);
       const premium = avgPrice * 100 * volume; // Premium = price * 100 * contracts
       
       largeBets.push({
@@ -143,7 +143,7 @@ export async function getFlowSentiment(symbol: string): Promise<FlowSentiment> {
     const volume = option.volume || 0;
     if (volume === 0) continue;
     
-    const avgPrice = option.last ?? ((option.bid + option.ask) / 2) ?? 0;
+    const avgPrice = option.last ?? ((option.bid + option.ask) / 2);
     const premium = avgPrice * 100 * volume;
     
     if (option.type === 'call') {

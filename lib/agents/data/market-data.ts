@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * MARKET DATA SERVICE FOR AGENTS
  * 

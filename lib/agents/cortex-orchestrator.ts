@@ -3,7 +3,7 @@
 
 import enhancedAnalyst, { EnhancedAnalystReport } from './analyst-enhanced';
 import enhancedStrategist, { EnhancedRebalancingPlan } from './strategist-enhanced';
-import enhancedRiskAssessment, { PlanRiskReview } from './risk-enhanced';
+import enhancedRiskAssessment, { RiskAssessment } from './risk-enhanced';
 import enhancedExecutor, { EnhancedExecutionPlan } from './executor-enhanced';
 
 export interface UserPreferences {
@@ -28,7 +28,7 @@ export interface CortexWorkflowResult {
   workflow_id: string;
   analyst_report: EnhancedAnalystReport;
   strategist_plan: EnhancedRebalancingPlan;
-  risk_review: PlanRiskReview;
+  risk_review: RiskAssessment;
   execution_plan?: EnhancedExecutionPlan;
   summary: {
     portfolio_health_before: number;
@@ -101,7 +101,7 @@ export async function runCortexWorkflow(
     // STEP 3: RISK - Enhanced risk assessment with real options flow
     // ============================================================================
     console.log('[CORTEX] Step 3: Running enhanced risk assessment...');
-    let riskReview: PlanRiskReview;
+    let riskReview: RiskAssessment;
     try {
       riskReview = await enhancedRiskAssessment(
         analystReport as any,
@@ -159,7 +159,7 @@ export async function runCortexWorkflow(
     const summary = {
       portfolio_health_before: analystReport.portfolio_health,
       portfolio_health_after: Math.min(100, analystReport.portfolio_health + expectedImprovement),
-      expected_improvement,
+      expected_improvement: expectedImprovement,
       total_trades_generated: strategistPlan.trades.length,
       trades_approved: approvedTrades,
       trades_executed: executedTrades,
@@ -298,7 +298,7 @@ export async function runQuickAnalysis(
       summary: {
         portfolio_health: analystReport.portfolio_health,
         trades_generated: strategistPlan.trades.length,
-        expected_improvement: strategistPlan.expected_improvement,
+        expected_improvement: expectedImprovement,
         confidence: strategistPlan.confidence,
       },
     };
@@ -314,7 +314,7 @@ export async function runQuickAnalysis(
 export async function runRiskAssessmentOnly(
   analystReport: EnhancedAnalystReport,
   marketVolatility: 'low' | 'medium' | 'high'
-): Promise<PlanRiskReview> {
+): Promise<RiskAssessment> {
   return await enhancedRiskAssessment(analystReport as any, marketVolatility);
 }
 
@@ -323,7 +323,7 @@ export async function runRiskAssessmentOnly(
  */
 export async function runExecutionOnly(
   strategistPlan: EnhancedRebalancingPlan,
-  riskReview: PlanRiskReview
+  riskReview: RiskAssessment
 ): Promise<EnhancedExecutionPlan> {
   return await enhancedExecutor(strategistPlan, riskReview);
 }

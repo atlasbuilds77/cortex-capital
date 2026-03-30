@@ -48,8 +48,8 @@ async function processBatch(users: EligibleUser[]): Promise<void> {
     users.map(async (user) => {
       try {
         // Import dynamically to avoid circular deps
-        const { processUserTrading } = await import('./auto-trading-daemon');
-        await processUserTrading(user.id);
+        const daemon = await import('./auto-trading-daemon');
+        await daemon.runAutoTradingCycle();
         return { userId: user.id, success: true };
       } catch (error: any) {
         console.error(`[Cron] Failed for ${user.email}:`, error.message);

@@ -108,11 +108,11 @@ const SECTOR_MAP: Record<string, string> = {
 /**
  * Enhanced analyst function with real technical analysis
  */
-export async function enhancedAnalyst(): Promise<EnhancedAnalystReport> {
+export async function enhancedAnalyst(accountId: string): Promise<EnhancedAnalystReport> {
   try {
     // Get portfolio data
-    const positions = await getPositions();
-    const balances = await getBalances();
+    const positions = await getPositions(accountId);
+    const balances = await getBalances(accountId);
     const symbols = positions.map(p => p.symbol);
     
     // Get quotes for all positions
@@ -129,7 +129,7 @@ export async function enhancedAnalyst(): Promise<EnhancedAnalystReport> {
     // Process each position with enhanced analysis
     const enhancedPositions = positions.map(position => {
       const quote = quoteMap.get(position.symbol);
-      const currentPrice = quote?.last || quote?.close || position.last;
+      const currentPrice = quote?.last || quote?.close || 0;
       const positionValue = position.quantity * currentPrice;
       const costBasis = position.cost_basis;
       const unrealizedPnl = positionValue - costBasis;
@@ -245,7 +245,7 @@ function calculatePortfolioHealth(
   // Check for large losses
   const largeLosses = positions.filter(p => {
     const quote = quoteMap.get(p.symbol);
-    const currentPrice = quote?.last || quote?.close || p.last;
+    const currentPrice = quote?.last || quote?.close || 0;
     const costBasis = p.cost_basis;
     const pnlPct = costBasis > 0 ? ((currentPrice * p.quantity - costBasis) / costBasis) * 100 : 0;
     return pnlPct < -15;
@@ -258,14 +258,14 @@ function calculatePortfolioHealth(
   // Check for concentration
   const totalValue = positions.reduce((sum, p) => {
     const quote = quoteMap.get(p.symbol);
-    const currentPrice = quote?.last || quote?.close || p.last;
+    const currentPrice = quote?.last || quote?.close || 0;
     return sum + (p.quantity * currentPrice);
   }, 0);
   
   if (totalValue > 0) {
     const largestPosition = Math.max(...positions.map(p => {
       const quote = quoteMap.get(p.symbol);
-      const currentPrice = quote?.last || quote?.close || p.last;
+      const currentPrice = quote?.last || quote?.close || 0;
       return (p.quantity * currentPrice) / totalValue;
     }));
     
@@ -369,7 +369,7 @@ async function generateSectorInsights(
     // Add momentum data if available
     const analysis = enhancedAnalysis[position.ticker];
     if (analysis?.sectorMomentum) {
-      sectors[sector].momentumScores.push(analysis.sectorMomentum.score);
+      sectors[sector].momentumScores.push(analysis.sectorMomentum.momentumScore);
       sectors[sector].trends.push(analysis.sectorMomentum.trend);
     }
   });

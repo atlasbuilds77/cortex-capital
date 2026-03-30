@@ -194,7 +194,7 @@ export async function analyzeMultipleFlows(symbols: string[]): Promise<FlowAnaly
  * @param minConfidence - Minimum confidence score (0-100)
  * @returns Filtered signals
  */
-export function filterSignalsByConfidence(
+export function filterFlowSignalsByConfidence(
   signals: FlowAnalysisResult[], 
   minConfidence: number = 70
 ): FlowAnalysisResult[] {
@@ -206,7 +206,7 @@ export function filterSignalsByConfidence(
  * @param signals - Array of flow analysis results
  * @returns Ranked signals (highest confidence first)
  */
-export function rankSignals(signals: FlowAnalysisResult[]): FlowAnalysisResult[] {
+export function rankFlowSignals(signals: FlowAnalysisResult[]): FlowAnalysisResult[] {
   return [...signals].sort((a, b) => b.confidence - a.confidence);
 }
 

@@ -257,7 +257,7 @@ export async function detectLargeOTMBets(symbol: string): Promise<Bet[]> {
       option.strike < underlyingPrice * 0.9;  // Put OTM if strike < 90% of current price
     
     if (isOTM) {
-      const avgPrice = option.last ?? ((option.bid + option.ask) / 2) ?? 0;
+      const avgPrice = option.last ?? ((option.bid + option.ask) / 2);
       const premium = avgPrice * 100 * volume;
       
       largeOTMBets.push({
