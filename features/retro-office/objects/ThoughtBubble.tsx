@@ -47,7 +47,7 @@ export const ThoughtBubble = memo(function ThoughtBubble({
   });
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} scale={0.4}>
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
         {/* Bubble background */}
         <mesh position={[0, 0, -0.01]}>
