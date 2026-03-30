@@ -2,234 +2,356 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Zap, Shield, AlertTriangle, Loader2, Lock } from 'lucide-react'
+import { 
+  Target, 
+  Zap, 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle,
+  Loader2,
+  Save,
+  RefreshCw
+} from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 
-const TIER_CAN_EXECUTE: Record<string, boolean> = {
-  recovery: false,
-  scout: true,
-  operator: true,
-}
-
-const TIER_FEATURES: Record<string, string[]> = {
-  recovery: ['View-only mode', 'Learn from agent discussions'],
-  scout: ['Auto-execute stocks only', 'No options trading'],
-  operator: ['Auto-execute stocks', 'Auto-execute options', 'LEAPS strategies'],
+interface TradingSettings {
+  auto_execute_enabled: boolean
+  risk_profile: 'conservative' | 'moderate' | 'aggressive'
+  max_position_size: number
+  max_daily_loss: number
+  allowed_symbols: string[]
+  trading_hours: {
+    start: string
+    end: string
+  }
 }
 
 export default function TradingSettingsPage() {
-  const { user, token } = useAuth()
+  const { token } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [autoExecuteEnabled, setAutoExecuteEnabled] = useState(false)
-  const [confirmDisable, setConfirmDisable] = useState(false)
-
-  const tier = user?.tier || 'recovery'
-  const canExecute = TIER_CAN_EXECUTE[tier] || false
-  const features = TIER_FEATURES[tier] || []
+  const [settings, setSettings] = useState<TradingSettings>({
+    auto_execute_enabled: false,
+    risk_profile: 'moderate',
+    max_position_size: 10000,
+    max_daily_loss: 500,
+    allowed_symbols: ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'META', 'AMZN'],
+    trading_hours: {
+      start: '09:30',
+      end: '16:00'
+    }
+  })
+  const [newSymbol, setNewSymbol] = useState('')
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const res = await fetch('/api/user/trading-settings', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setAutoExecuteEnabled(data.auto_execute_enabled || false)
-        }
-      } catch (error) {
-        console.error('Failed to load trading settings:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadSettings()
-  }, [token])
+    fetchSettings()
+  }, [])
 
-  const handleToggle = async () => {
-    if (autoExecuteEnabled && !confirmDisable) {
-      setConfirmDisable(true)
-      return
-    }
-
-    setSaving(true)
-    setSaved(false)
-    setConfirmDisable(false)
-
+  const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/user/trading-settings', {
-        method: 'PUT',
+      const res = await fetch('/api/user/settings/trading', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.settings) {
+          setSettings(data.settings)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch trading settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveSettings = async () => {
+    setSaving(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/user/settings/trading', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ auto_execute_enabled: !autoExecuteEnabled }),
+        body: JSON.stringify({ settings }),
       })
+      
       if (res.ok) {
-        setAutoExecuteEnabled(!autoExecuteEnabled)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
+        setMessage({ type: 'success', text: 'Trading settings saved successfully!' })
+      } else {
+        setMessage({ type: 'error', text: 'Failed to save settings' })
       }
     } catch (error) {
-      console.error('Failed to save trading settings:', error)
+      setMessage({ type: 'error', text: 'Failed to save settings' })
     } finally {
       setSaving(false)
     }
   }
 
+  const addSymbol = () => {
+    if (newSymbol.trim() && !settings.allowed_symbols.includes(newSymbol.toUpperCase())) {
+      setSettings({
+        ...settings,
+        allowed_symbols: [...settings.allowed_symbols, newSymbol.toUpperCase()]
+      })
+      setNewSymbol('')
+    }
+  }
+
+  const removeSymbol = (symbol: string) => {
+    setSettings({
+      ...settings,
+      allowed_symbols: settings.allowed_symbols.filter(s => s !== symbol)
+    })
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold hidden lg:block">Trading Settings</h2>
-        <p className="text-text-secondary mt-1 hidden lg:block">
-          Control how AI agents trade on your behalf
+        <h2 className="text-2xl font-bold text-text-primary mb-2">Trading Settings</h2>
+        <p className="text-text-secondary">
+          Configure how your AI agents execute trades and manage risk
         </p>
       </div>
 
-      {/* Auto-Execute Toggle */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="p-6 bg-surface rounded-xl border border-white/[0.08]"
-      >
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-xl ${autoExecuteEnabled ? 'bg-green-500/20' : 'bg-gray-800'}`}>
-              <Zap className={`w-6 h-6 ${autoExecuteEnabled ? 'text-green-400' : 'text-gray-500'}`} />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                Auto-Execute Trades
-                {!canExecute && <Lock className="w-4 h-4 text-gray-500" />}
-              </h3>
-              <p className="text-text-secondary text-sm mt-1 max-w-md">
-                When enabled, AI agents will automatically execute trades based on their analysis. 
-                All trades follow your risk profile and preferences.
-              </p>
-              {canExecute && features.length > 0 && (
-                <ul className="mt-3 space-y-1">
-                  {features.map((f, i) => (
-                    <li key={i} className="text-sm text-text-secondary flex items-center gap-2">
-                      <span className="text-green-400">✓</span> {f}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+      {message && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`p-4 rounded-lg border ${
+            message.type === 'success' 
+              ? 'bg-green-900/20 border-green-700 text-green-400' 
+              : 'bg-red-900/20 border-red-700 text-red-400'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+            <span>{message.text}</span>
           </div>
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Auto-Execution */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-surface-elevated rounded-xl p-6 border border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Zap className="w-6 h-6 text-primary" />
+            <h3 className="text-lg font-semibold text-text-primary">Auto-Execution</h3>
+          </div>
+          <p className="text-text-secondary mb-6 text-sm">
+            When enabled, AI agents will automatically execute approved trades. 
+            When disabled, agents will still analyze and recommend trades for manual review.
+          </p>
           
-          {canExecute ? (
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-text-primary">Auto-Execute Trades</div>
+              <div className="text-sm text-text-secondary">
+                {settings.auto_execute_enabled 
+                  ? 'Agents will execute trades automatically' 
+                  : 'Agents will only recommend trades'}
+              </div>
+            </div>
             <button
-              onClick={handleToggle}
-              disabled={saving}
-              className={`relative w-14 h-7 rounded-full transition-colors ${
-                autoExecuteEnabled ? 'bg-green-500' : 'bg-gray-700'
+              onClick={() => setSettings({ ...settings, auto_execute_enabled: !settings.auto_execute_enabled })}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.auto_execute_enabled ? 'bg-primary' : 'bg-gray-700'
               }`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full transition-transform shadow-lg ${
-                  autoExecuteEnabled ? 'translate-x-7' : ''
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.auto_execute_enabled ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
-          ) : (
-            <a
-              href="/pricing"
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-purple-500 transition-colors"
-            >
-              Upgrade to Scout
-            </a>
-          )}
-        </div>
+          </div>
+        </motion.div>
 
-        {/* Confirmation dialog */}
-        {confirmDisable && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-4 p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg"
-          >
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-orange-200 font-medium">Disable auto-trading?</p>
-                <p className="text-orange-200/70 text-sm mt-1">
-                  Your existing positions will remain open. Agents will stop executing new trades.
-                </p>
-                <div className="flex gap-3 mt-3">
-                  <button
-                    onClick={handleToggle}
-                    className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-400"
-                  >
-                    Yes, disable
-                  </button>
-                  <button
-                    onClick={() => setConfirmDisable(false)}
-                    className="px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-medium hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
+        {/* Risk Profile */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-surface-elevated rounded-xl p-6 border border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="w-6 h-6 text-primary" />
+            <h3 className="text-lg font-semibold text-text-primary">Risk Profile</h3>
+          </div>
+          
+          <div className="space-y-4">
+            {(['conservative', 'moderate', 'aggressive'] as const).map((profile) => (
+              <div
+                key={profile}
+                onClick={() => setSettings({ ...settings, risk_profile: profile })}
+                className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                  settings.risk_profile === profile
+                    ? 'border-primary bg-primary/10'
+                    : 'border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-text-primary capitalize">{profile}</div>
+                    <div className="text-sm text-text-secondary">
+                      {profile === 'conservative' && 'Low risk, steady returns'}
+                      {profile === 'moderate' && 'Balanced risk and reward'}
+                      {profile === 'aggressive' && 'High risk, high potential returns'}
+                    </div>
+                  </div>
+                  {settings.risk_profile === profile && (
+                    <CheckCircle className="w-5 h-5 text-primary" />
+                  )}
                 </div>
               </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Position Limits */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-surface-elevated rounded-xl p-6 border border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <Target className="w-6 h-6 text-primary" />
+            <h3 className="text-lg font-semibold text-text-primary">Position Limits</h3>
+          </div>
+          
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Max Position Size ($)
+              </label>
+              <input
+                type="number"
+                value={settings.max_position_size}
+                onChange={(e) => setSettings({ ...settings, max_position_size: parseInt(e.target.value) || 0 })}
+                className="w-full px-4 py-2 bg-surface border border-gray-700 rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                min="100"
+                max="100000"
+              />
+              <p className="text-xs text-text-secondary mt-2">
+                Maximum amount to invest in a single position
+              </p>
             </div>
-          </motion.div>
-        )}
+            
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Max Daily Loss ($)
+              </label>
+              <input
+                type="number"
+                value={settings.max_daily_loss}
+                onChange={(e) => setSettings({ ...settings, max_daily_loss: parseInt(e.target.value) || 0 })}
+                className="w-full px-4 py-2 bg-surface border border-gray-700 rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                min="10"
+                max="5000"
+              />
+              <p className="text-xs text-text-secondary mt-2">
+                Stop trading for the day if losses exceed this amount
+              </p>
+            </div>
+          </div>
+        </motion.div>
 
-        {saved && (
-          <p className="mt-4 text-green-400 text-sm">
-            ✓ Settings saved! {autoExecuteEnabled ? 'Auto-trading is now active.' : 'Auto-trading disabled.'}
-          </p>
-        )}
-      </motion.div>
+        {/* Allowed Symbols */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-surface-elevated rounded-xl p-6 border border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <AlertTriangle className="w-6 h-6 text-primary" />
+            <h3 className="text-lg font-semibold text-text-primary">Allowed Symbols</h3>
+          </div>
+          
+          <div className="mb-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newSymbol}
+                onChange={(e) => setNewSymbol(e.target.value)}
+                placeholder="Add symbol (e.g., AAPL)"
+                className="flex-1 px-4 py-2 bg-surface border border-gray-700 rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                onKeyDown={(e) => e.key === 'Enter' && addSymbol()}
+              />
+              <button
+                onClick={addSymbol}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-purple-500 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {settings.allowed_symbols.map((symbol) => (
+              <div
+                key={symbol}
+                className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-gray-700 rounded-lg"
+              >
+                <span className="text-text-primary">{symbol}</span>
+                <button
+                  onClick={() => removeSymbol(symbol)}
+                  className="text-text-secondary hover:text-danger transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          {settings.allowed_symbols.length === 0 && (
+            <p className="text-text-secondary text-sm mt-2">
+              No symbols added. Agents will analyze all available symbols.
+            </p>
+          )}
+        </motion.div>
+      </div>
 
-      {/* Safety Info */}
+      {/* Action Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="p-6 bg-surface rounded-xl border border-white/[0.08]"
+        transition={{ delay: 0.5 }}
+        className="flex gap-4 pt-6 border-t border-gray-700"
       >
-        <div className="flex items-start gap-4">
-          <div className="p-3 rounded-xl bg-cyan-500/20">
-            <Shield className="w-6 h-6 text-cyan-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold">Safety Measures</h3>
-            <ul className="mt-3 space-y-2 text-sm text-text-secondary">
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 mt-0.5">•</span>
-                <span>Position sizes capped based on your risk profile</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 mt-0.5">•</span>
-                <span>Automatic stop-losses on all positions</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 mt-0.5">•</span>
-                <span>Email notifications for every trade</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 mt-0.5">•</span>
-                <span>Your exclusions (sectors/stocks) are always respected</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-cyan-400 mt-0.5">•</span>
-                <span>Disable anytime - existing positions stay open</span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <button
+          onClick={saveSettings}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-purple-500 transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+          Save Settings
+        </button>
+        
+        <button
+          onClick={fetchSettings}
+          className="flex items-center gap-2 px-6 py-3 bg-surface border border-gray-700 text-text-secondary rounded-lg hover:bg-surface-elevated transition-colors"
+        >
+          <RefreshCw className="w-5 h-5" />
+          Reset to Defaults
+        </button>
       </motion.div>
     </div>
   )
