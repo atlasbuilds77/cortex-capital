@@ -15,10 +15,18 @@ import { sendDailyDigest, canReceiveNotification } from '@/lib/notifications/ema
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret
+  // Accept both: Authorization header OR ?secret= query param (for Docker cron compatibility)
   const authHeader = request.headers.get('authorization');
+  const url = new URL(request.url);
+  const querySecret = url.searchParams.get('secret');
   const cronSecret = process.env.CRON_SECRET;
   
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const isAuthorized = cronSecret && (
+    authHeader === `Bearer ${cronSecret}` ||
+    querySecret === cronSecret
+  );
+  
+  if (cronSecret && !isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

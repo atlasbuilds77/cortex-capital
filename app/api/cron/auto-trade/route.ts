@@ -9,10 +9,18 @@ import { runCronCycle, isMarketOpen } from '@/lib/agents/auto-trading-cron';
 // Or call manually with CRON_SECRET header for testing
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
+  // Accept both: Authorization header OR ?secret= query param (for Docker cron compatibility)
   const authHeader = request.headers.get('authorization');
+  const url = new URL(request.url);
+  const querySecret = url.searchParams.get('secret');
   const cronSecret = process.env.CRON_SECRET;
   
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const isAuthorized = cronSecret && (
+    authHeader === `Bearer ${cronSecret}` ||
+    querySecret === cronSecret
+  );
+  
+  if (cronSecret && !isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   
