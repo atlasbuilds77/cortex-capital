@@ -13,6 +13,7 @@ import {
   ArrowLeft, 
   X, 
   Menu,
+  Settings,
   type LucideIcon 
 } from 'lucide-react'
 
@@ -26,6 +27,7 @@ interface SettingsNavItem {
 const navItems: SettingsNavItem[] = [
   { label: 'Profile', path: '/settings/profile', Icon: User, description: 'Personal information' },
   { label: 'Preferences', path: '/settings/preferences', Icon: Target, description: 'Trading & AI settings' },
+  { label: 'Trading', path: '/settings/trading', Icon: Settings, description: 'Trade execution settings' },
   { label: 'Brokers', path: '/settings/brokers', Icon: Link, description: 'Connected accounts' },
   { label: 'Notifications', path: '/settings/notifications', Icon: Bell, description: 'Alerts & updates' },
   { label: 'Billing', path: '/settings/billing', Icon: CreditCard, description: 'Plan & payments' },

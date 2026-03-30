@@ -68,13 +68,17 @@ function getDeepSeekClient(): OpenAI {
 /**
  * Get users eligible for auto-trading
  * Supports both SnapTrade and legacy broker_credentials
+ * 
+ * CHANGED: Returns ALL operator users with brokers (not just auto_execute = true)
+ * The daemon will:
+ * - Always run agent discussions + show recommendations
+ * - Only EXECUTE if auto_execute_enabled = true
  */
 async function getEligibleUsers(): Promise<User[]> {
   const result = await query(`
     SELECT u.id, u.email, u.tier, u.auto_execute_enabled, u.risk_profile
     FROM users u
-    WHERE u.auto_execute_enabled = true
-      AND u.tier = 'operator'
+    WHERE u.tier = 'operator'
       AND (
         u.snaptrade_user_id IS NOT NULL 
         OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id AND bc.credentials_encrypted IS NOT NULL)
@@ -306,21 +310,33 @@ export async function runAutoTradingCycle(): Promise<{
             continue;
           }
 
-          // Agents approved - execute the trade
-          const success = await executeTrade(user.id, trade);
-          if (success) {
-            results.tradesExecuted++;
-            console.log(`[AutoTrading] Executed: ${trade.action} ${trade.quantity} ${trade.symbol} for ${user.email}`);
-            
-            // Notify user via email
-            await notifyTradeExecution({
-              userId: user.id,
-              symbol: trade.symbol,
-              action: trade.action,
-              quantity: trade.quantity,
-              price: 0, // Filled price comes from broker
-              reason: trade.reason,
-            });
+          // Agents approved - now check if user has auto_execute enabled
+          if (user.auto_execute_enabled) {
+            // Execute the trade
+            const success = await executeTrade(user.id, trade);
+            if (success) {
+              results.tradesExecuted++;
+              console.log(`[AutoTrading] Executed: ${trade.action} ${trade.quantity} ${trade.symbol} for ${user.email}`);
+              
+              // Notify user via email
+              await notifyTradeExecution({
+                userId: user.id,
+                symbol: trade.symbol,
+                action: trade.action,
+                quantity: trade.quantity,
+                price: 0, // Filled price comes from broker
+                reason: trade.reason,
+              });
+            }
+          } else {
+            // User has auto_execute OFF - just show recommendation
+            console.log(`[AutoTrading] Agents approved ${trade.symbol} but auto_execute disabled for ${user.email} - sending recommendation only`);
+            await notifyTradeSignal(
+              user.id,
+              trade.symbol,
+              trade.action,
+              `Agents recommend: ${trade.reason} (confidence: ${trade.confidence}%) - Enable auto-execute to trade automatically`
+            );
           }
         }
 

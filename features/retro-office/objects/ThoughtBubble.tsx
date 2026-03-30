@@ -1,5 +1,5 @@
 import { Billboard, Text } from "@react-three/drei";
-import { memo, useRef } from "react";
+import { memo, useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -8,6 +8,16 @@ interface ThoughtBubbleProps {
   position: [number, number, number];
   fadeIn?: boolean;
 }
+
+// Maximum text length to prevent overflow and scaling issues
+const MAX_TEXT_LENGTH = 80;
+// Fixed bubble dimensions
+const BUBBLE_WIDTH = 1.2;
+const BUBBLE_HEIGHT = 0.42;
+// Text constraints
+const MAX_TEXT_WIDTH = 0.85;
+const FONT_SIZE = 0.055;
+const MIN_FONT_SIZE = 0.04;
 
 export const ThoughtBubble = memo(function ThoughtBubble({
   text,
@@ -18,40 +28,63 @@ export const ThoughtBubble = memo(function ThoughtBubble({
   const bubbleMatRef = useRef<THREE.MeshBasicMaterial>(null);
   const createdAt = useRef(Date.now());
 
+  // Clamp and truncate text to prevent scaling issues
+  const displayText = useMemo(() => {
+    if (!text) return "";
+    const trimmed = text.trim();
+    if (trimmed.length <= MAX_TEXT_LENGTH) return trimmed;
+    return trimmed.slice(0, MAX_TEXT_LENGTH - 3) + "...";
+  }, [text]);
+
+  // Calculate font size based on text length (smaller for longer text)
+  const fontSize = useMemo(() => {
+    const len = displayText.length;
+    if (len < 30) return FONT_SIZE;
+    if (len < 50) return FONT_SIZE * 0.9;
+    if (len < 70) return FONT_SIZE * 0.8;
+    return MIN_FONT_SIZE;
+  }, [displayText.length]);
+
   useFrame(() => {
     if (!groupRef.current || !bubbleMatRef.current) return;
 
     const elapsed = Date.now() - createdAt.current;
     const duration = 3500; // 3.5 seconds visible
 
+    // Clamp scale values to prevent runaway scaling
+    const clampScale = (s: number) => Math.max(0.4, Math.min(1.2, s));
+
     // Fade in first 300ms
     if (fadeIn && elapsed < 300) {
-      const alpha = elapsed / 300;
-      groupRef.current.scale.setScalar(0.8 + alpha * 0.2);
-      bubbleMatRef.current.opacity = alpha * 0.95;
+      const alpha = Math.min(1, elapsed / 300);
+      groupRef.current.scale.setScalar(clampScale(0.8 + alpha * 0.2));
+      bubbleMatRef.current.opacity = Math.min(0.95, alpha * 0.95);
     }
     // Fade out last 500ms
     else if (elapsed > duration - 500) {
-      const fadeTime = duration - elapsed;
-      const alpha = fadeTime / 500;
-      bubbleMatRef.current.opacity = alpha * 0.95;
-      groupRef.current.scale.setScalar(0.8 + alpha * 0.2);
+      const fadeTime = Math.max(0, duration - elapsed);
+      const alpha = Math.min(1, fadeTime / 500);
+      bubbleMatRef.current.opacity = Math.min(0.95, alpha * 0.95);
+      groupRef.current.scale.setScalar(clampScale(0.8 + alpha * 0.2));
     } else {
       groupRef.current.scale.setScalar(1.0);
       bubbleMatRef.current.opacity = 0.95;
     }
 
-    // Gentle float animation
+    // Gentle float animation with clamped offset
     const floatOffset = Math.sin(elapsed * 0.002) * 0.02;
-    groupRef.current.position.y = position[1] + 0.62 + floatOffset;
+    groupRef.current.position.y = position[1] + 0.62 + Math.max(-0.05, Math.min(0.05, floatOffset));
   });
+
+  // Don't render empty bubbles
+  if (!displayText) return null;
 
   return (
     <group ref={groupRef} position={position} scale={0.4}>
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        {/* Bubble background */}
+        {/* Bubble background - fixed size */}
         <mesh position={[0, 0, -0.01]}>
-          <planeGeometry args={[1.2, 0.42]} />
+          <planeGeometry args={[BUBBLE_WIDTH, BUBBLE_HEIGHT]} />
           <meshBasicMaterial
             ref={bubbleMatRef}
             color="#ffffff"
@@ -82,17 +115,19 @@ export const ThoughtBubble = memo(function ThoughtBubble({
           />
         </mesh>
 
-        {/* Text - use default font to avoid loading issues */}
+        {/* Text - constrained with maxWidth and clamped fontSize */}
         <Text
           position={[0, 0, 0.01]}
-          fontSize={0.06}
+          fontSize={fontSize}
           color="#1a1a1a"
           anchorX="center"
           anchorY="middle"
-          maxWidth={0.8}
+          maxWidth={MAX_TEXT_WIDTH}
           textAlign="center"
+          overflowWrap="break-word"
+          lineHeight={1.2}
         >
-          {text}
+          {displayText}
         </Text>
       </Billboard>
     </group>

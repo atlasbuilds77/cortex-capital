@@ -28,13 +28,18 @@ interface EligibleUser {
 /**
  * Get all users eligible for auto-trading
  * Supports SnapTrade (primary) and legacy broker connections
+ * 
+ * CHANGED: Now returns ALL operator users with brokers connected,
+ * regardless of auto_execute_enabled. The daemon will:
+ * - Always fetch data + run agent discussions
+ * - Only EXECUTE trades if auto_execute_enabled = true
+ * - Show recommendations to users who have auto_execute = false
  */
 async function getEligibleUsers(): Promise<EligibleUser[]> {
   const result = await query(`
     SELECT u.id, u.email, u.tier
     FROM users u
-    WHERE u.auto_execute_enabled = true
-      AND u.tier = 'operator'
+    WHERE u.tier = 'operator'
       AND (
         u.snaptrade_user_id IS NOT NULL
         OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id)
