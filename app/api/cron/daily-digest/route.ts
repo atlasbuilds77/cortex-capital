@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { sendDailyDigest, canReceiveNotification } from '@/lib/notifications/email-notifications';
 import { listAccounts, getPositions, getBalances } from '@/lib/integrations/snaptrade';
+import { getAccountInfo } from '@/lib/brokers/robinhood';
 
 /**
  * DAILY DIGEST CRON
@@ -187,11 +188,60 @@ async function getUserPortfolioSummary(userId: string) {
         }
       } catch (err) {
         console.error('[Daily Digest] SnapTrade fetch failed for user:', userId, err);
-        // Fall through to mock data
+        // Fall through to legacy brokers
       }
     }
 
-    // Fallback: return mock data for users without broker connection
+    // Check legacy broker connections (Robinhood, etc.)
+    const brokerResult = await query(
+      `SELECT broker_type, is_active FROM broker_credentials WHERE user_id = $1 AND is_active = true`,
+      [userId]
+    );
+    
+    if (brokerResult.rows.length > 0) {
+      const broker = brokerResult.rows[0].broker_type;
+      
+      if (broker === 'robinhood') {
+        try {
+          const accountResult = await getAccountInfo(userId);
+          
+          if (accountResult.success && accountResult.data) {
+            const positions = accountResult.data.positions || [];
+            const portfolioValue = accountResult.data.portfolioValue || 0;
+            
+            // Calculate day change from positions
+            let dayChange = 0;
+            for (const p of positions) {
+              dayChange += (p.currentPrice - p.averageCost) * p.quantity;
+            }
+            const dayChangePercent = portfolioValue > 0 ? (dayChange / portfolioValue) * 100 : 0;
+            
+            // Top movers
+            const topMovers = positions
+              .map((p: any) => ({
+                symbol: p.symbol,
+                change: p.averageCost > 0 ? ((p.currentPrice - p.averageCost) / p.averageCost) * 100 : 0,
+              }))
+              .sort((a: any, b: any) => Math.abs(b.change) - Math.abs(a.change))
+              .slice(0, 5);
+
+            return {
+              portfolioValue,
+              dayChange,
+              dayChangePercent,
+              topMovers,
+              tradesExecuted,
+            };
+          }
+        } catch (err) {
+          console.error('[Daily Digest] Robinhood fetch failed for user:', userId, err);
+        }
+      }
+      
+      // Other legacy brokers can be added here (Tradier, Alpaca, etc.)
+    }
+
+    // Fallback: no broker connected
     return {
       portfolioValue: 0,
       dayChange: 0,
