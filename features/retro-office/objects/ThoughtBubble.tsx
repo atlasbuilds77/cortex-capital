@@ -82,16 +82,15 @@ export const ThoughtBubble = memo(function ThoughtBubble({
           />
         </mesh>
 
-        {/* Text */}
+        {/* Text - use default font to avoid loading issues */}
         <Text
-          position={[0, 0, 0]}
-          fontSize={0.08}
-          color="#000000"
+          position={[0, 0, 0.01]}
+          fontSize={0.06}
+          color="#1a1a1a"
           anchorX="center"
           anchorY="middle"
-          maxWidth={1.0}
+          maxWidth={0.8}
           textAlign="center"
-          font="/fonts/inter-medium.woff"
         >
           {text}
         </Text>
