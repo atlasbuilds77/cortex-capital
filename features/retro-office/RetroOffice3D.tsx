@@ -2146,13 +2146,8 @@ export function RetroOffice3D({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Limit agents on mobile for performance (4 instead of 10)
-  const displayAgents = useMemo(() => {
-    if (isMobile && agents.length > 4) {
-      return agents.slice(0, 4);
-    }
-    return agents;
-  }, [agents, isMobile]);
+  // Just use agents directly - mobile optimizations were causing crashes
+  const displayAgents = agents;
 
   const resolvedCleaningCues = animationState?.cleaningCues ?? cleaningCues;
   const resolvedDeskHoldByAgentId =
@@ -4697,7 +4692,7 @@ export function RetroOffice3D({
           <Canvas
             orthographic
             dpr={isMobile ? [0.5, 1] : [0.85, 1.5]}
-            frameloop={isMobile ? "demand" : "always"}
+            frameloop="always"
             camera={{ position: CAM_POS, zoom: responsiveZoom, near: 0.1, far: 160 }}
             shadows={isMobile ? false : { type: THREE.PCFShadowMap }}
             gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
