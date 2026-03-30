@@ -40,14 +40,33 @@ export async function GET(request: NextRequest) {
               const orders = await getOrders(snapUserId, snapUserSecret, account.id);
               
               for (const o of orders as any[]) {
+                // Extract symbol - can be in different places depending on order type
+                let symbol = 'UNKNOWN';
+                if (o.option_symbol?.underlying_symbol?.symbol) {
+                  // Options order
+                  symbol = o.option_symbol.underlying_symbol.symbol;
+                } else if (o.universal_symbol?.symbol) {
+                  symbol = o.universal_symbol.symbol;
+                } else if (typeof o.symbol === 'object' && o.symbol?.symbol) {
+                  symbol = o.symbol.symbol;
+                } else if (typeof o.symbol === 'string' && !o.symbol.includes('-')) {
+                  // It's an actual ticker, not a UUID
+                  symbol = o.symbol;
+                }
+                
                 allTrades.push({
                   id: o.brokerage_order_id || o.id,
-                  symbol: o.symbol?.symbol || o.universal_symbol?.symbol || 'UNKNOWN',
+                  symbol,
                   side: o.action?.toLowerCase() || 'buy',
-                  qty: o.filled_quantity || o.total_quantity || 0,
-                  price: o.execution_price || o.limit_price || 0,
+                  qty: parseFloat(o.filled_quantity) || parseFloat(o.total_quantity) || 0,
+                  price: parseFloat(o.execution_price) || parseFloat(o.limit_price) || 0,
                   timestamp: o.time_placed || o.time_executed,
                   status: o.status?.toLowerCase() || 'filled',
+                  // Add option details if present
+                  isOption: !!o.option_symbol,
+                  optionType: o.option_symbol?.option_type,
+                  strike: o.option_symbol?.strike_price,
+                  expiry: o.option_symbol?.expiration_date,
                 });
               }
             } catch (err) {

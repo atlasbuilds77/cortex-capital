@@ -2239,6 +2239,7 @@ export function RetroOffice3D({
   }, [feedEvents]);
   const standupSpeechTextByAgentId = useMemo(() => {
     if (!standupMeeting || standupMeeting.phase !== "in_progress") return {};
+    if (!standupMeeting.cards) return {};
     const currentCard =
       standupMeeting.cards.find(
         (card) => card.agentId === standupMeeting.currentSpeakerAgentId,

@@ -109,6 +109,7 @@ export function TradingFloorShell({
     participantOrder: string[];
     arrivedAgentIds: string[];
     currentSpeakerAgentId: string | null;
+    cards: { agentId: string; speech: string }[];
   } | null>(null);
 
   const [animationState, setAnimationState] = useState<OfficeAnimationState>({
@@ -538,6 +539,7 @@ export function TradingFloorShell({
               participantOrder: discussingAgents,
               arrivedAgentIds: [],
               currentSpeakerAgentId: null,
+              cards: [],
             });
             
             // After 2s, mark as in_progress and trigger discussion
