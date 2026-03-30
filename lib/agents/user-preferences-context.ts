@@ -86,28 +86,51 @@ export function generatePreferencesContext(prefs: UserPreferences): string {
 - Prefer dividend-paying stocks and bonds
 - Avoid speculative plays, options, and high-beta stocks
 - Stop losses mandatory at -5%
-- Cash allocation should be 20-40%`,
+- Cash allocation should be 20-40%
+
+OPTIONS: Not recommended for this risk profile`,
     moderate: `
 - Balance growth and preservation
 - Maximum position size: 5% of portfolio  
 - Mix of growth and value stocks acceptable
 - Limited options exposure (covered calls, protective puts)
 - Stop losses at -10%
-- Cash allocation 10-20%`,
+- Cash allocation 10-20%
+
+OPTIONS RULES (if enabled):
+- LEAPS only (6+ months expiry) with 0.70+ delta
+- Max 5% of portfolio in options
+- Stop loss at -35% (options decay differently)
+- No weeklies or 0DTE`,
     aggressive: `
 - Growth-focused, higher volatility acceptable
 - Maximum position size: 10% of portfolio
 - Growth stocks, momentum plays encouraged
 - Options strategies allowed
 - Stop losses at -15%
-- Cash allocation 5-15%`,
+- Cash allocation 5-15%
+
+OPTIONS RULES:
+- LEAPS preferred (0.60-0.80 delta, 6+ months)
+- Monthly options OK (30+ DTE, 0.50+ delta)
+- Max 15% of portfolio in options
+- Stop loss at -35% for options
+- Roll at 21 DTE or take profits at +50%`,
     ultra_aggressive: `
 - Maximum growth, high risk tolerance
 - Position sizes up to 15% acceptable
 - Concentrated bets, momentum, and options welcome
 - Leveraged positions considered
 - Wider stop losses at -20%
-- Cash allocation can be minimal`,
+- Cash allocation can be minimal
+
+OPTIONS RULES:
+- All expirations allowed (weeklies, monthlies, LEAPS)
+- Delta range: 0.30-0.80 based on conviction
+- Max 30% of portfolio in options
+- Stop loss at -50% for options (high conviction plays)
+- Scale out: +30% sell 1/3, +50% sell 1/2, +100% sell rest
+- 0DTE only on high-probability setups with strict -25% stop`,
   };
   
   sections.push(riskGuidance[prefs.riskProfile] || riskGuidance.moderate);
