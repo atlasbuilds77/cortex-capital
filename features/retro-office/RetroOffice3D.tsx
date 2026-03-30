@@ -2135,6 +2135,25 @@ export function RetroOffice3D({
   onQaLabDismiss?: () => void;
   onOpenGithubSkillSetup?: () => void;
 }) {
+  // Mobile detection for performance optimization
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Limit agents on mobile for performance (4 instead of 10)
+  const displayAgents = useMemo(() => {
+    if (isMobile && agents.length > 4) {
+      return agents.slice(0, 4);
+    }
+    return agents;
+  }, [agents, isMobile]);
+
   const resolvedCleaningCues = animationState?.cleaningCues ?? cleaningCues;
   const resolvedDeskHoldByAgentId =
     animationState?.deskHoldByAgentId ?? deskHoldByAgentId;
@@ -2527,8 +2546,8 @@ export function RetroOffice3D({
   }, [janitorCleaningStops, resolvedCleaningCues]);
 
   const sceneAgents = useMemo<SceneActor[]>(
-    () => [...agents, ...janitorActors],
-    [agents, janitorActors],
+    () => [...displayAgents, ...janitorActors],
+    [displayAgents, janitorActors],
   );
 
   const { renderAgentsRef, renderAgentLookupRef, tick, deskByAgentRef, planPath } =
@@ -4677,10 +4696,11 @@ export function RetroOffice3D({
         {!immersiveOverlayActive ? (
           <Canvas
             orthographic
-            dpr={[0.85, 1.5]}
+            dpr={isMobile ? [0.5, 1] : [0.85, 1.5]}
+            frameloop={isMobile ? "demand" : "always"}
             camera={{ position: CAM_POS, zoom: responsiveZoom, near: 0.1, far: 160 }}
-            shadows={{ type: THREE.PCFShadowMap }}
-            gl={{ antialias: true, powerPreference: "high-performance" }}
+            shadows={isMobile ? false : { type: THREE.PCFShadowMap }}
+            gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
             style={{ width: "100%", height: "100%" }}
             onPointerUp={() => {
               if (drag.kind === "moving") setDrag({ kind: "idle" });
