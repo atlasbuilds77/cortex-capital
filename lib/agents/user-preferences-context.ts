@@ -127,7 +127,7 @@ OPTIONS RULES:
 OPTIONS RULES:
 - MINIMUM 2 weeks to expiry (no weeklies, no 0DTE)
 - Bi-weekly or monthly options for day trading
-- LEAPS for swing positions (3+ months)
+- LEAPS for swing positions (6 months - 2 years preferred)
 - Delta range: 0.30-0.80 based on conviction
 - Max 30% of portfolio in options
 - Stop loss at -50% for options (high conviction plays)
