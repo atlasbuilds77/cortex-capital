@@ -4,6 +4,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { sendDailyDigest, canReceiveNotification } from '@/lib/notifications/email-notifications';
+import { listAccounts, getPositions, getBalances } from '@/lib/integrations/snaptrade';
 
 /**
  * DAILY DIGEST CRON
@@ -114,21 +115,89 @@ export async function GET(request: NextRequest) {
  */
 async function getUserPortfolioSummary(userId: string) {
   try {
-    // Get today's trades (use created_at, not executed_at)
+    // Get user's SnapTrade credentials
+    const userResult = await query(
+      `SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account 
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    
+    const snapUserId = userResult.rows[0]?.snaptrade_user_id;
+    const snapUserSecret = userResult.rows[0]?.snaptrade_user_secret;
+    const selectedAccount = userResult.rows[0]?.selected_snaptrade_account;
+
+    // Get today's trades count
     const trades = await query(`
       SELECT COUNT(*) as count
       FROM trade_logs
       WHERE user_id = $1 AND DATE(created_at) = CURRENT_DATE
     `, [userId]);
+    
+    const tradesExecuted = parseInt(trades.rows[0]?.count || '0');
 
-    // For now, return mock data since we don't have real portfolio tracking yet
-    // In production, this would pull from broker APIs
+    // If user has SnapTrade connected, get real portfolio data
+    if (snapUserId && snapUserSecret) {
+      try {
+        const accounts = await listAccounts(snapUserId, snapUserSecret);
+        const accountId = selectedAccount || accounts[0]?.id;
+        
+        if (accountId) {
+          // Get positions and balances
+          const [positions, balances] = await Promise.all([
+            getPositions(snapUserId, snapUserSecret, accountId),
+            getBalances(snapUserId, snapUserSecret, accountId),
+          ]);
+
+          // Calculate portfolio value from balances
+          const cashBalance = balances?.find((b: any) => b.currency?.code === 'USD');
+          const portfolioValue = cashBalance?.total?.amount || 0;
+          
+          // Calculate top movers from positions
+          const topMovers = (positions as any[])
+            .filter((p: any) => p.symbol && p.price?.change_percent !== undefined)
+            .map((p: any) => ({
+              symbol: p.symbol?.symbol || p.symbol,
+              change: p.price?.change_percent || 0,
+            }))
+            .sort((a: any, b: any) => Math.abs(b.change) - Math.abs(a.change))
+            .slice(0, 5);
+
+          // Calculate day change from positions
+          let dayChange = 0;
+          let positionsValue = 0;
+          for (const p of positions as any[]) {
+            const qty = p.units || 0;
+            const price = p.price?.last_trade_price || p.average_purchase_price || 0;
+            const change = p.price?.change_percent || 0;
+            const posValue = qty * price;
+            positionsValue += posValue;
+            dayChange += posValue * (change / 100);
+          }
+
+          const totalValue = portfolioValue + positionsValue;
+          const dayChangePercent = totalValue > 0 ? (dayChange / totalValue) * 100 : 0;
+
+          return {
+            portfolioValue: totalValue,
+            dayChange,
+            dayChangePercent,
+            topMovers,
+            tradesExecuted,
+          };
+        }
+      } catch (err) {
+        console.error('[Daily Digest] SnapTrade fetch failed for user:', userId, err);
+        // Fall through to mock data
+      }
+    }
+
+    // Fallback: return mock data for users without broker connection
     return {
-      portfolioValue: 50000, // Would come from broker
-      dayChange: 250,        // Would be calculated
-      dayChangePercent: 0.5, // Would be calculated
-      topMovers: [],         // Would come from positions
-      tradesExecuted: parseInt(trades.rows[0]?.count || '0'),
+      portfolioValue: 0,
+      dayChange: 0,
+      dayChangePercent: 0,
+      topMovers: [],
+      tradesExecuted,
     };
   } catch (error) {
     console.error('Failed to get portfolio summary:', error);
