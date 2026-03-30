@@ -67,15 +67,18 @@ function getDeepSeekClient(): OpenAI {
 
 /**
  * Get users eligible for auto-trading
+ * Supports both SnapTrade and legacy broker_credentials
  */
 async function getEligibleUsers(): Promise<User[]> {
   const result = await query(`
     SELECT u.id, u.email, u.tier, u.auto_execute_enabled, u.risk_profile
     FROM users u
-    JOIN broker_credentials bc ON bc.user_id = u.id
     WHERE u.auto_execute_enabled = true
       AND u.tier IN ('scout', 'operator', 'partner')
-      AND bc.credentials_encrypted IS NOT NULL
+      AND (
+        u.snaptrade_user_id IS NOT NULL 
+        OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id AND bc.credentials_encrypted IS NOT NULL)
+      )
   `);
   
   return result.rows;

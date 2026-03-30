@@ -27,15 +27,18 @@ interface EligibleUser {
 
 /**
  * Get all users eligible for auto-trading
+ * Supports SnapTrade (primary) and legacy broker connections
  */
 async function getEligibleUsers(): Promise<EligibleUser[]> {
   const result = await query(`
     SELECT u.id, u.email, u.tier
     FROM users u
-    JOIN brokerage_connections bc ON bc.user_id = u.id
     WHERE u.auto_execute_enabled = true
-      AND u.tier IN ('scout', 'operator')
-      AND bc.status = 'active'
+      AND u.tier IN ('scout', 'operator', 'partner')
+      AND (
+        u.snaptrade_user_id IS NOT NULL
+        OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id)
+      )
   `);
   return result.rows;
 }

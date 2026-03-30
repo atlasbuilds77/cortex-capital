@@ -502,6 +502,40 @@ export async function executeUserTrade(
   order: { symbol: string; side: 'buy' | 'sell'; qty: number; type: 'market' | 'limit'; limitPrice?: number }
 ): Promise<{ success: boolean; orderId?: string; avgPrice?: number; error?: string }> {
   try {
+    // First check for SnapTrade connection (primary method)
+    const snapResult = await query(
+      'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    const snapUserId = snapResult.rows[0]?.snaptrade_user_id;
+    const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret;
+    const selectedAccount = snapResult.rows[0]?.selected_snaptrade_account;
+    
+    if (snapUserId && snapUserSecret && selectedAccount) {
+      // Use SnapTrade for execution
+      const { snaptrade } = await import('../integrations/snaptrade');
+      
+      const result = await snaptrade.trading.placeOrder({
+        userId: snapUserId,
+        userSecret: snapUserSecret,
+        accountId: selectedAccount,
+        action: order.side === 'buy' ? 'BUY' : 'SELL',
+        orderType: order.type === 'limit' ? 'Limit' : 'Market',
+        timeInForce: 'Day',
+        universalSymbolId: order.symbol,
+        units: order.qty,
+        price: order.limitPrice,
+      });
+      
+      return {
+        success: true,
+        orderId: result.data?.brokerageOrderId || 'pending',
+        avgPrice: 0, // SnapTrade doesn't return fill price immediately
+      };
+    }
+    
+    // Fall back to legacy broker connections
     const connection = await getBrokerConnection(userId);
     if (!connection) {
       return { success: false, error: 'No broker connection' };
