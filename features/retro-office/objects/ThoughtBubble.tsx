@@ -91,7 +91,7 @@ export const ThoughtBubble = memo(function ThoughtBubble({
           anchorY="middle"
           maxWidth={1.0}
           textAlign="center"
-          font="/fonts/inter-medium.woff"
+          font="/fonts/inter-medium.woff2"
         >
           {text}
         </Text>
