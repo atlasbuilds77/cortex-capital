@@ -114,11 +114,11 @@ export async function GET(request: NextRequest) {
  */
 async function getUserPortfolioSummary(userId: string) {
   try {
-    // Get today's trades
+    // Get today's trades (use created_at, not executed_at)
     const trades = await query(`
       SELECT COUNT(*) as count
       FROM trade_logs
-      WHERE user_id = $1 AND DATE(executed_at) = CURRENT_DATE
+      WHERE user_id = $1 AND DATE(created_at) = CURRENT_DATE
     `, [userId]);
 
     // For now, return mock data since we don't have real portfolio tracking yet
