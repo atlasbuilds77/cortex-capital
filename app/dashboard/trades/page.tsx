@@ -454,9 +454,9 @@ export default function TradesPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center">
-                          <span className="font-bold text-purple-400 text-xs">{trade.symbol.slice(0, 2)}</span>
+                          <span className="font-bold text-purple-400 text-xs">{String(trade.symbol || "??").slice(0, 2)}</span>
                         </div>
-                        <span className="font-medium text-text-primary">{trade.symbol}</span>
+                        <span className="font-medium text-text-primary">{trade.symbol || "Unknown"}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
@@ -469,7 +469,7 @@ export default function TradesPage() {
                         {trade.side}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right text-text-primary">{trade.qty}</td>
+                    <td className="px-6 py-4 text-right text-text-primary">{Math.round(Number(trade.qty))}</td>
                     <td className="px-6 py-4 text-right text-text-primary">${(Number(trade.price) || 0).toFixed(2)}</td>
                     <td className="px-6 py-4 text-right font-medium text-text-primary">${(trade.qty * trade.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-6 py-4">
@@ -521,8 +521,8 @@ export default function TradesPage() {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-text-primary">{trade.symbol}</p>
-                      <p className="text-xs text-text-secondary">{trade.qty} shares @ ${(Number(trade.price) || 0).toFixed(2)}</p>
+                      <p className="font-medium text-text-primary">{trade.symbol || "Unknown"}</p>
+                      <p className="text-xs text-text-secondary">{Math.round(Number(trade.qty))} shares @ ${(Number(trade.price) || 0).toFixed(2)}</p>
                     </div>
                   </div>
                   <div className="text-right">

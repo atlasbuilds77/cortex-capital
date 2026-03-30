@@ -5,7 +5,6 @@ import { motion } from 'framer-motion'
 import { 
   Target, 
   Zap, 
-  Shield, 
   AlertTriangle, 
   CheckCircle,
   Loader2,
@@ -183,47 +182,7 @@ export default function TradingSettingsPage() {
           </div>
         </motion.div>
 
-        {/* Risk Profile */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-surface-elevated rounded-xl p-6 border border-gray-700"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-6 h-6 text-primary" />
-            <h3 className="text-lg font-semibold text-text-primary">Risk Profile</h3>
-          </div>
-          
-          <div className="space-y-4">
-            {(['conservative', 'moderate', 'aggressive', 'ultra_aggressive'] as const).map((profile) => (
-              <div
-                key={profile}
-                onClick={() => setSettings({ ...settings, risk_profile: profile })}
-                className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                  settings.risk_profile === profile
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-700 hover:border-gray-600'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-text-primary capitalize">{profile}</div>
-                    <div className="text-sm text-text-secondary">
-                      {profile === 'conservative' && 'Low risk, steady returns'}
-                      {profile === 'moderate' && 'Balanced risk and reward'}
-                      {profile === 'aggressive' && 'High risk, high potential returns'}
-                      {profile === 'ultra_aggressive' && 'Maximum risk, day trading enabled'}
-                    </div>
-                  </div>
-                  {settings.risk_profile === profile && (
-                    <CheckCircle className="w-5 h-5 text-primary" />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+
 
         {/* Position Limits */}
         <motion.div

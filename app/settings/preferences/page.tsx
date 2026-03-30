@@ -223,8 +223,8 @@ export default function PreferencesPage() {
             Re-take Assessment
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {(['conservative', 'moderate', 'aggressive'] as const).map((profile) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {(['conservative', 'moderate', 'aggressive', 'ultra_aggressive'] as const).map((profile) => (
             <button
               key={profile}
               onClick={() => setPreferences({ ...preferences, riskProfile: profile })}
@@ -234,11 +234,12 @@ export default function PreferencesPage() {
                   : 'border-gray-700 hover:border-gray-600'
               }`}
             >
-              <div className="font-medium capitalize">{profile}</div>
+              <div className="font-medium capitalize">{profile.replace('_', ' ')}</div>
               <div className="text-text-secondary text-sm mt-1">
                 {profile === 'conservative' && 'Low risk, steady returns'}
                 {profile === 'moderate' && 'Balanced risk/reward'}
                 {profile === 'aggressive' && 'High risk, high reward'}
+                {profile === 'ultra_aggressive' && 'Maximum risk, day trading'}
               </div>
             </button>
           ))}
