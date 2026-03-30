@@ -5222,7 +5222,7 @@ export function RetroOffice3D({
                 <ThoughtBubble
                   key={`thought-${agent.id}`}
                   text={agent.thoughtText!}
-                  position={[wx, 0, wz]}
+                  position={[wx, 3.5, wz]}
                 />
               );
             })}
