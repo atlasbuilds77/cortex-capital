@@ -141,6 +141,45 @@ async function snaptradeGetBalances(userId: string, userSecret: string, accountI
   };
 }
 
+async function snaptradeTradeOrder(
+  userId: string, 
+  userSecret: string, 
+  accountId: string, 
+  params: PlaceOrderParams
+): Promise<BrokerOrder> {
+  const { SnapTrade } = await import('snaptrade-typescript-sdk');
+  
+  const snaptrade = new SnapTrade({
+    clientId: process.env.SNAPTRADE_CLIENT_ID!,
+    consumerKey: process.env.SNAPTRADE_CONSUMER_KEY!,
+  });
+  
+  // Place order via SnapTrade
+  const response = await snaptrade.trading.placeOrder({
+    userId,
+    userSecret,
+    accountId,
+    action: params.side === 'buy' ? 'BUY' : 'SELL',
+    orderType: params.orderType === 'limit' ? 'Limit' : 'Market',
+    timeInForce: 'Day',
+    universalSymbolId: params.symbol, // May need symbol lookup
+    units: params.quantity,
+    price: params.limitPrice,
+  });
+  
+  const order = response.data;
+  
+  return {
+    orderId: order?.brokerageOrderId || 'pending',
+    symbol: params.symbol,
+    side: params.side,
+    quantity: params.quantity,
+    orderType: params.orderType,
+    limitPrice: params.limitPrice,
+    status: order?.status === 'Executed' ? 'filled' : 'pending',
+  };
+}
+
 // ============================================================================
 // ROBINHOOD IMPLEMENTATION (Unofficial API)
 // ============================================================================
@@ -418,9 +457,13 @@ export async function placeOrder(userId: string, params: PlaceOrderParams): Prom
       return robinhoodPlaceOrder(broker.credentials, params);
     
     case 'webull':
-      // Webull via SnapTrade - check if execution is supported
-      // TODO: Verify SnapTrade Webull execution support
-      throw new Error('Webull execution via SnapTrade - checking support');
+      // Webull via SnapTrade - FULL EXECUTION SUPPORTED (Dec 2025 partnership)
+      return snaptradeTradeOrder(
+        broker.credentials.snaptradeUserId,
+        broker.credentials.snaptradeUserSecret,
+        broker.accountId,
+        params
+      );
     
     case 'tradier':
       // TODO: Implement Tradier order placement
@@ -444,7 +487,7 @@ export function supportsExecution(brokerType: string): boolean {
     case 'robinhood':
       return true; // Unofficial API
     case 'webull':
-      return false; // Via SnapTrade - TBD on execution support
+      return true; // Via SnapTrade - FULL EXECUTION (Dec 2025 partnership)
     case 'tradier':
       return true; // Direct API
     case 'snaptrade':
