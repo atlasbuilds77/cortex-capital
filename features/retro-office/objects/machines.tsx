@@ -262,7 +262,7 @@ export function PhoneBoothModel({
           anchorX="center"
           anchorY="middle"
         >
-          PHONE
+          VOICE CHAT
         </Text>
 
         {/* Back Wall */}
@@ -438,7 +438,7 @@ export function SmsBoothModel({
           anchorX="center"
           anchorY="middle"
         >
-          SMS
+          TEXT CHAT
         </Text>
         <mesh position={[0, 0.8, -depthWorld / 2 + 0.025]} castShadow receiveShadow>
           <boxGeometry args={[widthWorld, 1.5, 0.05]} />

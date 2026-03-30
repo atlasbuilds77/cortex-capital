@@ -3992,7 +3992,19 @@ export function RetroOffice3D({
         closeManualPhoneBoothView();
       }
       if (item.type === "pingpong") {
+        // NEW: Only allow ping pong during lunch hours (11:30am - 1pm EST)
         const now = Date.now();
+        const currentTime = new Date();
+        const estHour = currentTime.getHours(); // Adjust if needed for timezone
+        const estMinute = currentTime.getMinutes();
+        const isLunchTime = (estHour === 11 && estMinute >= 30) || (estHour === 12) || (estHour === 13 && estMinute === 0);
+        
+        if (!isLunchTime) {
+          // Outside lunch hours, agents are busy working!
+          return;
+        }
+        
+        const nowTime = Date.now();
         const [tableWx, , tableWz] = toWorld(
           item.x + (item.w ?? 100) / 2,
           item.y + (item.h ?? 60) / 2,
@@ -4045,7 +4057,7 @@ export function RetroOffice3D({
             facing: target.facing,
             state: "walking",
             walkSpeed: Math.max(agent.walkSpeed, PING_PONG_APPROACH_SPEED),
-            pingPongUntil: now + PING_PONG_SESSION_MS,
+            pingPongUntil: nowTime + PING_PONG_SESSION_MS,
             pingPongTargetX: target.x,
             pingPongTargetY: target.y,
             pingPongFacing: target.facing,
@@ -4059,7 +4071,7 @@ export function RetroOffice3D({
         setMoodByAgentId((prev) => {
           const next = { ...prev };
           for (const agent of availableAgents) {
-            next[agent.id] = { emoji: "🏓", ts: now };
+            next[agent.id] = { emoji: "🏓", ts: nowTime };
           }
           return next;
         });
@@ -4604,6 +4616,18 @@ export function RetroOffice3D({
         ...prev,
         [latest.id]: { emoji, ts: Date.now() },
       }));
+      
+      // Play appropriate sound based on event type
+      if (latest.kind === "reply") {
+        // Reply notification
+        audioManager.playSound('phoneNotification');
+      } else if (latest.text.includes("started")) {
+        // Started working
+        // (keyboard typing is already ambient)
+      } else {
+        // Break/coffee
+        audioManager.playSound('coffeeMachine');
+      }
     }, 0);
     const timer = window.setTimeout(() => {
       setMoodByAgentId((prev) => {
@@ -6466,6 +6490,35 @@ export function RetroOffice3D({
           )}
         </div>
       </div>
+
+      {/* NEW: Agent stats card modal */}
+      {selectedAgentForStats && (() => {
+        const agent = agents.find(a => a.id === selectedAgentForStats);
+        if (!agent) return null;
+        return (
+          <AgentStatsCard 
+            agent={agent}
+            onClose={() => setSelectedAgentForStats(null)}
+          />
+        );
+      })()}
+
+      {/* NEW: Whiteboard P&L modal */}
+      {whiteboardPnLOpen && (
+        <WhiteboardPnL onClose={() => setWhiteboardPnLOpen(false)} />
+      )}
+
+      {/* NEW: Desk work preview tooltip */}
+      {!immersiveOverlayActive && hoveredDeskUid && (() => {
+        const agentId = resolveAgentIdForDeskItem(hoveredDeskUid);
+        if (!agentId) return null;
+        const agent = agents.find(a => a.id === agentId);
+        if (!agent) return null;
+        const deskIndex = deskItems.findIndex(d => d._uid === hoveredDeskUid);
+        if (deskIndex < 0) return null;
+        return <DeskWorkPreview agent={agent} deskIndex={deskIndex} />;
+      })()}
+
       <style>{`
         @keyframes eq-bar {
           from { transform: scaleY(0.3); }
