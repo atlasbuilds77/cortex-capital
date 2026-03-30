@@ -135,11 +135,48 @@ class AudioManager {
     if (hum && !hum.playing()) {
       hum.play();
     }
+    
+    // Start random keyboard typing
+    this.startKeyboardTyping();
   }
 
   stopAmbientSounds(): void {
     const hum = this.sounds.get('officeHum');
     if (hum) hum.stop();
+    this.stopKeyboardTyping();
+  }
+  
+  private keyboardInterval: ReturnType<typeof setInterval> | null = null;
+  
+  private startKeyboardTyping(): void {
+    if (this.keyboardInterval) return;
+    
+    // Play keyboard sounds at random intervals (2-6 seconds)
+    const playRandomTyping = () => {
+      if (this.config.muted) return;
+      
+      const keyboard = this.sounds.get('keyboardTyping');
+      if (keyboard && Math.random() > 0.3) { // 70% chance to play
+        keyboard.play();
+      }
+    };
+    
+    // Initial play after short delay
+    setTimeout(playRandomTyping, 1000);
+    
+    // Then play randomly every 2-6 seconds
+    this.keyboardInterval = setInterval(() => {
+      playRandomTyping();
+    }, 2000 + Math.random() * 4000);
+  }
+  
+  private stopKeyboardTyping(): void {
+    if (this.keyboardInterval) {
+      clearInterval(this.keyboardInterval);
+      this.keyboardInterval = null;
+    }
+    const keyboard = this.sounds.get('keyboardTyping');
+    if (keyboard) keyboard.stop();
   }
 
   setMuted(muted: boolean): void {
