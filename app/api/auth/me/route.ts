@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // Get user
     const result = await query(
-      'SELECT id, email, tier, created_at FROM users WHERE id = $1',
+      'SELECT id, email, tier, created_at, two_factor_enabled FROM users WHERE id = $1',
       [authUser.userId]
     );
 
@@ -42,6 +42,17 @@ export async function GET(request: NextRequest) {
 
     const user = result.rows[0];
     return NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        tier: user.tier,
+        twoFactorEnabled: user.two_factor_enabled || false,
+        brokerType: brokerResult.rows[0]?.broker_type || null,
+        hasBrokerConnected: hasSnapTrade || brokerResult.rows.length > 0,
+        brokerSource: hasSnapTrade ? 'snaptrade' : (brokerResult.rows[0]?.broker_type || null),
+        createdAt: user.created_at,
+      },
+      // Keep flat fields for backward compatibility
       id: user.id,
       email: user.email,
       tier: user.tier,

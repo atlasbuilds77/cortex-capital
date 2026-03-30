@@ -38,12 +38,20 @@ export type RenderAgent = SceneActor & {
   frame: number;
   walkSpeed: number;
   phaseOffset: number;
-  state: "walking" | "sitting" | "standing" | "away" | "working_out";
+  state: "walking" | "sitting" | "standing" | "away" | "working_out" | "checking_phone" | "celebrating";
   awayUntil?: number;
   separationReplanAt?: number;
   bumpedUntil?: number;
   bumpTalkUntil?: number;
   collisionCooldownUntil?: number;
+  // Mood system
+  mood?: "happy" | "frustrated" | "sleepy" | "excited" | "neutral";
+  moodUntil?: number;
+  // Thought bubbles
+  thoughtText?: string;
+  thoughtUntil?: number;
+  // Phone checking
+  phoneCheckUntil?: number;
   pingPongUntil?: number;
   pingPongTargetX?: number;
   pingPongTargetY?: number;

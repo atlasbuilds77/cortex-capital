@@ -21,9 +21,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user
+    // Find user (include 2FA status)
     const result = await query(
-      'SELECT id, email, password_hash, tier, created_at FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, tier, created_at, two_factor_enabled FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
@@ -45,7 +45,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate JWT token
+    // Check if 2FA is enabled
+    if (user.two_factor_enabled) {
+      // Generate temporary token for 2FA verification
+      const tempToken = jwt.sign(
+        { userId: user.id, email: user.email, pending2FA: true },
+        getJwtSecret(),
+        { expiresIn: '5m', algorithm: 'HS256' } // Short expiry for security
+      );
+
+      return NextResponse.json({
+        requires2FA: true,
+        tempToken,
+      });
+    }
+
+    // Generate JWT token (no 2FA required)
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       getJwtSecret(),
