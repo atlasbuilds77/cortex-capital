@@ -269,8 +269,17 @@ export async function runAutoTradingCycle(): Promise<{
         }
 
         // Generate recommendations
-        const recommendations = await generateRecommendations(user.id, portfolio, prefs);
-        console.log(`[AutoTrading] ${user.email}: ${recommendations.length} recommendations`);
+        let recommendations = await generateRecommendations(user.id, portfolio, prefs);
+        console.log(`[AutoTrading] ${user.email}: ${recommendations.length} raw recommendations`);
+
+        // Filter by allowed symbols (if user has set any)
+        const allowedSymbols = prefs.allowedSymbols || [];
+        if (allowedSymbols.length > 0) {
+          recommendations = recommendations.filter(r => 
+            allowedSymbols.includes(r.symbol.toUpperCase())
+          );
+          console.log(`[AutoTrading] ${user.email}: ${recommendations.length} after allowed_symbols filter`);
+        }
 
         // Skip if no recommendations
         if (recommendations.length === 0) {

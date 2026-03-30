@@ -15,6 +15,7 @@ export interface UserPreferences {
   exclusions: string[];
   enabledAgents: Record<string, boolean>;
   tier: string;
+  allowedSymbols: string[];
 }
 
 /**
@@ -30,7 +31,8 @@ export async function loadUserPreferences(userId: string): Promise<UserPreferenc
         sector_interests,
         exclusions,
         enabled_agents,
-        tier
+        tier,
+        allowed_symbols
       FROM users WHERE id = $1`,
       [userId]
     );
@@ -46,6 +48,7 @@ export async function loadUserPreferences(userId: string): Promise<UserPreferenc
       exclusions: row.exclusions || [],
       enabledAgents: row.enabled_agents || {},
       tier: row.tier || 'free',
+      allowedSymbols: row.allowed_symbols || [],
     };
   } catch (error) {
     console.error('[UserPreferences] Failed to load:', error);
