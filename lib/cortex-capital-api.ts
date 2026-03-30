@@ -311,7 +311,12 @@ export function subscribeToDiscussions(
   onDiscussionEnd?: (discussion: Discussion) => void,
   onHistory?: (messages: AgentDiscussionMessage[]) => void
 ): () => void {
-  const eventSource = new EventSource(`${CORTEX_API_BASE}/api/fishtank/discussions/stream`);
+  // Pass token as query param since EventSource doesn't support headers
+  const token = typeof window !== 'undefined' ? localStorage.getItem('cortex_token') : null;
+  const url = token 
+    ? `${CORTEX_API_BASE}/api/fishtank/discussions/stream?token=${encodeURIComponent(token)}`
+    : `${CORTEX_API_BASE}/api/fishtank/discussions/stream`;
+  const eventSource = new EventSource(url);
 
   eventSource.onmessage = (event) => {
     try {

@@ -12,12 +12,23 @@ export interface AuthenticatedUser {
 }
 
 export async function authenticate(request: NextRequest): Promise<AuthenticatedUser | null> {
+  let token: string | null = null;
+  
+  // Check Authorization header first
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  }
+  
+  // Fall back to query param (for SSE which doesn't support headers)
+  if (!token) {
+    const url = new URL(request.url);
+    token = url.searchParams.get('token');
+  }
+  
+  if (!token) {
     return null;
   }
-
-  const token = authHeader.substring(7);
   try {
     const decoded = jwt.verify(token, getJwtSecret(), {
       algorithms: ['HS256'],
