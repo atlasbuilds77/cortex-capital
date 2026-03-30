@@ -16,7 +16,7 @@ import { useAuth } from '@/lib/auth'
 
 interface TradingSettings {
   auto_execute_enabled: boolean
-  risk_profile: 'conservative' | 'moderate' | 'aggressive'
+  risk_profile: 'conservative' | 'moderate' | 'aggressive' | 'ultra_aggressive'
   max_position_size: number
   max_daily_loss: number
   allowed_symbols: string[]
@@ -196,7 +196,7 @@ export default function TradingSettingsPage() {
           </div>
           
           <div className="space-y-4">
-            {(['conservative', 'moderate', 'aggressive'] as const).map((profile) => (
+            {(['conservative', 'moderate', 'aggressive', 'ultra_aggressive'] as const).map((profile) => (
               <div
                 key={profile}
                 onClick={() => setSettings({ ...settings, risk_profile: profile })}
