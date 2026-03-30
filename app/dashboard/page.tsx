@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const { user, loading, isAuthenticated, token } = useAuth()
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null)
+  const [autoTradeEnabled, setAutoTradeEnabled] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -47,6 +48,18 @@ export default function DashboardPage() {
       router.push('/pricing?upgrade=true')
     }
   }, [isAuthenticated, loading, router, user])
+
+  // Fetch auto-trade status
+  useEffect(() => {
+    if (token) {
+      fetch(`${API_URL}/api/user/trading-settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setAutoTradeEnabled(data.auto_execute_enabled || false) })
+        .catch(() => {})
+    }
+  }, [token])
 
   useEffect(() => {
     if (token) {
@@ -89,6 +102,40 @@ export default function DashboardPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background p-4 md:p-8">
       <div className="mx-auto max-w-6xl">
+        {/* Auto-Trading Status Banner */}
+        {autoTradeEnabled !== null && (
+          <Link 
+            href="/settings/trading"
+            className={`mb-4 flex items-center justify-between rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+              autoTradeEnabled 
+                ? 'border-green-500/30 bg-green-500/10' 
+                : 'border-amber-500/30 bg-amber-500/10'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {autoTradeEnabled ? (
+                <Zap className="w-5 h-5 text-green-400" />
+              ) : (
+                <ShieldCheck className="w-5 h-5 text-amber-400" />
+              )}
+              <div>
+                <p className={`font-medium ${autoTradeEnabled ? 'text-green-400' : 'text-amber-400'}`}>
+                  {autoTradeEnabled ? 'Auto-Trading Active' : 'Watch Mode (Trading Disabled)'}
+                </p>
+                <p className="text-xs text-text-secondary">
+                  {autoTradeEnabled 
+                    ? 'Agents will execute trades based on their analysis' 
+                    : 'Agents are analyzing your portfolio but NOT executing trades'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-text-secondary text-sm">
+              <span>{autoTradeEnabled ? 'Disable' : 'Enable'} in Settings</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </Link>
+        )}
+        
         {/* Header */}
         <div className="rounded-xl border border-white/10 bg-surface p-5 md:p-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
