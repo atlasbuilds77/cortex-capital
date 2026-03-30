@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Link2, Unlink, RefreshCw, CheckCircle, AlertCircle, Wallet } from 'lucide-react'
+import { Link2, Unlink, RefreshCw, CheckCircle, AlertCircle, Wallet, Trash2 } from 'lucide-react'
 
 interface BrokerConnection {
   id: string
@@ -28,6 +28,39 @@ export default function BrokersPage() {
   const [accounts, setAccounts] = useState<BrokerAccount[]>([])
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [deleting, setDeleting] = useState<string | null>(null)
+
+  const handleDeleteAccount = async (accountId: string) => {
+    if (!confirm('Are you sure you want to disconnect this account?')) return
+    
+    setDeleting(accountId)
+    try {
+      const token = localStorage.getItem('cortex_token')
+      const res = await fetch('/api/broker/snaptrade/disconnect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ accountId }),
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        // Remove from local state
+        setAccounts(prev => prev.filter(a => a.id !== accountId))
+        if (selectedAccount === accountId) {
+          setSelectedAccount(null)
+        }
+      } else {
+        setError(data.error || 'Failed to disconnect account')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to disconnect account')
+    } finally {
+      setDeleting(null)
+    }
+  }
 
   // Check URL for success callback
   useEffect(() => {
@@ -233,15 +266,32 @@ export default function BrokersPage() {
                       {account.number && <span>****{account.number.slice(-4)}</span>}
                     </div>
                   </div>
-                  {isSelected ? (
-                    <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs font-medium">
-                      Active
-                    </span>
-                  ) : (
-                    <span className="px-2 py-1 bg-gray-700 text-text-secondary rounded text-xs font-medium">
-                      Select
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isSelected ? (
+                      <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs font-medium">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-gray-700 text-text-secondary rounded text-xs font-medium">
+                        Select
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteAccount(account.id)
+                      }}
+                      disabled={deleting === account.id}
+                      className="p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+                      title="Disconnect account"
+                    >
+                      {deleting === account.id ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </button>
               )
             })}
