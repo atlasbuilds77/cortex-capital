@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { discussionEmitter } from '@/lib/agents/collaborative-daemon';
+import { getAuthUser } from '@/lib/auth-middleware';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,29 +8,52 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   const encoder = new TextEncoder();
 
+  // Get authenticated user - required for per-user isolation
+  const authUser = await getAuthUser(request);
+  if (!authUser) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const authenticatedUserId = authUser.userId;
+
   // Create a TransformStream for SSE
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
   // Send initial connection message
-  writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'connected', timestamp: Date.now() })}\n\n`));
+  writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'connected', timestamp: Date.now(), userId: authenticatedUserId })}\n\n`));
 
   // Keep-alive interval
   const keepAliveInterval = setInterval(() => {
     writer.write(encoder.encode(': keepalive\n\n'));
   }, 30000);
 
-  // Listen for discussion events
+  // Helper to check if event belongs to this user
+  const isEventForUser = (event: any): boolean => {
+    // Send if event is public (no userId) or belongs to authenticated user
+    return !event.userId || event.userId === authenticatedUserId;
+  };
+
+  // Listen for discussion events with per-user filtering
   const onMessage = (message: any) => {
-    writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'message', ...message })}\n\n`));
+    if (isEventForUser(message)) {
+      writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'message', ...message })}\n\n`));
+    }
   };
 
   const onDiscussionStart = (discussion: any) => {
-    writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'discussion_start', ...discussion })}\n\n`));
+    if (isEventForUser(discussion)) {
+      writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'discussion_start', ...discussion })}\n\n`));
+    }
   };
 
   const onDiscussionEnd = (discussion: any) => {
-    writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'discussion_end', ...discussion })}\n\n`));
+    if (isEventForUser(discussion)) {
+      writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'discussion_end', ...discussion })}\n\n`));
+    }
   };
 
   discussionEmitter.on('message', onMessage);
