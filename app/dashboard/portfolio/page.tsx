@@ -43,6 +43,13 @@ export default function PortfolioPage() {
         if (!res.ok) throw new Error('Failed to fetch portfolio')
         const data = await res.json()
         console.log('[Portfolio] Source:', data.source)
+        // Normalize positions to ensure symbol is always a string (SnapTrade returns object sometimes)
+        if (data.positions) {
+          data.positions = data.positions.map((p: any) => ({
+            ...p,
+            symbol: typeof p.symbol === 'object' ? (p.symbol?.symbol || p.symbol?.raw_symbol || 'UNKNOWN') : (p.symbol || 'UNKNOWN'),
+          }))
+        }
         setPortfolio(data)
       } catch (err: any) {
         setError(err.message)

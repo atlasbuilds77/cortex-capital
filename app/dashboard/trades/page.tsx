@@ -64,6 +64,8 @@ export default function TradesPage() {
         setSource(data.source)
         setTrades(data.trades.map(t => ({
           ...t,
+          // Normalize symbol to string (SnapTrade may return object)
+          symbol: typeof t.symbol === 'object' ? ((t.symbol as any)?.symbol || (t.symbol as any)?.raw_symbol || 'UNKNOWN') : (t.symbol || 'UNKNOWN'),
           // Normalize side to uppercase for display
           side: t.side?.toUpperCase() || 'BUY',
         })))
