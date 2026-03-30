@@ -17,7 +17,7 @@ export function StandupImmersiveScreen({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 bg-[#05070b]/96 text-white">
+    <div className="fixed inset-0 z-[100] bg-[#05070b] text-white">
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-cyan-500/15 px-6 py-4">
           <div>
@@ -80,6 +80,18 @@ export function StandupImmersiveScreen({
                   </div>
 
                   <div className="mt-4 space-y-4">
+                    {/* Agent's speech - the main content */}
+                    {card.speech ? (
+                      <div>
+                        <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-300/60">
+                          Update
+                        </div>
+                        <div className="mt-2 text-sm leading-6 text-white/90 bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3">
+                          {card.speech}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div>
                       <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/35">
                         Current task
