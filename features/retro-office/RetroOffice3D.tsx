@@ -11,6 +11,8 @@ import {
   Camera,
   Users,
   X,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import {
   Suspense,
@@ -81,6 +83,7 @@ import {
   smoothRotation,
   type Agent as SteeringAgent,
 } from "@/features/retro-office/lib/steering";
+import { audioManager } from "@/features/retro-office/lib/audio";
 import {
   ensureOfficeAtm,
   ensureOfficeGymRoom,
@@ -157,6 +160,7 @@ import type {
 } from "@/features/retro-office/core/types";
 import type { NavGrid } from "@/features/retro-office/core/navigation";
 import { AgentModel as AgentObjectModel } from "@/features/retro-office/objects/agents";
+import { ThoughtBubble } from "@/features/retro-office/objects/ThoughtBubble";
 import {
   FurnitureModel as GenericFurnitureModel,
   InstancedFurnitureItems as InstancedFurnitureItemsModel,
@@ -1830,6 +1834,42 @@ function useAgentTick(
         }
       }
 
+      // Apply personality system
+      const isJanitor = "role" in agent && agent.role === "janitor";
+      if (!isJanitor) {
+        // Check for thought bubbles (idle agents occasionally think)
+        if (shouldShowThoughtBubble(agent, now)) {
+          agent.thoughtText = getRandomTradingThought();
+          agent.thoughtUntil = now + 4000; // 4 seconds
+        }
+
+        // Check for phone checking behavior
+        if (ns === "standing" && !agent.phoneCheckUntil && shouldCheckPhone(agent, now)) {
+          ns = "checking_phone";
+          agent.phoneCheckUntil = now + 3000; // 3 seconds
+        }
+
+        // End phone checking
+        if (agent.phoneCheckUntil && now >= agent.phoneCheckUntil) {
+          agent.phoneCheckUntil = undefined;
+          if (ns === "checking_phone") {
+            ns = "standing";
+          }
+        }
+
+        // End celebration
+        if (agent.moodUntil && now >= agent.moodUntil && ns === "celebrating") {
+          ns = "standing";
+          agent.mood = "neutral";
+        }
+
+        // Apply mood-based modifiers to walk speed
+        if (agent.mood && ns === "walking") {
+          const moodModifiers = applyMoodModifiers(agent);
+          maxSpeed = maxSpeed * moodModifiers.walkSpeedMultiplier;
+        }
+      }
+
       return {
         ...agent,
         x: nx,
@@ -1921,6 +1961,9 @@ function useAgentTick(
           escapeTarget = rp;
         }
       }
+      // Add small talk thought bubble when bumping
+      const smallTalk = getRandomSmallTalk();
+      
       moved[i] = {
         ...moved[i],
         // Face the other agent during the pause so the bump reads like a brief chat.
@@ -1935,6 +1978,9 @@ function useAgentTick(
         targetY: escapeTarget.y,
         bumpedUntil: now + BUMP_FREEZE_MS,
         bumpTalkUntil: now + BUMP_FREEZE_MS,
+        // Show small talk bubble
+        thoughtText: smallTalk,
+        thoughtUntil: now + BUMP_FREEZE_MS,
       };
     }
     renderAgentsRef.current = moved;
@@ -2101,6 +2147,15 @@ export function RetroOffice3D({
   const resolvedGithubReviewByAgentId =
     animationState?.githubHoldByAgentId ??
     (githubReviewAgentId ? { [githubReviewAgentId]: true } : {});
+  
+  // Mock market state for agent moods (TODO: replace with real market data)
+  const [mockMarketState, setMockMarketState] = useState<{
+    trend: "up" | "down" | "flat";
+    volatility: "high" | "low";
+  }>({
+    trend: "up",
+    volatility: "low",
+  });
   const [furniture, setFurniture] = useState<FurnitureItem[]>(() =>
     ensureOfficeQaLab(
       ensureOfficeGymRoom(
@@ -2218,11 +2273,21 @@ export function RetroOffice3D({
   // E3 Idea 3: spotlight.
   const [spotlightAgentId, setSpotlightAgentId] = useState<string | null>(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  
+  // NEW: Interactive elements state
+  const [selectedAgentForStats, setSelectedAgentForStats] = useState<string | null>(null);
+  const [whiteboardPnLOpen, setWhiteboardPnLOpen] = useState(false);
+  const [hoveredDeskUid, setHoveredDeskUid] = useState<string | null>(null);
+  const [tradeSignalActive, setTradeSignalActive] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const orbitRef = useRef<any>(null);
   // Follow cam: which agent to trail with a third-person perspective camera.
   const [followAgentId, setFollowAgentId] = useState<string | null>(null);
   const followAgentIdRef = useRef<string | null>(null);
+  
+  // Audio system state
+  const [audioMuted, setAudioMuted] = useState(true);
+  const audioInitializedRef = useRef(false);
   const prevMonitorAgentIdRef = useRef<string | null>(null);
   const prevAtmUidRef = useRef<string | null>(null);
   const prevSmsBoothViewRef = useRef<string | null>(null);
@@ -2301,6 +2366,24 @@ export function RetroOffice3D({
     markQaLabMigrationApplied();
   }, []);
 
+  // Initialize audio system on mount
+  useEffect(() => {
+    if (audioInitializedRef.current) return;
+    
+    audioInitializedRef.current = true;
+    audioManager.init().then(() => {
+      setAudioMuted(audioManager.isMuted());
+    }).catch(err => {
+      console.warn('Audio initialization failed:', err);
+    });
+
+    return () => {
+      // Cleanup on unmount
+      audioManager.destroy();
+      audioInitializedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     followAgentIdRef.current = followAgentId;
   }, [followAgentId]);
@@ -2361,6 +2444,39 @@ export function RetroOffice3D({
       window.clearInterval(intervalId);
     };
   }, []);
+
+  // Mood update system - periodically update agent moods based on market
+  useEffect(() => {
+    const updateMoods = () => {
+      const now = Date.now();
+      const currentTime = new Date();
+      
+      renderAgentsRef.current.forEach((agent) => {
+        const isJanitor = "role" in agent && agent.role === "janitor";
+        if (isJanitor) return;
+        
+        // Don't override celebration mood
+        if (agent.state === "celebrating") return;
+        
+        // Update mood based on market conditions
+        const newMood = determineAgentMood({
+          marketTrend: mockMarketState.trend,
+          volatility: mockMarketState.volatility,
+          timeOfDay: currentTime,
+        });
+        
+        agent.mood = newMood;
+      });
+    };
+    
+    // Update moods every 30 seconds
+    updateMoods();
+    const intervalId = window.setInterval(updateMoods, 30000);
+    
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [mockMarketState, renderAgentsRef]);
 
   useEffect(() => {
     if (resolvedCleaningCues.length === 0) return;
@@ -2458,6 +2574,10 @@ export function RetroOffice3D({
     setHoveredAgentId(null);
   }, []);
   const handleAgentClick = useCallback((agentId: string) => {
+    // Open stats card for clicked agent
+    setSelectedAgentForStats(agentId);
+    
+    // Also pan camera to agent
     const agent = renderAgentLookupRef.current.get(agentId);
     if (!agent || !orbitRef.current) return;
     const [wx, , wz] = toWorld(agent.x, agent.y);
@@ -3987,6 +4107,11 @@ export function RetroOffice3D({
         // TODO: QA Lab is for internal testing only
         return;
       }
+      // NEW: Whiteboard opens daily P&L modal
+      if (item.type === "whiteboard") {
+        setWhiteboardPnLOpen(true);
+        return;
+      }
       if (
         item.type === "round_table" &&
         item.x >= 0 &&
@@ -4054,10 +4179,18 @@ export function RetroOffice3D({
       const item = furniture.find(f => f._uid === uid);
       if (item && DISABLED_ITEM_TYPES.has(item.type)) return; // Don't hover disabled items
       setHoverUid(uid);
+      
+      // Track desk hovers for work preview
+      if (item?.type === 'desk_cubicle') {
+        setHoveredDeskUid(uid);
+      }
     },
     [furniture],
   );
-  const handleFurniturePointerOut = useCallback(() => setHoverUid(null), []);
+  const handleFurniturePointerOut = useCallback(() => {
+    setHoverUid(null);
+    setHoveredDeskUid(null);
+  }, []);
   const closeStandupBoard = useCallback(() => {
     setStandupBoardOpen(false);
     if (
@@ -5014,6 +5147,23 @@ export function RetroOffice3D({
               />
             );
           })}
+
+          {/* Thought bubbles for agents */}
+          {renderAgentsRef.current
+            .filter((agent) => {
+              const isJanitor = "role" in agent && agent.role === "janitor";
+              return !isJanitor && agent.thoughtText && agent.thoughtUntil && Date.now() < agent.thoughtUntil;
+            })
+            .map((agent) => {
+              const [wx, , wz] = toWorld(agent.x, agent.y);
+              return (
+                <ThoughtBubble
+                  key={`thought-${agent.id}`}
+                  text={agent.thoughtText!}
+                  position={[wx, 0, wz]}
+                />
+              );
+            })}
 
           <ScenePingPongBall agentsRef={renderAgentsRef} />
 
@@ -6083,6 +6233,17 @@ export function RetroOffice3D({
       {/* Toolbar — top right. Hidden when no onOfficeTitleChange (demo/readonly mode). */}
       {!immersiveOverlayActive && onOfficeTitleChange ? (
         <div className="absolute top-3 right-3 flex items-center gap-2 z-20">
+          {/* Audio mute toggle */}
+          <button
+            onClick={() => {
+              const newMuted = audioManager.toggleMute();
+              setAudioMuted(newMuted);
+            }}
+            title={audioMuted ? "Unmute office sounds" : "Mute office sounds"}
+            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all backdrop-blur-sm border ${!audioMuted ? "bg-amber-500/30 text-amber-300 border-amber-500/50" : "bg-[#1c1610]/80 text-amber-500/40 border-amber-900/20 hover:text-amber-400"}`}
+          >
+            {audioMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+          </button>
           {/* New Idea 7: Heatmap toggle. */}
           <button
             onClick={() => setHeatmapMode((p) => !p)}
