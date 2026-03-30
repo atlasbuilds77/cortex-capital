@@ -14,7 +14,9 @@ import { useAuth } from "@/lib/auth";
 
 const API_BASE = ""; // API is same-origin
 
-const RetroOffice3D = dynamic(
+import { OfficeErrorBoundary } from "@/features/retro-office/ErrorBoundary";
+
+const RetroOffice3DInner = dynamic(
   () =>
     import("@/features/retro-office/RetroOffice3D").then((mod) => ({
       default: mod.RetroOffice3D,
@@ -31,6 +33,13 @@ const RetroOffice3D = dynamic(
       </div>
     ),
   },
+);
+
+// Wrap with error boundary to catch crashes
+const RetroOffice3D = (props: any) => (
+  <OfficeErrorBoundary>
+    <RetroOffice3DInner {...props} />
+  </OfficeErrorBoundary>
 );
 
 const AGENT_ROLE_MAP: Record<string, string> = {
