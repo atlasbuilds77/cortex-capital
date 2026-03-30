@@ -49,6 +49,9 @@ export default function TradesPage() {
 
   // Fetch trades from API
   useEffect(() => {
+    // Don't fetch until token is ready (prevents double-fetch on hydration)
+    if (token === undefined) return;
+    
     const fetchTrades = async () => {
       try {
         setLoading(true)
@@ -57,6 +60,7 @@ export default function TradesPage() {
         })
         if (!res.ok) throw new Error('Failed to fetch trades')
         const data: TradeData = await res.json()
+        console.log('[Trades] Source:', data.source, 'Count:', data.trades.length)
         setSource(data.source)
         setTrades(data.trades.map(t => ({
           ...t,

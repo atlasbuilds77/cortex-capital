@@ -32,6 +32,9 @@ export default function PortfolioPage() {
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
 
   useEffect(() => {
+    // Don't fetch until token is ready (prevents double-fetch on hydration)
+    if (token === undefined) return;
+    
     const fetchPortfolio = async () => {
       try {
         const res = await fetch('/api/user/portfolio', {
@@ -39,6 +42,7 @@ export default function PortfolioPage() {
         })
         if (!res.ok) throw new Error('Failed to fetch portfolio')
         const data = await res.json()
+        console.log('[Portfolio] Source:', data.source)
         setPortfolio(data)
       } catch (err: any) {
         setError(err.message)
