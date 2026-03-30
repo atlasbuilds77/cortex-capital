@@ -52,7 +52,7 @@ export interface PlaceOrderParams {
 
 // Get user's broker type and credentials
 async function getUserBroker(userId: string): Promise<{
-  type: 'snaptrade' | 'robinhood' | 'tradier';
+  type: 'snaptrade' | 'robinhood' | 'webull' | 'tradier';
   accountId: string;
   credentials: any;
 }> {
@@ -358,6 +358,9 @@ export async function getPositions(userId: string): Promise<BrokerPosition[]> {
     case 'tradier':
       return tradierGetPositions(broker.accountId);
     
+    case 'webull':
+      return webullGetPositions(broker.credentials);
+    
     default:
       throw new Error(`Unknown broker type: ${broker.type}`);
   }
@@ -383,6 +386,9 @@ export async function getBalances(userId: string): Promise<BrokerBalance> {
     case 'tradier':
       return tradierGetBalances(broker.accountId);
     
+    case 'webull':
+      return webullGetBalances(broker.credentials);
+    
     default:
       throw new Error(`Unknown broker type: ${broker.type}`);
   }
@@ -400,6 +406,9 @@ export async function placeOrder(userId: string, params: PlaceOrderParams): Prom
   switch (broker.type) {
     case 'robinhood':
       return robinhoodPlaceOrder(broker.credentials, params);
+    
+    case 'webull':
+      return webullPlaceOrder(broker.credentials, params);
     
     case 'tradier':
       // TODO: Implement Tradier order placement
@@ -422,6 +431,8 @@ export function supportsExecution(brokerType: string): boolean {
   switch (brokerType) {
     case 'robinhood':
       return true; // Unofficial API
+    case 'webull':
+      return true; // Unofficial API
     case 'tradier':
       return true; // Direct API
     case 'snaptrade':
@@ -437,3 +448,114 @@ export default {
   placeOrder,
   supportsExecution,
 };
+
+// ============================================================================
+// WEBULL IMPLEMENTATION (Unofficial API)
+// ============================================================================
+
+async function webullGetPositions(credentials: any): Promise<BrokerPosition[]> {
+  const baseUrl = 'https://ustrade.webullfinance.com/api';
+  
+  const response = await fetch(`${baseUrl}/trading/v1/webull/account/positions`, {
+    headers: {
+      'Authorization': `Bearer ${credentials.accessToken}`,
+      'did': credentials.did,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Webull API error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  return (data.positions || []).map((pos: any) => ({
+    symbol: pos.ticker?.symbol || pos.symbol,
+    quantity: parseFloat(pos.position || '0'),
+    averageCost: parseFloat(pos.costPrice || '0'),
+    currentPrice: parseFloat(pos.lastPrice || '0'),
+    marketValue: parseFloat(pos.marketValue || '0'),
+    unrealizedPnL: parseFloat(pos.unrealizedProfitLoss || '0'),
+    unrealizedPnLPercent: parseFloat(pos.unrealizedProfitLossRate || '0') * 100,
+  }));
+}
+
+async function webullGetBalances(credentials: any): Promise<BrokerBalance> {
+  const baseUrl = 'https://ustrade.webullfinance.com/api';
+  
+  const response = await fetch(`${baseUrl}/trading/v1/webull/account/accountInfo`, {
+    headers: {
+      'Authorization': `Bearer ${credentials.accessToken}`,
+      'did': credentials.did,
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Webull API error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  return {
+    totalValue: parseFloat(data.netLiquidation || '0'),
+    cashBalance: parseFloat(data.totalCash || '0'),
+    buyingPower: parseFloat(data.dayBuyingPower || data.buyingPower || '0'),
+    dayTradeCount: data.dayTradesRemaining ? 3 - data.dayTradesRemaining : undefined,
+  };
+}
+
+async function webullPlaceOrder(credentials: any, params: PlaceOrderParams): Promise<BrokerOrder> {
+  const baseUrl = 'https://ustrade.webullfinance.com/api';
+  
+  // Get ticker ID for symbol
+  const searchResp = await fetch(`${baseUrl}/search/ticker?keyword=${params.symbol}`, {
+    headers: {
+      'did': credentials.did,
+    },
+  });
+  const searchData = await searchResp.json();
+  const tickerId = searchData?.data?.[0]?.tickerId;
+  
+  if (!tickerId) {
+    throw new Error(`Symbol not found: ${params.symbol}`);
+  }
+  
+  const orderBody = {
+    action: params.side.toUpperCase(),
+    orderType: params.orderType === 'limit' ? 'LMT' : 'MKT',
+    tickerId,
+    quantity: params.quantity,
+    timeInForce: 'DAY',
+    outsideRegularTradingHour: false,
+    ...(params.orderType === 'limit' && params.limitPrice && { lmtPrice: params.limitPrice }),
+  };
+  
+  const response = await fetch(`${baseUrl}/trading/v1/webull/order/placeOrder`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${credentials.accessToken}`,
+      'did': credentials.did,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(orderBody),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Webull order failed: ${JSON.stringify(error)}`);
+  }
+  
+  const order = await response.json();
+  
+  return {
+    orderId: order.orderId || order.data?.orderId,
+    symbol: params.symbol,
+    side: params.side,
+    quantity: params.quantity,
+    orderType: params.orderType,
+    limitPrice: params.limitPrice,
+    status: 'pending',
+  };
+}
