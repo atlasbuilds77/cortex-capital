@@ -470,7 +470,7 @@ export default function TradesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right text-text-primary">{trade.qty}</td>
-                    <td className="px-6 py-4 text-right text-text-primary">${trade.price.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-text-primary">${(Number(trade.price) || 0).toFixed(2)}</td>
                     <td className="px-6 py-4 text-right font-medium text-text-primary">${(trade.qty * trade.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-6 py-4">
                       {trade.agent ? (
@@ -522,7 +522,7 @@ export default function TradesPage() {
                     </div>
                     <div>
                       <p className="font-medium text-text-primary">{trade.symbol}</p>
-                      <p className="text-xs text-text-secondary">{trade.qty} shares @ ${trade.price.toFixed(2)}</p>
+                      <p className="text-xs text-text-secondary">{trade.qty} shares @ ${(Number(trade.price) || 0).toFixed(2)}</p>
                     </div>
                   </div>
                   <div className="text-right">

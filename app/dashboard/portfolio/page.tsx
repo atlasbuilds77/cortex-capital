@@ -373,7 +373,7 @@ export default function PortfolioPage() {
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
-                                <span className="font-bold text-primary text-sm">{position.symbol.slice(0, 2)}</span>
+                                <span className="font-bold text-primary text-sm">{(position.symbol || "??").slice(0, 2)}</span>
                               </div>
                               <p className="font-medium text-text-primary">{position.symbol}</p>
                             </div>
@@ -415,7 +415,7 @@ export default function PortfolioPage() {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
-                            <span className="font-bold text-purple-400 text-sm">{position.symbol.slice(0, 2)}</span>
+                            <span className="font-bold text-purple-400 text-sm">{(position.symbol || "??").slice(0, 2)}</span>
                           </div>
                           <div>
                             <p className="font-medium text-text-primary">{position.symbol}</p>
