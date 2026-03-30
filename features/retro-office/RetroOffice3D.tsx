@@ -1982,6 +1982,9 @@ function useAgentTick(
         thoughtText: smallTalk,
         thoughtUntil: now + BUMP_FREEZE_MS,
       };
+      
+      // Play bump sound
+      audioManager.playSound('agentBump');
     }
     renderAgentsRef.current = moved;
     const renderAgentLookup = renderAgentLookupRef.current;
@@ -2444,6 +2447,27 @@ export function RetroOffice3D({
       window.clearInterval(intervalId);
     };
   }, []);
+
+  // NEW: Trade signal bell activation
+  useEffect(() => {
+    if (statusFeedEvents.length === 0) return;
+    const latest = statusFeedEvents[0];
+    if (!latest) return;
+    
+    // Detect trade signal keywords
+    const signalKeywords = ['trade', 'signal', 'buy', 'sell', 'entry', 'exit', 'position'];
+    const hasSignal = signalKeywords.some(keyword => 
+      latest.text.toLowerCase().includes(keyword)
+    );
+    
+    if (hasSignal) {
+      setTradeSignalActive(true);
+      const timeout = setTimeout(() => {
+        setTradeSignalActive(false);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [statusFeedEvents]);
 
   // Mood update system - periodically update agent moods based on market
   useEffect(() => {
