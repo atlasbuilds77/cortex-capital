@@ -131,9 +131,17 @@ POSITION SIZING RULES:
 Respond with a JSON array of trade recommendations. Each should have:
 - symbol: string
 - action: "buy" | "sell"
-- quantity: number (whole shares)
+- quantity: number (whole shares OR contracts if option)
 - reason: string (1 sentence)
 - confidence: number (0-100)
+- isOption: boolean (true if LEAP/option, false if shares)
+- optionDetails: { expiry: string, strike: number, type: "call" | "put" } (only if isOption)
+
+SHARES vs LEAPS DECISION:
+- Use SHARES for: core holdings, dividend stocks, lower conviction, conservative profiles
+- Use LEAPS for: high conviction (85%+), growth plays, aggressive profiles, leveraged exposure
+- LEAPS = 6 months to 2 years expiry, 0.60-0.80 delta, calls for bullish
+- If using LEAPS, allocate LESS capital (options are leveraged)
 
 Rules:
 - Only recommend trades with confidence > 70
@@ -141,6 +149,7 @@ Rules:
 - Match the user's risk profile
 - Don't over-concentrate (max ${sizing.maxPositionPct}% per position)
 - Consider existing positions before adding
+- LEAPS only for Operator tier and above
 
 If no trades needed, return empty array [].
 
