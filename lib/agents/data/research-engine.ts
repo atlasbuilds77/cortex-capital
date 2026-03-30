@@ -239,7 +239,8 @@ export async function getMarketResearch(): Promise<{
  */
 export async function getFullResearchContext(
   userSectors: string[],
-  userPositions: string[]
+  userPositions: string[],
+  allowedSymbols: string[] = []
 ): Promise<string> {
   const sections: string[] = [];
 
@@ -257,16 +258,33 @@ ${market.topNews.slice(0, 3).map(n => `- ${n.title}`).join('\n')}`);
     console.error('[Research] Market research failed:', err);
   }
 
-  // User's sector research
-  for (const sector of userSectors.slice(0, 2)) {
-    try {
-      const sectorRes = await researchSector(sector);
-      sections.push(`\n${sector.toUpperCase()} SECTOR:
+  // If user has allowed symbols, research those specifically
+  if (allowedSymbols.length > 0) {
+    sections.push(`\nFOCUSED WATCHLIST RESEARCH:`);
+    for (const symbol of allowedSymbols.slice(0, 5)) {
+      try {
+        const stockRes = await researchStock(symbol);
+        sections.push(`\n${symbol}:
+Price: $${stockRes.price.toFixed(2)} (${stockRes.changePercent >= 0 ? '+' : ''}${stockRes.changePercent.toFixed(2)}%)
+Sentiment: ${stockRes.sentiment}
+${stockRes.catalysts.length > 0 ? `Catalysts: ${stockRes.catalysts.join('; ')}` : 'No major catalysts'}
+${stockRes.news.slice(0, 1).map(n => `News: ${n.title}`).join('\n')}`);
+      } catch (err) {
+        console.error(`[Research] Allowed symbol ${symbol} failed:`, err);
+      }
+    }
+  } else {
+    // User's sector research (fallback when no allowed symbols)
+    for (const sector of userSectors.slice(0, 2)) {
+      try {
+        const sectorRes = await researchSector(sector);
+        sections.push(`\n${sector.toUpperCase()} SECTOR:
 Performance: ${sectorRes.performance >= 0 ? '+' : ''}${sectorRes.performance.toFixed(2)}%
 Top Movers: ${sectorRes.topMovers.slice(0, 3).map(m => `${m.symbol} ${m.change >= 0 ? '+' : ''}${m.change.toFixed(1)}%`).join(', ')}
 Outlook: ${sectorRes.outlook}`);
-    } catch (err) {
-      console.error(`[Research] Sector ${sector} failed:`, err);
+      } catch (err) {
+        console.error(`[Research] Sector ${sector} failed:`, err);
+      }
     }
   }
 

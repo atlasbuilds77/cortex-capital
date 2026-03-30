@@ -107,11 +107,18 @@ async function generateRecommendations(
   
   const researchContext = await getFullResearchContext(
     prefs.sectorInterests || ['Technology'],
-    portfolio.positions.map((p: any) => p.symbol)
+    portfolio.positions.map((p: any) => p.symbol),
+    prefs.allowedSymbols || []
   );
   
   const sizing = getPositionSizeGuidance(prefs, portfolio.account.portfolioValue);
   
+  // Build allowed symbols constraint for prompt
+  const allowedSymbols = prefs.allowedSymbols || [];
+  const symbolConstraint = allowedSymbols.length > 0 
+    ? `\nALLOWED SYMBOLS (ONLY recommend from this list): ${allowedSymbols.join(', ')}`
+    : '';
+
   const prompt = `You are a trading AI analyzing a portfolio. Based on the data below, generate specific trade recommendations.
 
 ${marketContext}
@@ -119,7 +126,7 @@ ${marketContext}
 ${researchContext}
 
 USER PREFERENCES:
-${prefsContext}
+${prefsContext}${symbolConstraint}
 
 CURRENT PORTFOLIO:
 Cash: $${portfolio.account.cash.toLocaleString()}
@@ -147,7 +154,7 @@ SHARES vs LEAPS DECISION:
 - If using LEAPS, allocate LESS capital (options are leveraged)
 
 Rules:
-- Only recommend trades with confidence > 70
+- Only recommend trades with confidence > 70${allowedSymbols.length > 0 ? '\n- ONLY recommend symbols from the ALLOWED SYMBOLS list above' : ''}
 - Respect the user's exclusions (no excluded sectors)
 - Match the user's risk profile
 - Don't over-concentrate (max ${sizing.maxPositionPct}% per position)
