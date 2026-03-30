@@ -25,15 +25,15 @@ interface PortfolioData {
 }
 
 export default function PortfolioPage() {
-  const { token } = useAuth()
+  const { token, loading: authLoading } = useAuth()
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
 
   useEffect(() => {
-    // Don't fetch until token is ready (prevents double-fetch on hydration)
-    if (token === undefined) return;
+    // Don't fetch until auth is fully loaded (prevents fetching with no token during hydration)
+    if (authLoading) return;
     
     const fetchPortfolio = async () => {
       try {
@@ -51,7 +51,7 @@ export default function PortfolioPage() {
       }
     }
     fetchPortfolio()
-  }, [token])
+  }, [token, authLoading])
 
   if (loading) {
     return (

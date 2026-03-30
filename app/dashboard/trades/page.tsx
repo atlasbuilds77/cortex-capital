@@ -34,7 +34,7 @@ interface TradeData {
 }
 
 export default function TradesPage() {
-  const { token } = useAuth()
+  const { token, loading: authLoading } = useAuth()
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,8 +49,8 @@ export default function TradesPage() {
 
   // Fetch trades from API
   useEffect(() => {
-    // Don't fetch until token is ready (prevents double-fetch on hydration)
-    if (token === undefined) return;
+    // Don't fetch until auth is fully loaded (prevents fetching with no token during hydration)
+    if (authLoading) return;
     
     const fetchTrades = async () => {
       try {
@@ -74,7 +74,7 @@ export default function TradesPage() {
       }
     }
     fetchTrades()
-  }, [token])
+  }, [token, authLoading])
 
   // Derive agent list from actual trades
   const agents = useMemo(() => {
