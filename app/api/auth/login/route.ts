@@ -5,12 +5,21 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { query } from '@/lib/db';
 import { getRequiredEnv } from '@/lib/env';
+import { checkRateLimit, getRateLimitKey, rateLimitedResponse, RATE_LIMITS } from '@/lib/rate-limit';
 
 function getJwtSecret(): string {
   return getRequiredEnv('JWT_SECRET');
 }
 
 export async function POST(request: NextRequest) {
+  // Rate limiting - 5 attempts per 15 minutes
+  const rateLimitKey = getRateLimitKey(request, 'login');
+  const rateLimit = checkRateLimit(rateLimitKey, RATE_LIMITS.login);
+  
+  if (!rateLimit.allowed) {
+    return rateLimitedResponse(rateLimit.resetAt);
+  }
+
   try {
     const { email, password } = await request.json();
 

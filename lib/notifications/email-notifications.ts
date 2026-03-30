@@ -3,12 +3,8 @@
  * 
  * Sends trade alerts, daily digests, and account notifications via Resend.
  * 
- * Notification Types:
- * - Trade executed (immediate)
- * - Stop loss hit (immediate)
- * - Daily digest (scheduled)
- * - Weekly report (scheduled)
- * - Account alerts (immediate)
+ * Design: Black background, green terminal text (monospace)
+ * No emojis - clean professional look
  */
 
 import { Resend } from 'resend';
@@ -17,6 +13,35 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_Jg7Dp4iV_38FvagfWzy2WLY
 const FROM_EMAIL = 'Cortex Capital <alerts@cortexcapitalgroup.com>';
 
 const resend = new Resend(RESEND_API_KEY);
+
+// Color palette
+const COLORS = {
+  bg: '#0a0a0a',
+  cardBg: '#0d0d0d',
+  border: '#1a3d2a',
+  green: '#00ff88',
+  greenMuted: '#4a9d6a',
+  red: '#ff4444',
+  text: '#ccc',
+  textMuted: '#666',
+};
+
+// Base email wrapper
+const emailWrapper = (content: string) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; background: ${COLORS.bg}; color: ${COLORS.green};">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="border: 1px solid ${COLORS.border}; border-radius: 8px; padding: 32px; background: ${COLORS.cardBg};">
+      ${content}
+    </div>
+  </div>
+</body>
+</html>`;
 
 // Notification preferences per tier
 const TIER_NOTIFICATIONS = {
@@ -57,87 +82,74 @@ export async function sendTradeNotification(
 ): Promise<boolean> {
   try {
     const subject = trade.type === 'stop_loss' 
-      ? `🛑 Stop Loss Triggered: ${trade.symbol}`
+      ? `Stop Loss Triggered: ${trade.symbol}`
       : trade.type === 'signal'
-      ? `📊 Trade Signal: ${trade.action.toUpperCase()} ${trade.symbol}`
-      : `✅ Trade Executed: ${trade.action.toUpperCase()} ${trade.symbol}`;
+      ? `Trade Signal: ${trade.action.toUpperCase()} ${trade.symbol}`
+      : `Trade Executed: ${trade.action.toUpperCase()} ${trade.symbol}`;
 
-    const actionColor = trade.action === 'buy' ? '#22c55e' : '#ef4444';
-    const actionEmoji = trade.action === 'buy' ? '📈' : '📉';
+    const actionColor = trade.action === 'buy' ? COLORS.green : COLORS.red;
+    const typeLabel = trade.type === 'stop_loss' ? 'STOP LOSS' : trade.type === 'signal' ? 'SIGNAL' : 'EXECUTED';
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }
-    .container { max-width: 500px; margin: 0 auto; }
-    .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #333; }
-    .logo { font-size: 24px; font-weight: bold; color: #a855f7; }
-    .content { padding: 30px 0; }
-    .trade-card { background: #1a1a1a; border-radius: 12px; padding: 24px; border: 1px solid #333; }
-    .trade-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .symbol { font-size: 28px; font-weight: bold; }
-    .action { padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; color: white; background: ${actionColor}; }
-    .details { color: #888; font-size: 14px; }
-    .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
-    .pnl { font-size: 20px; font-weight: bold; margin-top: 16px; text-align: center; }
-    .pnl.positive { color: #22c55e; }
-    .pnl.negative { color: #ef4444; }
-    .reason { margin-top: 16px; padding: 12px; background: #111; border-radius: 8px; font-size: 13px; color: #aaa; }
-    .footer { text-align: center; padding: 20px 0; color: #666; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">⚡ Cortex Capital</div>
-    </div>
-    <div class="content">
-      <p>Hey ${userName || 'there'},</p>
-      <p>${trade.type === 'stop_loss' ? 'A stop loss was triggered on your position:' : trade.type === 'signal' ? 'Your agents identified a trade opportunity:' : 'A trade was executed on your behalf:'}</p>
-      
-      <div class="trade-card">
-        <div class="trade-header">
-          <span class="symbol">${actionEmoji} ${trade.symbol}</span>
-          <span class="action">${trade.action.toUpperCase()}</span>
+    const content = `
+      <div style="border-bottom: 1px solid ${COLORS.border}; padding-bottom: 20px; margin-bottom: 24px;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 500; color: ${COLORS.green};">CORTEX CAPITAL</h1>
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: ${COLORS.greenMuted};">TRADE ${typeLabel}</p>
+      </div>
+
+      <p style="color: ${COLORS.text}; font-size: 14px; margin-bottom: 24px;">
+        ${trade.type === 'stop_loss' ? 'Stop loss triggered on position:' : trade.type === 'signal' ? 'Trade opportunity identified:' : 'Trade executed on your behalf:'}
+      </p>
+
+      <div style="background: #111; border: 1px solid ${COLORS.border}; border-radius: 4px; padding: 20px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <span style="font-size: 24px; font-weight: 600; color: ${COLORS.green};">${trade.symbol}</span>
+          <span style="padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #000; background: ${actionColor};">${trade.action.toUpperCase()}</span>
         </div>
-        <div class="details">
-          <div class="detail-row">
-            <span>Quantity</span>
-            <span>${trade.quantity} shares</span>
+        
+        <div style="border-top: 1px solid ${COLORS.border}; padding-top: 16px;">
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: ${COLORS.greenMuted};">Quantity</span>
+            <span style="color: ${COLORS.text};">${trade.quantity} shares</span>
           </div>
-          <div class="detail-row">
-            <span>Price</span>
-            <span>$${trade.price.toFixed(2)}</span>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: ${COLORS.greenMuted};">Price</span>
+            <span style="color: ${COLORS.text};">$${trade.price.toFixed(2)}</span>
           </div>
-          <div class="detail-row">
-            <span>Total</span>
-            <span>$${(trade.quantity * trade.price).toLocaleString()}</span>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: ${COLORS.greenMuted};">Total</span>
+            <span style="color: ${COLORS.green};">$${(trade.quantity * trade.price).toLocaleString()}</span>
           </div>
         </div>
+
         ${trade.pnl !== undefined ? `
-        <div class="pnl ${trade.pnl >= 0 ? 'positive' : 'negative'}">
-          ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)} (${trade.pnlPercent?.toFixed(1)}%)
+        <div style="border-top: 1px solid ${COLORS.border}; padding-top: 16px; margin-top: 8px; text-align: center;">
+          <span style="font-size: 20px; font-weight: 600; color: ${trade.pnl >= 0 ? COLORS.green : COLORS.red};">
+            ${trade.pnl >= 0 ? '+' : ''}$${trade.pnl.toFixed(2)} (${trade.pnlPercent?.toFixed(1)}%)
+          </span>
         </div>
         ` : ''}
-        ${trade.reason ? `<div class="reason">💡 ${trade.reason}</div>` : ''}
       </div>
-    </div>
-    <div class="footer">
-      <p>You're receiving this because you have trade notifications enabled.</p>
-      <p><a href="https://cortexcapitalgroup.com/settings/notifications" style="color: #a855f7;">Manage notifications</a></p>
-    </div>
-  </div>
-</body>
-</html>`;
+
+      ${trade.reason ? `
+      <div style="background: #111; border: 1px solid ${COLORS.border}; border-radius: 4px; padding: 16px; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 12px; color: ${COLORS.greenMuted}; margin-bottom: 8px;">REASON</p>
+        <p style="margin: 0; font-size: 13px; color: ${COLORS.text};">${trade.reason}</p>
+      </div>
+      ` : ''}
+
+      <div style="text-align: center; padding-top: 20px; border-top: 1px solid ${COLORS.border};">
+        <a href="https://cortexcapitalgroup.com/dashboard" style="display: inline-block; padding: 12px 24px; background: ${COLORS.green}; color: #000; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 13px;">VIEW DASHBOARD</a>
+        <p style="margin: 16px 0 0 0; font-size: 11px; color: ${COLORS.textMuted};">
+          <a href="https://cortexcapitalgroup.com/settings" style="color: ${COLORS.greenMuted};">Manage preferences</a>
+        </p>
+      </div>
+    `;
 
     await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject,
-      html,
+      html: emailWrapper(content),
     });
 
     console.log(`[EMAIL] Sent ${trade.type} notification to ${email}`);
@@ -157,91 +169,112 @@ export async function sendDailyDigest(
   data: DigestData
 ): Promise<boolean> {
   try {
-    const changeColor = data.dayChange >= 0 ? '#22c55e' : '#ef4444';
+    const changeColor = data.dayChange >= 0 ? COLORS.green : COLORS.red;
     const changeSign = data.dayChange >= 0 ? '+' : '';
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase();
 
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }
-    .container { max-width: 500px; margin: 0 auto; }
-    .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #333; }
-    .logo { font-size: 24px; font-weight: bold; color: #a855f7; }
-    .content { padding: 30px 0; }
-    .portfolio-card { background: #1a1a1a; border-radius: 12px; padding: 24px; border: 1px solid #333; text-align: center; }
-    .portfolio-value { font-size: 36px; font-weight: bold; }
-    .portfolio-change { font-size: 18px; margin-top: 8px; color: ${changeColor}; }
-    .section { margin-top: 24px; }
-    .section-title { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-    .mover { display: flex; justify-content: space-between; padding: 8px 12px; background: #1a1a1a; border-radius: 8px; margin-bottom: 8px; }
-    .mover-positive { color: #22c55e; }
-    .mover-negative { color: #ef4444; }
-    .stat { display: inline-block; text-align: center; padding: 16px 24px; background: #1a1a1a; border-radius: 8px; margin: 4px; }
-    .stat-value { font-size: 24px; font-weight: bold; }
-    .stat-label { font-size: 12px; color: #888; }
-    .footer { text-align: center; padding: 20px 0; color: #666; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="logo">⚡ Cortex Capital</div>
-      <p style="color: #888; margin-top: 8px;">Daily Portfolio Summary</p>
-    </div>
-    <div class="content">
-      <p>Good evening ${userName || 'there'},</p>
-      <p>Here's how your portfolio performed today:</p>
-      
-      <div class="portfolio-card">
-        <div class="portfolio-value">$${data.portfolioValue.toLocaleString()}</div>
-        <div class="portfolio-change">${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%)</div>
+    const content = `
+      <div style="border-bottom: 1px solid ${COLORS.border}; padding-bottom: 20px; margin-bottom: 24px;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 500; color: ${COLORS.green};">CORTEX CAPITAL</h1>
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: ${COLORS.greenMuted};">DAILY DIGEST // ${today}</p>
+      </div>
+
+      <div style="margin-bottom: 32px;">
+        <p style="color: ${COLORS.greenMuted}; font-size: 12px; margin: 0 0 8px 0;">PORTFOLIO VALUE</p>
+        <div style="font-size: 32px; font-weight: 600; color: ${COLORS.green}; margin-bottom: 8px;">$${data.portfolioValue.toLocaleString()}</div>
+        <div style="font-size: 14px; color: ${changeColor};">${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%) TODAY</div>
       </div>
 
       ${data.topMovers.length > 0 ? `
-      <div class="section">
-        <div class="section-title">Top Movers</div>
+      <div style="background: #111; border: 1px solid ${COLORS.border}; border-radius: 4px; padding: 20px; margin-bottom: 24px;">
+        <p style="font-size: 11px; color: ${COLORS.greenMuted}; margin: 0 0 16px 0; letter-spacing: 1px;">TOP MOVERS</p>
         ${data.topMovers.map(m => `
-          <div class="mover">
-            <span>${m.symbol}</span>
-            <span class="${m.change >= 0 ? 'mover-positive' : 'mover-negative'}">${m.change >= 0 ? '+' : ''}${m.change.toFixed(2)}%</span>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid ${COLORS.border};">
+            <span style="color: ${COLORS.text};">${m.symbol}</span>
+            <span style="color: ${m.change >= 0 ? COLORS.green : COLORS.red};">${m.change >= 0 ? '+' : ''}${m.change.toFixed(1)}%</span>
           </div>
         `).join('')}
       </div>
       ` : ''}
 
-      <div class="section" style="text-align: center;">
-        <div class="stat">
-          <div class="stat-value">${data.tradesExecuted}</div>
-          <div class="stat-label">Trades Today</div>
-        </div>
+      <div style="background: #111; border: 1px solid ${COLORS.border}; border-radius: 4px; padding: 20px; margin-bottom: 24px;">
+        <p style="font-size: 11px; color: ${COLORS.greenMuted}; margin: 0 0 16px 0; letter-spacing: 1px;">AGENT ACTIVITY</p>
+        <p style="margin: 0 0 8px 0; color: ${COLORS.text}; font-size: 13px;">${data.tradesExecuted} trades executed</p>
+        <p style="margin: 0; color: ${COLORS.text}; font-size: 13px;">Portfolio health: OPTIMAL</p>
       </div>
 
-      <p style="text-align: center; margin-top: 24px;">
-        <a href="https://cortexcapitalgroup.com/dashboard" style="display: inline-block; padding: 12px 24px; background: #a855f7; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">View Dashboard</a>
-      </p>
-    </div>
-    <div class="footer">
-      <p>You're receiving this daily digest because you have notifications enabled.</p>
-      <p><a href="https://cortexcapitalgroup.com/settings/notifications" style="color: #a855f7;">Manage notifications</a></p>
-    </div>
-  </div>
-</body>
-</html>`;
+      <div style="text-align: center; padding-top: 20px; border-top: 1px solid ${COLORS.border};">
+        <a href="https://cortexcapitalgroup.com/dashboard" style="display: inline-block; padding: 12px 24px; background: ${COLORS.green}; color: #000; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 13px;">VIEW DASHBOARD</a>
+        <p style="margin: 16px 0 0 0; font-size: 11px; color: ${COLORS.textMuted};">
+          Sent at market close
+          <br>
+          <a href="https://cortexcapitalgroup.com/settings" style="color: ${COLORS.greenMuted};">Manage preferences</a>
+        </p>
+      </div>
+    `;
 
     await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: `📊 Daily Summary: ${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%)`,
-      html,
+      subject: `Daily Summary: ${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%)`,
+      html: emailWrapper(content),
     });
 
     console.log(`[EMAIL] Sent daily digest to ${email}`);
     return true;
   } catch (error) {
     console.error('[EMAIL] Failed to send daily digest:', error);
+    return false;
+  }
+}
+
+/**
+ * Send welcome email
+ */
+export async function sendWelcomeEmail(
+  email: string,
+  userName: string,
+  tier: string
+): Promise<boolean> {
+  try {
+    const content = `
+      <div style="border-bottom: 1px solid ${COLORS.border}; padding-bottom: 20px; margin-bottom: 24px;">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 500; color: ${COLORS.green};">CORTEX CAPITAL</h1>
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: ${COLORS.greenMuted};">WELCOME</p>
+      </div>
+
+      <p style="color: ${COLORS.text}; font-size: 14px; line-height: 1.6;">
+        Your account is now active.
+      </p>
+
+      <div style="background: #111; border: 1px solid ${COLORS.border}; border-radius: 4px; padding: 20px; margin: 24px 0;">
+        <p style="font-size: 11px; color: ${COLORS.greenMuted}; margin: 0 0 8px 0; letter-spacing: 1px;">YOUR TIER</p>
+        <p style="font-size: 20px; font-weight: 600; color: ${COLORS.green}; margin: 0;">${tier.toUpperCase()}</p>
+      </div>
+
+      <p style="color: ${COLORS.text}; font-size: 14px; line-height: 1.6;">
+        Next steps:<br>
+        1. Connect your broker<br>
+        2. Set your preferences<br>
+        3. Visit the trading floor
+      </p>
+
+      <div style="text-align: center; padding-top: 20px; border-top: 1px solid ${COLORS.border}; margin-top: 24px;">
+        <a href="https://cortexcapitalgroup.com/dashboard" style="display: inline-block; padding: 12px 24px; background: ${COLORS.green}; color: #000; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 13px;">GET STARTED</a>
+      </div>
+    `;
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: `Welcome to Cortex Capital`,
+      html: emailWrapper(content),
+    });
+
+    console.log(`[EMAIL] Sent welcome email to ${email}`);
+    return true;
+  } catch (error) {
+    console.error('[EMAIL] Failed to send welcome email:', error);
     return false;
   }
 }

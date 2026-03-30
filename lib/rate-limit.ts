@@ -1,58 +1,144 @@
-// Rate limiting configuration for different endpoint types
+/**
+ * RATE LIMITING
+ * 
+ * In-memory rate limiter for API endpoints.
+ * Uses sliding window algorithm.
+ */
 
-export const rateLimitConfig = {
-  // Global default: 100 requests per minute
-  global: {
-    max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
-    timeWindow: parseInt(process.env.RATE_LIMIT_WINDOW || '60000'), // 60 seconds
-  },
-  
-  // Authentication endpoints: stricter limits to prevent brute force
-  auth: {
-    max: 5,
-    timeWindow: 60000, // 5 requests per minute
-    ban: 3, // Ban after 3 violations
-  },
-  
-  // Trading/execution endpoints: very strict
-  trading: {
-    max: 10,
-    timeWindow: 60000, // 10 trades per minute
-  },
-  
-  // Read-only endpoints: more permissive
-  read: {
-    max: 200,
-    timeWindow: 60000, // 200 requests per minute
-  },
-  
-  // Webhook endpoints: based on expected volume
-  webhook: {
-    max: 50,
-    timeWindow: 60000, // 50 webhooks per minute
-  },
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+// In-memory store (resets on deploy - fine for basic protection)
+const store = new Map<string, RateLimitEntry>();
+
+interface RateLimitConfig {
+  windowMs: number;  // Time window in ms
+  maxRequests: number;  // Max requests per window
+}
+
+// Presets for different endpoints
+export const RATE_LIMITS = {
+  auth: { windowMs: 15 * 60 * 1000, maxRequests: 10 },      // 10 per 15 min
+  login: { windowMs: 15 * 60 * 1000, maxRequests: 5 },       // 5 per 15 min
+  signup: { windowMs: 60 * 60 * 1000, maxRequests: 3 },      // 3 per hour
+  api: { windowMs: 60 * 1000, maxRequests: 60 },             // 60 per min
+  trade: { windowMs: 60 * 1000, maxRequests: 10 },           // 10 per min
+  cron: { windowMs: 60 * 1000, maxRequests: 5 },             // 5 per min
 };
 
-export const rateLimitOptions = {
-  max: rateLimitConfig.global.max,
-  timeWindow: rateLimitConfig.global.timeWindow,
-  cache: 10000, // Keep track of 10,000 unique IPs
-  allowList: ['127.0.0.1', '::1'], // Localhost exempt
-  redis: process.env.REDIS_URL ? {
-    host: new URL(process.env.REDIS_URL).hostname,
-    port: parseInt(new URL(process.env.REDIS_URL).port || '6379'),
-  } : undefined,
-  nameSpace: 'cortex-capital-rl:',
-  continueExceeding: false, // Stop processing when limit exceeded
-  enableDraftSpec: true, // Use draft spec for headers
-  addHeadersOnExceeding: {
-    'x-ratelimit-limit': true,
-    'x-ratelimit-remaining': true,
-    'x-ratelimit-reset': true,
-  },
-  addHeaders: {
-    'x-ratelimit-limit': true,
-    'x-ratelimit-remaining': true,
-    'x-ratelimit-reset': true,
-  },
-};
+/**
+ * Check if request is rate limited
+ * @returns { allowed: boolean, remaining: number, resetAt: number }
+ */
+export function checkRateLimit(
+  identifier: string,
+  config: RateLimitConfig
+): { allowed: boolean; remaining: number; resetAt: number } {
+  const now = Date.now();
+  const key = identifier;
+  
+  let entry = store.get(key);
+  
+  // Clean up expired entry
+  if (entry && entry.resetAt < now) {
+    store.delete(key);
+    entry = undefined;
+  }
+  
+  if (!entry) {
+    // First request in window
+    store.set(key, {
+      count: 1,
+      resetAt: now + config.windowMs,
+    });
+    return {
+      allowed: true,
+      remaining: config.maxRequests - 1,
+      resetAt: now + config.windowMs,
+    };
+  }
+  
+  if (entry.count >= config.maxRequests) {
+    // Rate limited
+    return {
+      allowed: false,
+      remaining: 0,
+      resetAt: entry.resetAt,
+    };
+  }
+  
+  // Increment count
+  entry.count++;
+  return {
+    allowed: true,
+    remaining: config.maxRequests - entry.count,
+    resetAt: entry.resetAt,
+  };
+}
+
+/**
+ * Get rate limit identifier from request
+ * Uses IP + optional user ID for more accurate limiting
+ */
+export function getRateLimitKey(
+  request: Request,
+  prefix: string,
+  userId?: string
+): string {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
+    || request.headers.get('x-real-ip') 
+    || 'unknown';
+  
+  if (userId) {
+    return `${prefix}:${userId}:${ip}`;
+  }
+  return `${prefix}:${ip}`;
+}
+
+/**
+ * Create rate limit response headers
+ */
+export function rateLimitHeaders(
+  remaining: number,
+  resetAt: number
+): Record<string, string> {
+  return {
+    'X-RateLimit-Remaining': remaining.toString(),
+    'X-RateLimit-Reset': Math.ceil(resetAt / 1000).toString(),
+  };
+}
+
+/**
+ * Create rate limited error response
+ */
+export function rateLimitedResponse(resetAt: number): Response {
+  const retryAfter = Math.ceil((resetAt - Date.now()) / 1000);
+  return new Response(
+    JSON.stringify({ 
+      error: 'Too many requests',
+      retryAfter,
+    }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': retryAfter.toString(),
+        ...rateLimitHeaders(0, resetAt),
+      },
+    }
+  );
+}
+
+// Cleanup old entries periodically (every 5 min)
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of store.entries()) {
+      if (entry.resetAt < now) {
+        store.delete(key);
+      }
+    }
+  }, 5 * 60 * 1000);
+}
