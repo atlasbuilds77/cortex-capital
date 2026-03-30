@@ -470,11 +470,13 @@ RULES:
 
   /**
    * Trade idea discussion
+   * @param riskProfile - User's risk profile (determines which agents participate)
    */
   async discussTradeIdea(
     symbol: string,
     direction: 'long' | 'short',
-    thesis: string
+    thesis: string,
+    riskProfile: string = 'moderate'
   ): Promise<Discussion> {
     const context = `Evaluate this trade idea:
 Symbol: ${symbol}
@@ -483,9 +485,17 @@ Thesis: ${thesis}
 
 Discuss entry, targets, stop loss, and position sizing.`;
 
+    // Base agents for all profiles
+    let agents = ['ANALYST', 'STRATEGIST', 'OPTIONS_STRATEGIST', 'RISK', 'EXECUTOR'];
+    
+    // Add DAY_TRADER and MOMENTUM for ultra_aggressive profile
+    if (riskProfile === 'ultra_aggressive') {
+      agents = ['ANALYST', 'STRATEGIST', 'DAY_TRADER', 'MOMENTUM', 'OPTIONS_STRATEGIST', 'RISK', 'EXECUTOR'];
+    }
+
     return this.runDiscussion(
       `Trade Idea: ${symbol} ${direction.toUpperCase()}`,
-      ['ANALYST', 'STRATEGIST', 'OPTIONS_STRATEGIST', 'RISK', 'EXECUTOR'],
+      agents,
       context,
       2
     );

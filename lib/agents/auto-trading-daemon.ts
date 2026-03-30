@@ -287,10 +287,12 @@ export async function runAutoTradingCycle(): Promise<{
           }
 
           // Run agent discussion about this trade
+          // Pass risk_profile so ultra_aggressive users get DAY_TRADER and MOMENTUM agents
           const discussionResult = await collaborativeDaemon.discussTradeIdea(
             trade.symbol,
             trade.action === 'buy' ? 'long' : 'short',
-            trade.reason
+            trade.reason,
+            user.risk_profile || 'moderate'
           );
           
           // Check if agents reached consensus (all approved)

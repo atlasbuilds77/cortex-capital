@@ -213,6 +213,7 @@ export default function TradingSettingsPage() {
                       {profile === 'conservative' && 'Low risk, steady returns'}
                       {profile === 'moderate' && 'Balanced risk and reward'}
                       {profile === 'aggressive' && 'High risk, high potential returns'}
+                      {profile === 'ultra_aggressive' && 'Maximum risk, day trading enabled'}
                     </div>
                   </div>
                   {settings.risk_profile === profile && (
