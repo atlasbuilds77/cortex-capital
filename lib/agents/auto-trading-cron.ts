@@ -34,7 +34,7 @@ async function getEligibleUsers(): Promise<EligibleUser[]> {
     SELECT u.id, u.email, u.tier
     FROM users u
     WHERE u.auto_execute_enabled = true
-      AND u.tier IN ('scout', 'operator', 'partner')
+      AND u.tier = 'operator'
       AND (
         u.snaptrade_user_id IS NOT NULL
         OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id)

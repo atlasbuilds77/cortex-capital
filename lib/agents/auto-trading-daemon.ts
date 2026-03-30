@@ -26,16 +26,15 @@ import * as fs from 'fs';
 
 const TIER_CAN_EXECUTE: Record<string, boolean> = {
   free: false,
-  recovery: false,
-  scout: true,      // Stocks only
-  operator: true,   // Stocks + options
-  partner: true,    // Full access
+  recovery: false,  // $29 - alerts only
+  scout: false,     // $49 - signals only, no auto-execute
+  operator: true,   // $99 - full auto, stocks + options
 };
 
 const TIER_OPTIONS_ALLOWED: Record<string, boolean> = {
+  recovery: false,
   scout: false,
-  operator: true,
-  partner: true,
+  operator: true,   // Only Operator gets options
 };
 
 interface TradeRecommendation {
@@ -75,7 +74,7 @@ async function getEligibleUsers(): Promise<User[]> {
     SELECT u.id, u.email, u.tier, u.auto_execute_enabled, u.risk_profile
     FROM users u
     WHERE u.auto_execute_enabled = true
-      AND u.tier IN ('scout', 'operator', 'partner')
+      AND u.tier = 'operator'
       AND (
         u.snaptrade_user_id IS NOT NULL 
         OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id AND bc.credentials_encrypted IS NOT NULL)
