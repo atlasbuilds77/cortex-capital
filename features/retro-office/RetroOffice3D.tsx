@@ -2499,7 +2499,7 @@ export function RetroOffice3D({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [mockMarketState, renderAgentsRef]);
+  }, [mockMarketState]);
 
   useEffect(() => {
     if (resolvedCleaningCues.length === 0) return;
