@@ -289,12 +289,12 @@ export async function runAutoTradingCycle(): Promise<{
           if (!agentsApproved) {
             console.log(`[AutoTrading] Agents did NOT approve ${trade.symbol} for ${user.email}`);
             // Notify user that agents discussed but didn't execute
-            await notifyTradeSignal(user.id, {
-              symbol: trade.symbol,
-              action: trade.action,
-              reason: `Agents discussed but did not reach consensus: ${trade.reason}`,
-              status: 'rejected'
-            });
+            await notifyTradeSignal(
+              user.id,
+              trade.symbol,
+              trade.action,
+              `Agents discussed but did not reach consensus: ${trade.reason}`
+            );
             continue;
           }
 
@@ -304,13 +304,14 @@ export async function runAutoTradingCycle(): Promise<{
             results.tradesExecuted++;
             console.log(`[AutoTrading] Executed: ${trade.action} ${trade.quantity} ${trade.symbol} for ${user.email}`);
             
-            // Notify user
-            await notifyTradeExecution(user.id, {
+            // Notify user via email
+            await notifyTradeExecution({
+              userId: user.id,
               symbol: trade.symbol,
               action: trade.action,
               quantity: trade.quantity,
+              price: 0, // Filled price comes from broker
               reason: trade.reason,
-              confidence: trade.confidence,
             });
           }
         }
