@@ -149,9 +149,9 @@ async function getUserPortfolioSummary(userId: string) {
             getBalances(snapUserId, snapUserSecret, accountId),
           ]);
 
-          // Calculate portfolio value from balances
+          // Calculate cash from balances (SnapTrade returns { cash: number, buying_power: number })
           const cashBalance = balances?.find((b: any) => b.currency?.code === 'USD');
-          const portfolioValue = cashBalance?.total?.amount || 0;
+          const cashValue = cashBalance?.cash || 0;
           
           // Calculate top movers from positions
           const topMovers = (positions as any[])
@@ -175,7 +175,7 @@ async function getUserPortfolioSummary(userId: string) {
             dayChange += posValue * (change / 100);
           }
 
-          const totalValue = portfolioValue + positionsValue;
+          const totalValue = cashValue + positionsValue;
           const dayChangePercent = totalValue > 0 ? (dayChange / totalValue) * 100 : 0;
 
           return {
