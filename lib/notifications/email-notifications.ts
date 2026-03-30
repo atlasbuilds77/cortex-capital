@@ -34,12 +34,20 @@ const emailWrapper = (content: string) => `
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; background: ${COLORS.bg}; color: ${COLORS.green};">
-  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-    <div style="border: 1px solid ${COLORS.border}; border-radius: 8px; padding: 32px; background: ${COLORS.cardBg};">
-      ${content}
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; background-color: ${COLORS.bg}; color: ${COLORS.green};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: ${COLORS.bg}; min-height: 100%;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; border: 1px solid ${COLORS.border}; border-radius: 8px; background-color: ${COLORS.cardBg};">
+          <tr>
+            <td style="padding: 32px; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; color: ${COLORS.green};">
+              ${content}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
