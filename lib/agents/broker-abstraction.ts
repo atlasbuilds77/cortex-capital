@@ -359,7 +359,12 @@ export async function getPositions(userId: string): Promise<BrokerPosition[]> {
       return tradierGetPositions(broker.accountId);
     
     case 'webull':
-      return webullGetPositions(broker.credentials);
+      // Webull via SnapTrade
+      return snaptradeGetPositions(
+        broker.credentials.snaptradeUserId,
+        broker.credentials.snaptradeUserSecret,
+        broker.accountId
+      );
     
     default:
       throw new Error(`Unknown broker type: ${broker.type}`);
@@ -387,7 +392,12 @@ export async function getBalances(userId: string): Promise<BrokerBalance> {
       return tradierGetBalances(broker.accountId);
     
     case 'webull':
-      return webullGetBalances(broker.credentials);
+      // Webull via SnapTrade
+      return snaptradeGetBalances(
+        broker.credentials.snaptradeUserId,
+        broker.credentials.snaptradeUserSecret,
+        broker.accountId
+      );
     
     default:
       throw new Error(`Unknown broker type: ${broker.type}`);
@@ -408,7 +418,9 @@ export async function placeOrder(userId: string, params: PlaceOrderParams): Prom
       return robinhoodPlaceOrder(broker.credentials, params);
     
     case 'webull':
-      return webullPlaceOrder(broker.credentials, params);
+      // Webull via SnapTrade - check if execution is supported
+      // TODO: Verify SnapTrade Webull execution support
+      throw new Error('Webull execution via SnapTrade - checking support');
     
     case 'tradier':
       // TODO: Implement Tradier order placement
@@ -432,7 +444,7 @@ export function supportsExecution(brokerType: string): boolean {
     case 'robinhood':
       return true; // Unofficial API
     case 'webull':
-      return true; // Unofficial API
+      return false; // Via SnapTrade - TBD on execution support
     case 'tradier':
       return true; // Direct API
     case 'snaptrade':
