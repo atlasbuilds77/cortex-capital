@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     // Check if user is authenticated
     const user = await getAuthUser(request);
     
+    console.log('[Portfolio API] Auth user:', user?.userId, user?.email);
+    
     if (user) {
       // First check for SnapTrade connection (universal broker API)
       const snaptradeResult = await query(
@@ -23,9 +25,13 @@ export async function GET(request: NextRequest) {
         [user.userId]
       );
       
+      console.log('[Portfolio API] SnapTrade check for userId:', user.userId, '| Found:', snaptradeResult.rows.length > 0);
+      
       const snaptradeUserId = snaptradeResult.rows[0]?.snaptrade_user_id;
       const snaptradeUserSecret = snaptradeResult.rows[0]?.snaptrade_user_secret;
       const selectedAccountId = snaptradeResult.rows[0]?.selected_snaptrade_account;
+      
+      console.log('[Portfolio API] SnapTrade userId:', snaptradeUserId, '| hasSecret:', !!snaptradeUserSecret, '| selectedAccount:', selectedAccountId);
 
       if (snaptradeUserId && snaptradeUserSecret) {
         try {
