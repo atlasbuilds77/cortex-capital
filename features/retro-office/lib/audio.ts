@@ -5,14 +5,16 @@
  * Muted by default for good UX.
  */
 
-// Working Mixkit URLs (royalty-free, no attribution needed)
+// Working Mixkit URLs (royalty-free)
 const SOUND_URLS: Record<string, string> = {
-  tradeBell: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3', // Bell notification
-  celebration: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3', // Success chime
-  notification: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3', // Soft notification
+  // Ambient
+  officeHum: 'https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3', // Soft room tone
+  keyboardTyping: 'https://assets.mixkit.co/active_storage/sfx/2558/2558-preview.mp3', // Keyboard clicks
+  
+  // Events (keeping these too)
+  tradeBell: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+  notification: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
 };
-
-type SoundKey = keyof typeof SOUND_URLS;
 
 class AudioManager {
   private static instance: AudioManager | null = null;
@@ -20,6 +22,7 @@ class AudioManager {
   private _muted = true;
   private initialized = false;
   private Howl: any = null;
+  private keyboardInterval: ReturnType<typeof setInterval> | null = null;
 
   private constructor() {}
 
@@ -45,12 +48,14 @@ class AudioManager {
       const howler = await import('howler');
       this.Howl = howler.Howl;
       
-      // Preload sounds (don't await - let them load in background)
-      Object.entries(SOUND_URLS).forEach(([key, url]) => {
+      // Preload sounds
+      for (const [key, url] of Object.entries(SOUND_URLS)) {
         try {
+          const isAmbient = key === 'officeHum';
           const sound = new this.Howl({
             src: [url],
-            volume: 0.3,
+            volume: isAmbient ? 0.1 : 0.25,
+            loop: isAmbient,
             preload: true,
             onloaderror: () => {
               console.warn(`[Audio] Failed to load: ${key}`);
@@ -60,12 +65,16 @@ class AudioManager {
         } catch (e) {
           console.warn(`[Audio] Error creating sound: ${key}`, e);
         }
-      });
+      }
       
       this.initialized = true;
+      
+      // Start ambient if not muted
+      if (!this._muted) {
+        this.startAmbientSounds();
+      }
     } catch (err) {
       console.warn('[Audio] Init failed:', err);
-      // Don't throw - audio is optional
     }
   }
 
@@ -80,16 +89,43 @@ class AudioManager {
         sound.play();
       }
     } catch (e) {
-      // Silently fail - audio is not critical
+      // Silently fail
     }
   }
 
   startAmbientSounds(): void {
-    // No ambient sounds for now - keeps it simple
+    if (typeof window === 'undefined') return;
+    if (this._muted) return;
+    
+    // Office hum loop
+    try {
+      const hum = this.sounds.get('officeHum');
+      if (hum && !hum.playing()) {
+        hum.play();
+      }
+    } catch {}
+    
+    // Random keyboard typing
+    if (!this.keyboardInterval) {
+      this.keyboardInterval = setInterval(() => {
+        if (this._muted) return;
+        if (Math.random() > 0.4) { // 60% chance
+          this.playSound('keyboardTyping');
+        }
+      }, 3000 + Math.random() * 4000); // Every 3-7 seconds
+    }
   }
 
   stopAmbientSounds(): void {
-    // No-op
+    try {
+      const hum = this.sounds.get('officeHum');
+      if (hum) hum.stop();
+    } catch {}
+    
+    if (this.keyboardInterval) {
+      clearInterval(this.keyboardInterval);
+      this.keyboardInterval = null;
+    }
   }
 
   setMuted(muted: boolean): void {
@@ -97,6 +133,12 @@ class AudioManager {
     try {
       localStorage.setItem('cortex_audio_muted', String(muted));
     } catch {}
+    
+    if (muted) {
+      this.stopAmbientSounds();
+    } else {
+      this.startAmbientSounds();
+    }
   }
 
   toggleMute(): boolean {
@@ -109,6 +151,7 @@ class AudioManager {
   }
 
   destroy(): void {
+    this.stopAmbientSounds();
     this.sounds.forEach(sound => {
       try { sound.stop(); } catch {}
     });
