@@ -109,7 +109,17 @@ export function TradingFloorShell({
     participantOrder: string[];
     arrivedAgentIds: string[];
     currentSpeakerAgentId: string | null;
-    cards: { agentId: string; speech: string }[];
+    cards: { 
+      agentId: string; 
+      agentName: string;
+      speech: string; 
+      currentTask: string;
+      blockers: string[];
+      recentCommits: any[];
+      activeTickets: any[];
+      manualNotes: string[];
+      sourceStates: any[];
+    }[];
   } | null>(null);
 
   const [animationState, setAnimationState] = useState<OfficeAnimationState>({
@@ -201,6 +211,45 @@ export function TradingFloorShell({
 
         setSpeakingAgentId(agentId);
         setLastMessage(message.content || '');
+
+        // Update standup meeting cards if meeting is active
+        setStandupMeeting(prev => {
+          if (!prev || prev.phase !== 'in_progress') return prev;
+          
+          // Get agent name from config
+          const agentConfig = CORTEX_AGENTS.find(a => a.id === agentId);
+          const agentName = agentConfig?.name || message.agent || 'Agent';
+          
+          // Add or update this agent's card
+          const existingCardIndex = prev.cards.findIndex(c => c.agentId === agentId);
+          const newCard = { 
+            agentId, 
+            agentName,
+            speech: message.content || '',
+            currentTask: 'Portfolio Analysis',
+            blockers: [],
+            recentCommits: [],
+            activeTickets: [],
+            manualNotes: [],
+            sourceStates: [],
+          };
+          
+          let newCards;
+          if (existingCardIndex >= 0) {
+            // Update existing card
+            newCards = [...prev.cards];
+            newCards[existingCardIndex] = newCard;
+          } else {
+            // Add new card
+            newCards = [...prev.cards, newCard];
+          }
+          
+          return {
+            ...prev,
+            currentSpeakerAgentId: agentId,
+            cards: newCards,
+          };
+        });
 
         setAgents((prev) =>
           prev.map((agent) => ({
@@ -553,10 +602,13 @@ export function TradingFloorShell({
               triggerDiscussion('portfolio_review');
             }, 2000);
             
-            // End meeting after 30s
+            // End meeting after 60s (give agents time to all speak)
+            setTimeout(() => {
+              setStandupMeeting(prev => prev ? { ...prev, phase: 'complete' } : null);
+            }, 55000);
             setTimeout(() => {
               setStandupMeeting(null);
-            }, 30000);
+            }, 60000);
           }}
           standupMeeting={standupMeeting as any}
         />
