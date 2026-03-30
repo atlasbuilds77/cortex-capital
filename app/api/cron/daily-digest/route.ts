@@ -46,18 +46,27 @@ export async function GET(request: NextRequest) {
     let sent = 0;
     let skipped = 0;
 
+    const skippedReasons: Record<string, number> = {
+      tier_not_allowed: 0,
+      digest_disabled: 0,
+      no_portfolio: 0,
+      send_failed: 0,
+    };
+
     for (const user of users.rows) {
       const settings = user.notification_settings || {};
       
       // Check if user can receive daily digest based on tier
       if (!canReceiveNotification(user.tier || 'free', 'daily_digest')) {
         skipped++;
+        skippedReasons.tier_not_allowed++;
         continue;
       }
       
       // Check if user has daily digest enabled (default true)
       if (settings.email_daily_digest === false) {
         skipped++;
+        skippedReasons.digest_disabled++;
         continue;
       }
 
@@ -66,6 +75,7 @@ export async function GET(request: NextRequest) {
       
       if (!portfolioData) {
         skipped++;
+        skippedReasons.no_portfolio++;
         continue;
       }
 
@@ -73,19 +83,24 @@ export async function GET(request: NextRequest) {
       const toEmail = settings.notification_email || user.email;
 
       // Send digest
+      console.log(`[Daily Digest] Sending to ${user.email} (${user.tier})`);
       const success = await sendDailyDigest(toEmail, user.name || 'Investor', portfolioData);
       
       if (success) {
         sent++;
       } else {
         skipped++;
+        skippedReasons.send_failed++;
       }
     }
+    
+    console.log('[Daily Digest] Skip reasons:', skippedReasons);
 
     return NextResponse.json({
       success: true,
       sent,
       skipped,
+      skippedReasons,
       total: users.rows.length,
     });
   } catch (error: any) {
