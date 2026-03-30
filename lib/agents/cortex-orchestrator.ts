@@ -3,7 +3,7 @@
 
 import enhancedAnalyst, { EnhancedAnalystReport } from './analyst-enhanced';
 import enhancedStrategist, { EnhancedRebalancingPlan } from './strategist-enhanced';
-import enhancedRiskAssessment, { PlanRiskReview } from './risk-enhanced-complete';
+import enhancedRiskAssessment, { PlanRiskReview } from './risk-enhanced';
 import enhancedExecutor, { EnhancedExecutionPlan } from './executor-enhanced';
 
 export interface UserPreferences {

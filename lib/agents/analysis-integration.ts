@@ -1,4 +1,4 @@
-// Cortex Capital - Analysis Engine Integration
+// Cortex Capital - Analysis Engine Integration (Corrected)
 // Wires trading analysis engines into agent decision-making
 
 import {
@@ -16,7 +16,6 @@ import {
   
   // Sector momentum
   getSectorMomentumBySymbol,
-  getSectorRankings,
   type SectorMomentum,
   
   // Signal generator
@@ -38,8 +37,8 @@ import {
   type Bet,
   
   // Smart money detector
-  detectSmartMoneyActivity,
-  type SmartMoneySignal,
+  detectSmartMoney,
+  type SmartMoneyDetection,
 } from './analysis';
 
 import { getQuote } from '../integrations/tradier';
@@ -79,7 +78,8 @@ export async function getEnhancedAnalystAnalysis(symbol: string): Promise<Analys
     // Get sector momentum
     let sectorMomentum: SectorMomentum | undefined;
     try {
-      sectorMomentum = await getSectorMomentumBySymbol(symbol);
+      const result = await getSectorMomentumBySymbol(symbol);
+      sectorMomentum = result || undefined;
     } catch (error) {
       console.warn(`Could not fetch sector momentum for ${symbol}:`, error);
     }
@@ -315,7 +315,7 @@ export interface RiskEnhancedData {
   flowSentiment: FlowSentiment;
   unusualStrikes: Strike[];
   largeBets: Bet[];
-  smartMoneySignal?: SmartMoneySignal;
+  smartMoneySignal?: SmartMoneyDetection;
   riskScore: number; // 0-100, higher = more risky
   warnings: string[];
   recommendations: string[];
@@ -336,9 +336,9 @@ export async function getEnhancedRiskAnalysis(symbol: string): Promise<RiskEnhan
     const largeBets = await detectLargeBets(symbol);
     
     // Detect smart money activity
-    let smartMoneySignal: SmartMoneySignal | undefined;
+    let smartMoneySignal: SmartMoneyDetection | undefined;
     try {
-      smartMoneySignal = await detectSmartMoneyActivity(symbol);
+      smartMoneySignal = await detectSmartMoney(symbol);
     } catch (error) {
       console.warn(`Could not detect smart money activity for ${symbol}:`, error);
     }
@@ -375,7 +375,7 @@ function calculateRiskScore(
   flowSentiment: FlowSentiment,
   unusualStrikes: Strike[],
   largeBets: Bet[],
-  smartMoneySignal?: SmartMoneySignal
+  smartMoneySignal?: SmartMoneyDetection
 ): number {
   let score = 50; // Base score
   
@@ -401,10 +401,10 @@ function calculateRiskScore(
   }
   
   // Adjust based on smart money
-  if (smartMoneySignal?.signal === 'bearish') {
-    score += 15;
-  } else if (smartMoneySignal?.signal === 'bullish') {
-    score -= 10;
+  if (smartMoneySignal?.detected && smartMoneySignal.type === 'accumulation') {
+    score -= 10; // Smart money accumulation is bullish
+  } else if (smartMoneySignal?.detected && smartMoneySignal.type === 'hedge') {
+    score += 10; // Hedging can indicate concern
   }
   
   // Cap score between 0-100
@@ -415,7 +415,7 @@ function generateRiskWarnings(
   flowSentiment: FlowSentiment,
   unusualStrikes: Strike[],
   largeBets: Bet[],
-  smartMoneySignal?: SmartMoneySignal,
+  smartMoneySignal?: SmartMoneyDetection,
   riskScore?: number
 ): { warnings: string[]; recommendations: string[] } {
   const warnings: string[] = [];
@@ -441,9 +441,13 @@ function generateRiskWarnings(
   }
   
   // Smart money warnings
-  if (smartMoneySignal?.signal === 'bearish') {
-    warnings.push('Smart money shows bearish positioning');
-    recommendations.push('Consider following smart money or waiting for confirmation');
+  if (smartMoneySignal?.detected) {
+    warnings.push(`Smart money activity detected: ${smartMoneySignal.type}`);
+    if (smartMoneySignal.type === 'accumulation') {
+      recommendations.push('Smart money accumulating - consider following');
+    } else if (smartMoneySignal.type === 'hedge') {
+      recommendations.push('Smart money hedging - exercise caution');
+    }
   }
   
   // Risk score warnings
@@ -550,7 +554,7 @@ export async function getExecutionConfirmation(
       }
       
       warnings.push(...riskWarnings);
-      recommendations.push(...riskRecommendations.slice(0, 2));
+      reasons.push(...riskRecommendations.slice(0, 2));
     }
     
     // Calculate final confidence
@@ -651,7 +655,7 @@ export async function enhancedAnalystAgent(symbol: string): Promise<{
   
   // Sector momentum recommendations
   if (sectorMomentum) {
-    recommendations.push(`Sector momentum: ${sectorMomentum.trend} (rank ${sectorMomentum.rank}/${sectorMomentum.total})`);
+    recommendations.push(`Sector momentum: ${sectorMomentum.trend} (rank ${sectorMomentum.rank})`);
   }
   
   // Determine risk level
@@ -789,7 +793,7 @@ export async function enhancedExecutorAgent(
         symbol,
         action,
         quantity: Math.floor((size * 10000) / currentPrice), // Assuming $10,000 portfolio for calculation
-        orderType: 'limit',
+        orderType: 'limit' as const,
         limitPrice: action === 'BUY' ? currentPrice * 0.995 : currentPrice * 1.005, // Slightly better price
       };
     }
@@ -801,54 +805,4 @@ export async function enhancedExecutorAgent(
   };
 }
 
-// ============================================================================
-// MAIN EXPORTS
-// ============================================================================
 
-// Named exports for all functions
-export {
-  // Analyst functions
-  enhancedAnalystAgent,
-  getEnhancedAnalystAnalysis,
-  getBatchEnhancedAnalysis,
-  
-  // Strategist functions
-  enhancedStrategistAgent,
-  getEnhancedStrategistAnalysis,
-  
-  // Risk functions
-  enhancedRiskAgent,
-  getEnhancedRiskAnalysis,
-  
-  // Executor functions
-  enhancedExecutorAgent,
-  getExecutionConfirmation,
-};
-
-// Type exports
-export type {
-  AnalystEnhancedData,
-  StrategistEnhancedData,
-  RiskEnhancedData,
-  ExecutionConfirmation,
-};
-
-// Default export for convenience
-export default {
-  // Analyst functions
-  enhancedAnalystAgent,
-  getEnhancedAnalystAnalysis,
-  getBatchEnhancedAnalysis,
-  
-  // Strategist functions
-  enhancedStrategistAgent,
-  getEnhancedStrategistAnalysis,
-  
-  // Risk functions
-  enhancedRiskAgent,
-  getEnhancedRiskAnalysis,
-  
-  // Executor functions
-  enhancedExecutorAgent,
-  getExecutionConfirmation,
-};

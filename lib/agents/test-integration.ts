@@ -67,13 +67,13 @@ async function testEnhancedAgentImports() {
     // Try to import enhanced agents
     const enhancedAnalyst = await import('./analyst-enhanced');
     const enhancedStrategist = await import('./strategist-enhanced');
-    const enhancedRisk = await import('./risk-enhanced-complete');
+    const enhancedRisk = await import('./risk-enhanced');
     const enhancedExecutor = await import('./executor-enhanced');
     
     console.log('✅ Successfully imported all enhanced agents:');
     console.log('  - analyst-enhanced.ts');
     console.log('  - strategist-enhanced.ts');
-    console.log('  - risk-enhanced-complete.ts');
+    console.log('  - risk-enhanced.ts');
     console.log('  - executor-enhanced.ts');
     
     // Check default exports
@@ -86,7 +86,7 @@ async function testEnhancedAgentImports() {
     }
     
     if (typeof enhancedRisk.default === 'function') {
-      console.log('✅ risk-enhanced-complete has default export function');
+      console.log('✅ risk-enhanced has default export function');
     }
     
     if (typeof enhancedExecutor.default === 'function') {

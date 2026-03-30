@@ -1,4 +1,4 @@
-// Cortex Capital - ENHANCED RISK AGENT
+// Cortex Capital - ENHANCED RISK AGENT (Complete)
 // Risk assessment with real options flow and smart money detection
 
 import { enhancedRiskAgent } from './analysis-integration';
@@ -214,7 +214,6 @@ async function generateSectorRisks(
     JPM: 'financials', BAC: 'financials', WFC: 'financials',
     JNJ: 'healthcare', PFE: 'healthcare', MRK: 'healthcare',
     AMZN: 'consumer', TSLA: 'consumer', HD: 'consumer',
-    // Add more mappings as needed
   };
   
   const sectorRisks: Record<string, {
@@ -265,7 +264,7 @@ async function generateSectorRisks(
     return {
       sector,
       risk,
-      concerns: Array.from(data.concerns).slice(0, 5), // Limit to top 5 concerns
+      concerns: Array.from(data.concerns).slice(0, 5),
     };
   });
 }
@@ -318,7 +317,7 @@ function generatePositionRisks(
     return {
       symbol: position.ticker,
       risk: riskLevel,
-      concerns: concerns.slice(0, 3), // Limit to top 3 concerns
+      concerns: concerns.slice(0, 3),
       options_flow: optionsFlow,
     };
   });
@@ -337,7 +336,6 @@ function assessMarketRisks(
   // Liquidity risk (simplified)
   let liquidityRisk: 'low' | 'medium' | 'high' = 'low';
   const smallCapPositions = analystReport.positions.filter(p => {
-    // Simplified: assume positions under $10B market cap are less liquid
     const largeCaps = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'JNJ', 'V'];
     return !largeCaps.includes(p.ticker);
   });
@@ -526,4 +524,241 @@ function calculateTradeRiskScore(
     score = riskAnalysis.analysis.riskScore;
   }
   
-  // Adjust based
+  // Adjust based on trade confidence
+  if (trade.confidence < 60) {
+    score += 15;
+  } else if (trade.confidence > 80) {
+    score -= 10;
+  }
+  
+  // Adjust based on position size
+  const position = analystReport.positions.find(p => p.ticker === trade.symbol);
+  if (position) {
+    const positionSize = position.value / analystReport.total_value;
+    if (positionSize > 0.1 && trade.action === 'BUY') {
+      score += 10;
+    }
+  }
+  
+  // Adjust based on market conditions
+  if (trade.risk_assessment.level === 'high') {
+    score += 20;
+  } else if (trade.risk_assessment.level === 'low') {
+    score -= 10;
+  }
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Generate trade concerns
+ */
+function generateTradeConcerns(
+  trade: EnhancedTradeRecommendation,
+  riskAnalysis: any,
+  analystReport: AnalystReport
+): string[] {
+  const concerns: string[] = [];
+  
+  // Risk analysis concerns
+  if (riskAnalysis?.analysis?.warnings) {
+    concerns.push(...riskAnalysis.analysis.warnings.slice(0, 2));
+  }
+  
+  // Trade-specific concerns
+  if (trade.confidence < 60) {
+    concerns.push(`Low confidence signal: ${trade.confidence}%`);
+  }
+  
+  if (trade.risk_assessment.level === 'high') {
+    concerns.push('High risk assessment from strategist');
+  }
+  
+  // Position size concerns
+  const position = analystReport.positions.find(p => p.ticker === trade.symbol);
+  if (position) {
+    const newShares = trade.action === 'BUY' ? position.shares + trade.shares : position.shares - trade.shares;
+    const newValue = newShares * trade.execution_parameters.suggested_entry;
+    const newPositionSize = newValue / analystReport.total_value;
+    
+    if (newPositionSize > 0.15) {
+      concerns.push(`Position would become too large: ${(newPositionSize * 100).toFixed(1)}%`);
+    }
+  }
+  
+  // Options flow concerns
+  if (riskAnalysis?.analysis?.flowSentiment?.sentiment === 'bearish' && trade.action === 'BUY') {
+    concerns.push('Options flow shows bearish sentiment conflicting with BUY signal');
+  }
+  
+  return concerns.slice(0, 5);
+}
+
+/**
+ * Determine trade approval
+ */
+function determineTradeApproval(
+  riskScore: number,
+  concerns: string[],
+  trade: EnhancedTradeRecommendation
+): { approval: 'APPROVED' | 'CONDITIONAL' | 'REJECTED'; conditions: string[] } {
+  const conditions: string[] = [];
+  
+  if (riskScore > 70) {
+    return {
+      approval: 'REJECTED',
+      conditions: [`Risk score too high: ${riskScore}/100`, ...concerns.slice(0, 2)],
+    };
+  }
+  
+  if (riskScore > 50 || concerns.length > 2) {
+    conditions.push(...concerns.slice(0, 3));
+    
+    if (trade.confidence < 70) {
+      conditions.push('Requires higher confidence (>70%) for execution');
+    }
+    
+    if (trade.risk_assessment.level === 'high') {
+      conditions.push('Requires risk mitigation measures');
+    }
+    
+    return {
+      approval: 'CONDITIONAL',
+      conditions,
+    };
+  }
+  
+  return {
+    approval: 'APPROVED',
+    conditions: ['No significant risk concerns detected'],
+  };
+}
+
+/**
+ * Suggest trade adjustments
+ */
+function suggestTradeAdjustments(
+  riskScore: number,
+  trade: EnhancedTradeRecommendation,
+  riskAnalysis: any
+): TradeRiskReview['suggested_adjustments'] | undefined {
+  if (riskScore < 50 && trade.confidence > 70) {
+    return undefined;
+  }
+  
+  const adjustments: TradeRiskReview['suggested_adjustments'] = {};
+  
+  // Size reduction for higher risk
+  if (riskScore > 60) {
+    adjustments.size_reduction = 0.5;
+  } else if (riskScore > 50) {
+    adjustments.size_reduction = 0.25;
+  }
+  
+  // Tighter stops for volatile stocks
+  if (riskAnalysis?.analysis?.flowSentiment?.sentiment === 'bearish') {
+    adjustments.tighter_stops = true;
+  }
+  
+  // Different entry for high risk
+  if (riskScore > 65) {
+    adjustments.different_entry = true;
+  }
+  
+  return Object.keys(adjustments).length > 0 ? adjustments : undefined;
+}
+
+/**
+ * Calculate plan risk
+ */
+function calculatePlanRisk(tradeReviews: TradeRiskReview[]): {
+  approval: 'APPROVED' | 'CONDITIONAL' | 'REJECTED';
+  score: number;
+} {
+  if (tradeReviews.length === 0) {
+    return { approval: 'APPROVED', score: 0 };
+  }
+  
+  // Calculate average risk score
+  const avgScore = tradeReviews.reduce((sum, r) => sum + r.risk_score, 0) / tradeReviews.length;
+  
+  // Count rejected trades
+  const rejectedCount = tradeReviews.filter(r => r.risk_approval === 'REJECTED').length;
+  const conditionalCount = tradeReviews.filter(r => r.risk_approval === 'CONDITIONAL').length;
+  
+  // Determine overall approval
+  let approval: 'APPROVED' | 'CONDITIONAL' | 'REJECTED' = 'APPROVED';
+  
+  if (rejectedCount > 0) {
+    approval = 'REJECTED';
+  } else if (conditionalCount > 0 || avgScore > 60) {
+    approval = 'CONDITIONAL';
+  }
+  
+  return { approval, score: avgScore };
+}
+
+/**
+ * Calculate portfolio impact
+ */
+function calculatePortfolioImpact(
+  tradeReviews: TradeRiskReview[],
+  analystReport: AnalystReport
+): PlanRiskReview['portfolio_impact'] {
+  // Simplified calculations
+  const avgRiskScore = tradeReviews.reduce((sum, r) => sum + r.risk_score, 0) / Math.max(1, tradeReviews.length);
+  const maxDrawdown = (avgRiskScore / 100) * 15;
+  const var95 = (avgRiskScore / 100) * 10;
+  const expectedShortfall = var95 * 1.25;
+  
+  return {
+    max_drawdown: maxDrawdown,
+    var_95: var95,
+    expected_shortfall: expectedShortfall,
+  };
+}
+
+/**
+ * Generate risk mitigations
+ */
+function generateRiskMitigations(tradeReviews: TradeRiskReview[]): string[] {
+  const mitigations: string[] = [];
+  
+  // Count high-risk trades
+  const highRiskTrades = tradeReviews.filter(r => r.risk_score > 60);
+  if (highRiskTrades.length > 0) {
+    mitigations.push(`Reduce size on ${highRiskTrades.length} high-risk trades`);
+  }
+  
+  // Check for conditional approvals
+  const conditionalTrades = tradeReviews.filter(r => r.risk_approval === 'CONDITIONAL');
+  if (conditionalTrades.length > 0) {
+    mitigations.push(`Implement conditions on ${conditionalTrades.length} trades before execution`);
+  }
+  
+  // Check for common concerns
+  const allConcerns = tradeReviews.flatMap(r => r.concerns);
+  const concernCounts: Record<string, number> = {};
+  allConcerns.forEach(concern => {
+    concernCounts[concern] = (concernCounts[concern] || 0) + 1;
+  });
+  
+  const frequentConcerns = Object.entries(concernCounts)
+    .filter(([_, count]) => count > 1)
+    .map(([concern]) => concern);
+  
+  if (frequentConcerns.length > 0) {
+    mitigations.push(`Address frequent concerns: ${frequentConcerns.slice(0, 2).join(', ')}`);
+  }
+  
+  // Add general mitigations
+  mitigations.push('Monitor positions closely post-execution');
+  mitigations.push('Be prepared to exit if risk parameters are breached');
+  
+  return mitigations.slice(0, 5);
+}
+
+/**
+ * Main export - enhanced risk assessment function
+ */
+export default enhancedRiskAssessment;

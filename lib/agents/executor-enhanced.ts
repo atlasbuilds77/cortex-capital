@@ -3,7 +3,7 @@
 
 import { enhancedExecutorAgent } from './analysis-integration';
 import { EnhancedRebalancingPlan, EnhancedTradeRecommendation } from './strategist-enhanced';
-import { TradeRiskReview, PlanRiskReview } from './risk-enhanced-complete';
+import { TradeRiskReview, PlanRiskReview } from './risk-enhanced';
 import { getQuote, placeOrder } from '../integrations/tradier';
 
 export interface ExecutionOrder {
