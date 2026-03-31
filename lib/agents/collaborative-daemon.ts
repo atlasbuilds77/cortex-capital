@@ -205,6 +205,9 @@ class CollaborativeDaemon {
     const agentInfo = AGENTS[agent];
     const soul = this.loadAgentSoul(agent);
     
+    // Initialize context variables
+    let relationshipContext = '';
+    
     try {
       const agentType = agent as AgentType;
       const relationships = relationshipMatrix.getAgentRelationships(agentType);
