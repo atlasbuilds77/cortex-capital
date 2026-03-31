@@ -140,6 +140,34 @@ export async function getUserUniverse(userId: string): Promise<UserUniverse> {
 }
 
 /**
+ * Save/update a user's universe
+ * ISOLATED: Only updates the specified user's universe
+ */
+export async function saveUserUniverse(universe: UserUniverse): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO user_universes (user_id, agent_memories, trade_history, preferences, personality_overrides, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         agent_memories = EXCLUDED.agent_memories,
+         trade_history = EXCLUDED.trade_history,
+         preferences = EXCLUDED.preferences,
+         personality_overrides = EXCLUDED.personality_overrides,
+         updated_at = NOW()`,
+      [
+        universe.userId,
+        JSON.stringify(universe.agentMemories),
+        JSON.stringify(universe.tradeHistory),
+        JSON.stringify(universe.preferences),
+        JSON.stringify(universe.personalityOverrides),
+      ]
+    );
+  } catch (error: any) {
+    console.error('[UserUniverse] Failed to save universe:', error.message);
+  }
+}
+
+/**
  * Add a memory to an agent for a specific user
  * ISOLATED: Only modifies the specified user's agent memory
  */

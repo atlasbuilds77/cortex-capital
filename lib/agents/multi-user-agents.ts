@@ -9,7 +9,7 @@
  */
 
 import { getPool } from '../db';
-import { getUserUniverse, saveUserUniverse, addAgentMemory, getUserAgentContext } from './user-universe';
+import { getUserUniverse, saveUserUniverse, addAgentMemory, getUserAgentContext } from './user-universe-db';
 
 const AGENTS = ['ANALYST', 'STRATEGIST', 'DAY_TRADER', 'MOMENTUM', 'RISK', 'EXECUTOR', 'REPORTER'];
 
