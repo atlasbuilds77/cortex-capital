@@ -145,6 +145,11 @@ export async function POST(request: NextRequest) {
       case 'portfolio_opportunities':
         // Opportunity-focused discussion
         const pf = await portfolioDiscussionEngine.fetchPortfolio(userId);
+        console.log('[API] portfolio_opportunities - userId:', userId, 'portfolio:', pf ? {
+          portfolio_value: pf.portfolio_value,
+          cash: pf.cash,
+          positions_count: pf.positions.length
+        } : 'null');
         if (pf) {
           await portfolioDiscussionEngine.discussPortfolio(pf, {
             risk_tolerance: params?.risk_tolerance || 'aggressive',
@@ -152,10 +157,11 @@ export async function POST(request: NextRequest) {
             goals: params?.goals || ['Growth', 'Alpha']
           }, 'opportunities', userId);
         }
-        return NextResponse.json({ 
-          success: true, 
-          message: 'Opportunities discussion started', 
-          userId: userId || 'demo' 
+        return NextResponse.json({
+          success: true,
+          message: 'Opportunities discussion started',
+          userId: userId || 'demo',
+          portfolio_value: pf?.portfolio_value || 0
         });
       default:
         return NextResponse.json(

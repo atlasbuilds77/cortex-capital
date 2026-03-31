@@ -175,6 +175,7 @@ class PortfolioDiscussionEngine {
    * Format portfolio for agent context
    */
   private formatPortfolioContext(portfolio: PortfolioData, profile: UserProfile): string {
+    console.log('[PortfolioDiscussion] formatPortfolioContext - portfolio_value:', portfolio.portfolio_value, 'cash:', portfolio.cash, 'positions:', portfolio.positions.length);
     const positionSummary = portfolio.positions.length > 0
       ? portfolio.positions.map(p => 
           `${p.symbol}: ${p.qty} shares @ $${p.current_price.toFixed(2)} (${p.unrealized_pnl_pct >= 0 ? '+' : ''}${p.unrealized_pnl_pct.toFixed(1)}%)`
