@@ -26,25 +26,39 @@ export default function ProfilePage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load user data on mount
+  // Load user data on mount - fetch full profile from API
   useEffect(() => {
-    if (user) {
-      setProfile({
-        name: user.name || '',
-        email: user.email || '',
-        phone: '',
-        avatarUrl: undefined,
-        risk_profile: user.risk_profile || 'moderate',
-      })
-    }
-  }, [user])
+    const fetchProfile = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch('/api/user/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            setProfile({
+              name: data.data.name || '',
+              email: data.data.email || '',
+              phone: data.data.phone || '',
+              avatarUrl: data.data.avatar_url || undefined,
+              risk_profile: data.data.risk_profile || 'moderate',
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch profile:', error);
+      }
+    };
+    fetchProfile();
+  }, [token])
 
   const handleSave = async () => {
     setSaving(true)
     setSaved(false)
     
     try {
-      const res = await fetch('/api/profile/update', {
+      const res = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
