@@ -263,6 +263,36 @@ function AgentAvatar({
         {agent.name}
         {agent.isGM && <span className="ml-1 text-yellow-400">GM</span>}
       </div>
+
+      {/* Hover tooltip with large avatar */}
+      <div className="absolute -top-24 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+        <div className="bg-gray-900/95 border border-white/20 rounded-lg p-3 shadow-2xl min-w-[140px]">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-16 h-16 rounded-full overflow-hidden border-2" style={{ borderColor: agent.color }}>
+              <Image
+                src={agent.avatar}
+                alt={agent.name}
+                width={64}
+                height={64}
+                className="object-cover"
+              />
+            </div>
+            <div className="text-center">
+              <div className="font-bold text-sm text-white">{agent.name}</div>
+              <div className="text-xs text-white/60">{agent.role}</div>
+              <div className="text-xs mt-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: `${agent.color}30`, color: agent.color }}>
+                {state.state === 'working' ? '💻 At Laptop' : 
+                 state.state === 'discussing' ? '💬 In Discussion' :
+                 state.state === 'executing' ? '⚡ Executing' :
+                 state.state === 'break' ? '☕ On Break' :
+                 state.state === 'alert' ? '🚨 Alert' : 'Idle'}
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Arrow */}
+        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900/95 rotate-45 border-r border-b border-white/20"></div>
+      </div>
     </div>
   );
 }
