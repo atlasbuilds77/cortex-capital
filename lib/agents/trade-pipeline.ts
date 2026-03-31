@@ -6,6 +6,7 @@
  */
 
 import { collaborativeDaemon, discussionEmitter } from './collaborative-daemon';
+import { calculatePositionSize, calculateQuantity, RiskProfile } from '../position-sizing';
 
 const ALPACA_BASE = 'https://paper-api.alpaca.markets/v2';
 
@@ -26,6 +27,9 @@ interface TradeSignal {
   thesis: string;
   source: string; // Which agent generated it
   confidence: number; // 0-100
+  userId?: string; // For per-user position sizing
+  riskProfile?: RiskProfile; // User's risk profile
+  accountBalance?: number; // User's account balance
 }
 
 interface TradeApproval {
@@ -199,8 +203,8 @@ export async function executeTradeIdea(signal: TradeSignal): Promise<void> {
     return;
   }
 
-  // Step 3: Calculate position size (2% of portfolio default)
-  const portfolioValue = await getPortfolioValue();
+  // Step 3: Calculate position size based on user's risk profile
+  const portfolioValue = signal.accountBalance || await getPortfolioValue();
   const currentPrice = await getCurrentPrice(signal.symbol);
   
   if (!currentPrice || !portfolioValue) {
@@ -208,13 +212,28 @@ export async function executeTradeIdea(signal: TradeSignal): Promise<void> {
     return;
   }
 
-  const positionValue = portfolioValue * 0.02; // 2% position
-  const qty = Math.floor(positionValue / currentPrice);
+  // Use per-user position sizing based on risk profile
+  const riskProfile = signal.riskProfile || 'moderate';
+  const positionSizing = calculatePositionSize(
+    portfolioValue,
+    riskProfile,
+    signal.confidence,
+    0 // TODO: get current open positions count
+  );
   
-  if (qty < 1) {
-    console.log(`[PIPELINE] Position too small: $${positionValue} / $${currentPrice} = ${qty} shares`);
+  if (positionSizing.positionDollars <= 0) {
+    console.log(`[PIPELINE] ${positionSizing.reasoning}`);
     return;
   }
+  
+  const qty = calculateQuantity(positionSizing.positionDollars, currentPrice);
+  
+  if (qty < 1) {
+    console.log(`[PIPELINE] Position too small: $${positionSizing.positionDollars.toFixed(0)} / $${currentPrice} = ${qty} shares`);
+    return;
+  }
+  
+  console.log(`[PIPELINE] Position sizing: ${positionSizing.reasoning}`);
 
   // Step 4: EXECUTOR places the trade
   const side = signal.direction === 'long' ? 'buy' : 'sell';
@@ -243,7 +262,7 @@ export async function executeTradeIdea(signal: TradeSignal): Promise<void> {
         role: 'Market Reporter',
         avatar: '📰',
         color: '#F97316',
-        content: `New position: ${signal.direction.toUpperCase()} ${qty} ${signal.symbol} at ~$${currentPrice.toFixed(2)}. Notional: $${(qty * currentPrice).toFixed(0)}. Risk: 2% of portfolio.`,
+        content: `New position: ${signal.direction.toUpperCase()} ${qty} ${signal.symbol} at ~$${currentPrice.toFixed(2)}. Notional: $${(qty * currentPrice).toFixed(0)}. Risk: ${positionSizing.positionPercent.toFixed(1)}% (${riskProfile}). Stop: ${positionSizing.stopLossPercent}%, TP: ${positionSizing.takeProfitPercent}%.`,
         discussionId: discussion?.id,
         discussionTopic: 'Trade Report',
       });
