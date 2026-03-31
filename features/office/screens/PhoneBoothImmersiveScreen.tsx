@@ -11,18 +11,50 @@ export type PhoneCallStep =
   | "reply"
   | "complete";
 
-const AGENTS = [
-  { id: "ANALYST", name: "Analyst", role: "Market Analyst", avatar: "📊", color: "#3B82F6" },
-  { id: "STRATEGIST", name: "Strategist", role: "Chief Strategist", avatar: "🎯", color: "#8B5CF6" },
-  { id: "DAY_TRADER", name: "Trader", role: "Day Trader", avatar: "⚡", color: "#F59E0B" },
-  { id: "MOMENTUM", name: "Momentum", role: "Sector Rotation", avatar: "🚀", color: "#10B981" },
-  { id: "OPTIONS_STRATEGIST", name: "Options", role: "Options Specialist", avatar: "📐", color: "#EC4899" },
-  { id: "RISK", name: "Risk", role: "Risk Manager", avatar: "🛡️", color: "#EF4444" },
-  { id: "EXECUTOR", name: "Executor", role: "Trade Executor", avatar: "🎬", color: "#6366F1" },
-  { id: "GROWTH", name: "Growth", role: "Growth Advocate", avatar: "📈", color: "#22C55E" },
-  { id: "VALUE", name: "Value", role: "Value Investor", avatar: "💎", color: "#0EA5E9" },
-  { id: "REPORTER", name: "Reporter", role: "Market Reporter", avatar: "📰", color: "#F97316" },
-];
+// Import shared agent config with proper avatars
+import { AGENTS as AGENT_CONFIG, AgentConfig } from "@/lib/agents/agent-config";
+import Image from "next/image";
+
+const AGENTS = Object.values(AGENT_CONFIG).map((agent: AgentConfig) => ({
+  id: agent.id,
+  name: agent.name,
+  role: agent.role,
+  avatar: agent.avatar, // Use image path, not emoji
+  emoji: agent.emoji,   // Keep emoji as fallback
+  color: agent.color,
+}));
+
+// Helper component for agent avatar
+function AgentAvatar({ agent, size = 48 }: { agent: typeof AGENTS[0]; size?: number }) {
+  return (
+    <div 
+      className="rounded-full overflow-hidden border-2 flex items-center justify-center"
+      style={{ 
+        borderColor: agent.color, 
+        backgroundColor: `${agent.color}20`,
+        width: size,
+        height: size
+      }}
+    >
+      <Image
+        src={agent.avatar}
+        alt={agent.name}
+        width={size}
+        height={size}
+        className="object-cover"
+        onError={(e) => {
+          // Fallback to emoji if image fails
+          const target = e.target as HTMLImageElement;
+          target.style.display = 'none';
+          const parent = target.parentElement;
+          if (parent) {
+            parent.innerHTML = `<span style="font-size: ${size * 0.5}px">${agent.emoji}</span>`;
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 const API_BASE = ""; // API is same-origin
 
@@ -118,7 +150,7 @@ function AgentChatScreen({
           className="w-12 h-12 rounded-full flex items-center justify-center text-2xl border-2"
           style={{ borderColor: agent.color, backgroundColor: `${agent.color}20` }}
         >
-          {agent.avatar}
+          <AgentAvatar agent={agent} size={48} />
         </div>
         <div>
           <div className="font-bold text-lg" style={{ color: agent.color }}>{agent.name}</div>
@@ -134,7 +166,7 @@ function AgentChatScreen({
       <div className="relative z-10 flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="text-5xl mb-4">{agent.avatar}</div>
+            <div className="text-5xl mb-4"><AgentAvatar agent={agent} size={48} /></div>
             <p className="text-white/30 text-sm">Ask {agent.name} anything about markets</p>
             <div className="flex flex-wrap gap-2 mt-4 max-w-md justify-center">
               {[
@@ -157,11 +189,11 @@ function AgentChatScreen({
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "agent" && (
-              <div 
-                className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 mt-1"
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 mt-1 overflow-hidden"
                 style={{ backgroundColor: `${agent.color}20`, border: `1px solid ${agent.color}40` }}
               >
-                {msg.avatar}
+                <Image src={msg.avatar} alt={msg.agentName || 'Agent'} width={32} height={32} className="object-cover" />
               </div>
             )}
             <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
@@ -180,7 +212,7 @@ function AgentChatScreen({
               className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
               style={{ backgroundColor: `${agent.color}20`, border: `1px solid ${agent.color}40` }}
             >
-              {agent.avatar}
+              <AgentAvatar agent={agent} size={48} />
             </div>
             <div className="bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5">
               <div className="flex gap-1">
@@ -260,7 +292,7 @@ export function PhoneBoothImmersiveScreen({
                 className="w-12 h-12 rounded-full flex items-center justify-center text-xl border-2 group-hover:scale-110 transition-transform"
                 style={{ borderColor: agent.color, backgroundColor: `${agent.color}15` }}
               >
-                {agent.avatar}
+                <AgentAvatar agent={agent} size={48} />
               </div>
               <div>
                 <div className="font-semibold text-sm text-white">{agent.name}</div>
