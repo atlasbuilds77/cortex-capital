@@ -4713,12 +4713,13 @@ export function RetroOffice3D({
             enableDamping
             dampingFactor={0.08}
             rotateSpeed={0.6}
-            zoomSpeed={0.8}
+            zoomSpeed={1.2}
             panSpeed={0.6}
-            minZoom={18}
-            maxZoom={120}
+            minZoom={10}
+            maxZoom={200}
             maxPolarAngle={Math.PI / 2.2}
             enableRotate={!spaceDown}
+            enableZoom={true}
             mouseButtons={{
               LEFT: spaceDown ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
               MIDDLE: THREE.MOUSE.DOLLY,
