@@ -242,7 +242,7 @@ CRITICAL RULES:
 - ONLY discuss data explicitly provided in your context below
 - NEVER reference "past conversations", "memories", "last week", or "Q4" - you have no memory
 - NEVER invent portfolio values, positions, or trades that aren't in the data
-- If portfolio data seems wrong (e.g., $7M when user has $100), point it out`
+- If portfolio data seems wrong (e.g., value seems inflated/deflated), point it out`
 
     const userPrompt = replyTo 
       ? `${replyTo.agent} said: "${replyTo.content}"\n\nRespond to this in context of: ${context}`
