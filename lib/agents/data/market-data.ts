@@ -233,4 +233,120 @@ export async function getSectorPerformance(): Promise<Map<string, number>> {
   return sectors;
 }
 
+/**
+ * Get LIVE options quote from Polygon
+ * @param underlying - Underlying symbol (e.g., 'AAPL')
+ * @param strike - Strike price (e.g., 150)
+ * @param expiration - Expiration date (YYYY-MM-DD)
+ * @param optionType - 'call' or 'put'
+ */
+export async function getOptionQuote(
+  underlying: string,
+  strike: number,
+  expiration: string,
+  optionType: 'call' | 'put'
+): Promise<{
+  symbol: string;
+  price: number;
+  bid: number;
+  ask: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility: number;
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
+} | null> {
+  // Build OCC option symbol: AAPL230915C00150000
+  const dateCode = expiration.replace(/-/g, '').slice(2); // 2023-09-15 -> 230915
+  const strikeCode = Math.round(strike * 1000).toString().padStart(8, '0');
+  const optionSymbol = `${underlying}${dateCode}${optionType === 'call' ? 'C' : 'P'}${strikeCode}`;
+
+  try {
+    // Try to get snapshot for this option contract
+    const response = await fetch(
+      `${POLYGON_BASE}/v3/snapshot/options/${underlying}/${optionSymbol}?apiKey=${POLYGON_API_KEY}`
+    );
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.results) {
+      const opt = data.results;
+      return {
+        symbol: optionSymbol,
+        price: opt.last_quote?.p || opt.day?.c || 0,
+        bid: opt.last_quote?.p_bid || 0,
+        ask: opt.last_quote?.p_ask || 0,
+        volume: opt.day?.v || 0,
+        openInterest: opt.open_interest || 0,
+        impliedVolatility: opt.implied_volatility || 0,
+        delta: opt.greeks?.delta || 0,
+        gamma: opt.greeks?.gamma || 0,
+        theta: opt.greeks?.theta || 0,
+        vega: opt.greeks?.vega || 0,
+      };
+    }
+
+    console.error(`[MarketData] No options data for ${optionSymbol}`);
+    return null;
+  } catch (error) {
+    console.error(`[MarketData] Failed to get option quote for ${optionSymbol}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get all options chain for an underlying
+ */
+export async function getOptionsChain(
+  underlying: string,
+  expiration?: string
+): Promise<Array<{
+  symbol: string;
+  strike: number;
+  optionType: 'call' | 'put';
+  price: number;
+  bid: number;
+  ask: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility: number;
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
+}> | null> {
+  try {
+    const url = expiration
+      ? `${POLYGON_BASE}/v3/snapshot/options/${underlying}?expiration_date=${expiration}&apiKey=${POLYGON_API_KEY}`
+      : `${POLYGON_BASE}/v3/snapshot/options/${underlying}?apiKey=${POLYGON_API_KEY}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.results) {
+      return data.results.map((opt: any) => ({
+        symbol: opt.details?.ticker || '',
+        strike: opt.details?.strike_price || 0,
+        optionType: opt.details?.contract_type || 'call',
+        price: opt.last_quote?.p || opt.day?.c || 0,
+        bid: opt.last_quote?.p_bid || 0,
+        ask: opt.last_quote?.p_ask || 0,
+        volume: opt.day?.v || 0,
+        openInterest: opt.open_interest || 0,
+        impliedVolatility: opt.implied_volatility || 0,
+        delta: opt.greeks?.delta || 0,
+        gamma: opt.greeks?.gamma || 0,
+        theta: opt.greeks?.theta || 0,
+        vega: opt.greeks?.vega || 0,
+      }));
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`[MarketData] Failed to get options chain for ${underlying}:`, error);
+    return null;
+  }
+}
+
 export { Quote, MarketSnapshot };
