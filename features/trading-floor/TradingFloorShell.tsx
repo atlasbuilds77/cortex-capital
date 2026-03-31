@@ -428,7 +428,7 @@ export function TradingFloorShell({
         headers["Authorization"] = `Bearer ${token}`;
       }
       
-      await fetch(`${API_BASE}/api/fishtank/discussions/trigger`, {
+      const response = await fetch(`${API_BASE}/api/fishtank/discussions/trigger`, {
         method: "POST",
         headers,
         body: JSON.stringify({ 
@@ -437,8 +437,15 @@ export function TradingFloorShell({
           params,
         }),
       });
+      
+      const data = await response.json();
+      console.log(`[Discussion] ${type} response:`, data);
+      
+      if (!response.ok || !data.success) {
+        console.error(`[Discussion] ${type} failed:`, data.error || 'Unknown error');
+      }
     } catch (error) {
-      console.error("Failed to trigger discussion:", error);
+      console.error("[Discussion] Failed to trigger discussion:", error);
     } finally {
       // Keep loading for a bit while agents start responding
       setTimeout(() => setDiscussionLoading(null), 2000);
