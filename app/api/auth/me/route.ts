@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     // Get user
     const result = await query(
-      'SELECT id, email, name, tier, created_at, two_factor_enabled FROM users WHERE id = $1',
+      'SELECT id, email, name, avatar_url, tier, created_at, two_factor_enabled FROM users WHERE id = $1',
       [authUser.userId]
     );
 
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name || null,
+        avatarUrl: user.avatar_url || null,
         tier: user.tier,
         twoFactorEnabled: user.two_factor_enabled || false,
         brokerType: brokerResult.rows[0]?.broker_type || null,
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
       id: user.id,
       email: user.email,
       name: user.name || null,
+      avatarUrl: user.avatar_url || null,
       tier: user.tier,
       brokerType: brokerResult.rows[0]?.broker_type || null,
       hasBrokerConnected: hasSnapTrade || brokerResult.rows.length > 0,

@@ -68,6 +68,7 @@ export default function ProfilePage() {
           name: profile.name,
           phone: profile.phone,
           risk_profile: profile.risk_profile,
+          avatar_url: profile.avatarUrl || null,
         }),
       })
       
