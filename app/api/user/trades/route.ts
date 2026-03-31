@@ -29,6 +29,13 @@ export async function GET(request: NextRequest) {
       if (snapUserId && snapUserSecret) {
         try {
           const allAccounts = await listAccounts(snapUserId, snapUserSecret);
+          
+          // Handle empty accounts - fall through to demo data
+          if (!allAccounts || allAccounts.length === 0) {
+            console.log('No SnapTrade accounts found for user, falling through to demo');
+            throw new Error('No accounts');
+          }
+          
           const accounts = selectedAccount 
             ? allAccounts.filter((a: any) => a.id === selectedAccount)
             : allAccounts.slice(0, 1);
