@@ -22,6 +22,41 @@ import { getFullResearchContext } from './data/research-engine';
 import { notifyTradeExecution, notifyTradeSignal } from '../notifications/trade-notifier';
 import { collaborativeDaemon } from './collaborative-daemon';
 import OpenAI from 'openai';
+
+/**
+ * Get cached research from 8 AM cron, fallback to fresh if not available
+ */
+async function getCachedOrFreshResearch(
+  userId: string,
+  userSectors: string[],
+  positionSymbols: string[],
+  allowedSymbols: string[]
+): Promise<string> {
+  try {
+    // Check for today's cached research
+    const today = new Date().toISOString().split('T')[0];
+    const cached = await query(`
+      SELECT content FROM agent_memories 
+      WHERE user_id = $1 
+        AND agent_id = 'RESEARCH' 
+        AND memory_type = 'daily_research'
+        AND created_at::date = $2::date
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `, [userId, today]);
+
+    if (cached.rows.length > 0 && cached.rows[0].content) {
+      console.log(`[AutoTrade] Using cached research for user ${userId}`);
+      return cached.rows[0].content;
+    }
+  } catch (error) {
+    console.warn('[AutoTrade] Failed to fetch cached research:', error);
+  }
+
+  // Fallback to fresh research
+  console.log(`[AutoTrade] No cached research, running fresh for user ${userId}`);
+  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols);
+}
 import * as fs from 'fs';
 
 const TIER_CAN_EXECUTE: Record<string, boolean> = {
@@ -105,7 +140,9 @@ async function generateRecommendations(
     `${p.symbol}: ${p.qty} shares @ $${p.currentPrice.toFixed(2)} (${p.unrealizedPnlPct >= 0 ? '+' : ''}${p.unrealizedPnlPct.toFixed(1)}%)`
   ).join('\n');
   
-  const researchContext = await getFullResearchContext(
+  // Use cached research from 8 AM cron, fallback to fresh if needed
+  const researchContext = await getCachedOrFreshResearch(
+    userId,
     prefs.sectorInterests || ['Technology'],
     portfolio.positions.map((p: any) => p.symbol),
     prefs.allowedSymbols || []
