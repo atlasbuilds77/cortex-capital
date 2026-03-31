@@ -43,15 +43,23 @@ export async function POST(request: NextRequest) {
         // Full portfolio review - uses userId if provided, else demo
         const reviewPortfolio = await portfolioDiscussionEngine.fetchPortfolio(userId);
         
-        // Check if user has a broker connected
+        // Check if user has a broker connected (SnapTrade OR legacy broker_credentials)
         if (userId) {
           const { query: brokerCheck } = await import('@/lib/db');
-          const brokerResult = await brokerCheck(
+          
+          // Check SnapTrade first
+          const snapResult = await brokerCheck(
+            'SELECT snaptrade_user_id FROM users WHERE id = $1 AND snaptrade_user_id IS NOT NULL',
+            [userId]
+          );
+          
+          // Fall back to legacy broker_credentials
+          const legacyResult = await brokerCheck(
             'SELECT broker_type FROM broker_credentials WHERE user_id = $1 AND is_active = true LIMIT 1',
             [userId]
           );
           
-          if (brokerResult.rows.length === 0) {
+          if (snapResult.rows.length === 0 && legacyResult.rows.length === 0) {
             // No broker - run a welcome discussion instead of portfolio analysis
             await collaborativeDaemon.runDiscussion(
               'Welcome',
