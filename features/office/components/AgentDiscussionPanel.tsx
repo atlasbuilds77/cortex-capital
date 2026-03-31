@@ -19,18 +19,22 @@ const TIER_AGENT_ACCESS: Record<string, string[]> = {
   partner: ['REPORTER', 'ANALYST', 'STRATEGIST', 'EXECUTOR', 'MOMENTUM', 'DAY_TRADER', 'OPTIONS_STRATEGIST', 'RISK', 'GROWTH', 'VALUE'],
 };
 
-// Agent colors and emojis
-const AGENT_STYLES: Record<string, { emoji: string; color: string; gradient: string }> = {
-  ANALYST: { emoji: "📊", color: "#3B82F6", gradient: "from-blue-500/20 to-blue-600/10" },
-  STRATEGIST: { emoji: "🎯", color: "#8B5CF6", gradient: "from-purple-500/20 to-purple-600/10" },
-  DAY_TRADER: { emoji: "⚡", color: "#F59E0B", gradient: "from-amber-500/20 to-amber-600/10" },
-  MOMENTUM: { emoji: "🚀", color: "#10B981", gradient: "from-emerald-500/20 to-emerald-600/10" },
-  RISK: { emoji: "🛡️", color: "#EF4444", gradient: "from-red-500/20 to-red-600/10" },
-  GROWTH: { emoji: "📈", color: "#22C55E", gradient: "from-green-500/20 to-green-600/10" },
-  VALUE: { emoji: "💎", color: "#0EA5E9", gradient: "from-sky-500/20 to-sky-600/10" },
-  OPTIONS_STRATEGIST: { emoji: "🎲", color: "#EC4899", gradient: "from-pink-500/20 to-pink-600/10" },
-  EXECUTOR: { emoji: "🎬", color: "#6366F1", gradient: "from-indigo-500/20 to-indigo-600/10" },
-  REPORTER: { emoji: "📰", color: "#94A3B8", gradient: "from-slate-500/20 to-slate-600/10" },
+// Import shared agent config for avatars
+import { AGENTS } from "@/lib/agents/agent-config";
+import Image from "next/image";
+
+// Agent colors and avatars (using images, fallback to emojis)
+const AGENT_STYLES: Record<string, { emoji: string; avatar: string; color: string; gradient: string }> = {
+  ANALYST: { emoji: "📊", avatar: "/avatars/analyst.jpg", color: "#3B82F6", gradient: "from-blue-500/20 to-blue-600/10" },
+  STRATEGIST: { emoji: "🎯", avatar: "/avatars/strategist.jpg", color: "#8B5CF6", gradient: "from-purple-500/20 to-purple-600/10" },
+  DAY_TRADER: { emoji: "⚡", avatar: "/avatars/day_trader.jpg", color: "#F59E0B", gradient: "from-amber-500/20 to-amber-600/10" },
+  MOMENTUM: { emoji: "🚀", avatar: "/avatars/momentum.jpg", color: "#10B981", gradient: "from-emerald-500/20 to-emerald-600/10" },
+  RISK: { emoji: "🛡️", avatar: "/avatars/risk.jpg", color: "#EF4444", gradient: "from-red-500/20 to-red-600/10" },
+  GROWTH: { emoji: "📈", avatar: "/avatars/growth.jpg", color: "#22C55E", gradient: "from-green-500/20 to-green-600/10" },
+  VALUE: { emoji: "💎", avatar: "/avatars/value.jpg", color: "#0EA5E9", gradient: "from-sky-500/20 to-sky-600/10" },
+  OPTIONS_STRATEGIST: { emoji: "🎲", avatar: "/avatars/options_strategist.jpg", color: "#EC4899", gradient: "from-pink-500/20 to-pink-600/10" },
+  EXECUTOR: { emoji: "🎬", avatar: "/avatars/executor.jpg", color: "#6366F1", gradient: "from-indigo-500/20 to-indigo-600/10" },
+  REPORTER: { emoji: "📰", avatar: "/avatars/analyst.jpg", color: "#94A3B8", gradient: "from-slate-500/20 to-slate-600/10" },
 };
 
 type UserTier = 'free' | 'recovery' | 'scout' | 'operator' | 'partner';
@@ -68,15 +72,30 @@ function MessageBubble({ message, isLatest, isLocked }: { message: AgentDiscussi
       style={{ borderLeftColor: style.color }}
     >
       {/* Agent Avatar */}
-      <div 
-        className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg"
-        style={{ 
+      <div
+        className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg overflow-hidden"
+        style={{
           backgroundColor: `${style.color}30`,
           border: `2px solid ${style.color}`,
           boxShadow: `0 0 10px ${style.color}40`
         }}
       >
-        {style.emoji}
+        <Image
+          src={style.avatar}
+          alt={message.agent}
+          width={40}
+          height={40}
+          className="object-cover"
+          onError={(e) => {
+            // Fallback to emoji if image fails
+            const target = e.target as HTMLImageElement;
+            target.style.display = 'none';
+            const parent = target.parentElement;
+            if (parent) {
+              parent.innerHTML = style.emoji;
+            }
+          }}
+        />
       </div>
       
       {/* Message Content */}
