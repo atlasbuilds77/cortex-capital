@@ -1,12 +1,14 @@
-// @ts-nocheck
 /**
  * MARKET DATA SERVICE FOR AGENTS
  * 
  * Provides real-time market data so agents don't hallucinate prices.
- * Uses Alpaca for quotes, Yahoo Finance as fallback.
+ * Uses Polygon.io (FREE tier) for quotes.
+ * 
+ * Updated 2026-03-31: Switched from Alpaca to Polygon
  */
 
-import alpaca from '../../integrations/alpaca';
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY || 'h7J74V1cd8_4NQpTxwQpudpqXWaIHMhv';
+const POLYGON_BASE = 'https://api.polygon.io';
 
 interface Quote {
   symbol: string;
@@ -33,7 +35,7 @@ const quoteCache = new Map<string, { quote: Quote; expires: number }>();
 const CACHE_TTL = 60000; // 1 minute
 
 /**
- * Get quote for a single symbol
+ * Get quote for a single symbol using Polygon
  */
 export async function getQuote(symbol: string): Promise<Quote | null> {
   const cached = quoteCache.get(symbol);
@@ -42,18 +44,26 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
   }
 
   try {
-    const snapshot = await alpaca.getSnapshot(symbol);
+    // Use Polygon's previous day endpoint (works on free tier)
+    const response = await fetch(
+      `${POLYGON_BASE}/v2/aggs/ticker/${symbol}/prev?apiKey=${POLYGON_API_KEY}`
+    );
+    const data = await response.json();
     
+    if (data.status !== 'OK' || !data.results?.[0]) {
+      console.error(`[MarketData] No data for ${symbol}:`, data);
+      return null;
+    }
+
+    const bar = data.results[0];
     const quote: Quote = {
       symbol,
-      price: snapshot.latestTrade?.p || snapshot.dailyBar?.c || 0,
-      change: (snapshot.dailyBar?.c || 0) - (snapshot.dailyBar?.o || 0),
-      changePercent: snapshot.dailyBar?.o 
-        ? ((snapshot.dailyBar.c - snapshot.dailyBar.o) / snapshot.dailyBar.o) * 100 
-        : 0,
-      high: snapshot.dailyBar?.h || 0,
-      low: snapshot.dailyBar?.l || 0,
-      volume: snapshot.dailyBar?.v || 0,
+      price: bar.c || 0,  // close
+      change: (bar.c || 0) - (bar.o || 0),
+      changePercent: bar.o ? ((bar.c - bar.o) / bar.o) * 100 : 0,
+      high: bar.h || 0,
+      low: bar.l || 0,
+      volume: bar.v || 0,
       timestamp: new Date().toISOString(),
     };
 
@@ -84,29 +94,17 @@ export async function getQuotes(symbols: string[]): Promise<Map<string, Quote>> 
 
   if (uncached.length === 0) return results;
 
-  try {
-    const snapshots = await alpaca.getSnapshots(uncached);
-    
-    for (const [symbol, snapshot] of Object.entries(snapshots)) {
-      const quote: Quote = {
-        symbol,
-        price: (snapshot as any).latestTrade?.p || (snapshot as any).dailyBar?.c || 0,
-        change: ((snapshot as any).dailyBar?.c || 0) - ((snapshot as any).dailyBar?.o || 0),
-        changePercent: (snapshot as any).dailyBar?.o 
-          ? (((snapshot as any).dailyBar.c - (snapshot as any).dailyBar.o) / (snapshot as any).dailyBar.o) * 100 
-          : 0,
-        high: (snapshot as any).dailyBar?.h || 0,
-        low: (snapshot as any).dailyBar?.l || 0,
-        volume: (snapshot as any).dailyBar?.v || 0,
-        timestamp: new Date().toISOString(),
-      };
-      
-      quoteCache.set(symbol, { quote, expires: Date.now() + CACHE_TTL });
-      results.set(symbol, quote);
+  // Polygon doesn't have bulk quotes on free tier, fetch individually
+  // But do it in parallel
+  const quotes = await Promise.all(
+    uncached.map(symbol => getQuote(symbol))
+  );
+
+  quotes.forEach((quote, i) => {
+    if (quote) {
+      results.set(uncached[i], quote);
     }
-  } catch (error) {
-    console.error('[MarketData] Failed to get bulk quotes:', error);
-  }
+  });
 
   return results;
 }
@@ -121,20 +119,19 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
     getQuote('IWM'),
   ]);
 
-  // Determine market status
+  // Determine market status (ET timezone)
   const now = new Date();
-  const hour = now.getUTCHours();
-  const minute = now.getUTCMinutes();
+  const etOffset = -4; // EDT (adjust for EST: -5)
+  const etHour = (now.getUTCHours() + etOffset + 24) % 24;
   const day = now.getUTCDay();
   
   let marketStatus: 'pre' | 'open' | 'after' | 'closed' = 'closed';
   if (day >= 1 && day <= 5) {
-    const timeMinutes = hour * 60 + minute;
-    if (timeMinutes >= 9 * 60 && timeMinutes < 13 * 60 + 30) { // 9:00-13:30 UTC = 4:00-9:30 ET pre
+    if (etHour >= 4 && etHour < 9.5) {
       marketStatus = 'pre';
-    } else if (timeMinutes >= 13 * 60 + 30 && timeMinutes < 20 * 60) { // 13:30-20:00 UTC = 9:30-4:00 ET open
+    } else if (etHour >= 9.5 && etHour < 16) {
       marketStatus = 'open';
-    } else if (timeMinutes >= 20 * 60 && timeMinutes < 24 * 60) { // 20:00-24:00 UTC = 4:00-8:00 ET after
+    } else if (etHour >= 16 && etHour < 20) {
       marketStatus = 'after';
     }
   }
@@ -143,7 +140,7 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
     spy: spy || { symbol: 'SPY', price: 0, change: 0, changePercent: 0, high: 0, low: 0, volume: 0, timestamp: '' },
     qqq: qqq || { symbol: 'QQQ', price: 0, change: 0, changePercent: 0, high: 0, low: 0, volume: 0, timestamp: '' },
     iwm: iwm || { symbol: 'IWM', price: 0, change: 0, changePercent: 0, high: 0, low: 0, volume: 0, timestamp: '' },
-    vix: 0, // TODO: Add VIX
+    vix: 0, // TODO: Add VIX via Polygon
     marketStatus,
     timestamp: new Date().toISOString(),
   };
