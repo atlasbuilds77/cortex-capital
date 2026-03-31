@@ -789,10 +789,15 @@ export async function enhancedExecutorAgent(
     const currentPrice = quote?.last || quote?.close || 0;
     
     if (currentPrice > 0) {
+      // TODO: Get actual portfolio value from user account
+      // For now, use position sizing based on risk (1-2% of estimated portfolio)
+      const estimatedPortfolioValue = 50000; // Conservative $50k assumption
+      const riskPercent = 0.02; // 2% risk per trade
+      const positionValue = estimatedPortfolioValue * riskPercent * size;
       orderDetails = {
         symbol,
         action,
-        quantity: Math.floor((size * 10000) / currentPrice), // Assuming $10,000 portfolio for calculation
+        quantity: Math.floor(positionValue / currentPrice),
         orderType: 'limit' as const,
         limitPrice: action === 'BUY' ? currentPrice * 0.995 : currentPrice * 1.005, // Slightly better price
       };

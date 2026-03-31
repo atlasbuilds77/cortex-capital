@@ -72,8 +72,10 @@ export async function enhancedExecutor(
       try {
         // Get execution confirmation
         const size = trade.shares * trade.execution_parameters.suggested_entry;
-        const portfolioSize = 10000; // Assuming $10,000 portfolio for calculation
-        const sizePercentage = (size / portfolioSize) * 100;
+        // TODO: Pass actual portfolio value from user account
+        // For now, estimate portfolio size based on position size (assume position is 5-10% of portfolio)
+        const estimatedPortfolioSize = Math.max(size * 10, 25000); // Min $25k assumption
+        const sizePercentage = (size / estimatedPortfolioSize) * 100;
         
         const confirmation = await enhancedExecutorAgent(
           trade.symbol,

@@ -270,20 +270,29 @@ Use the LIVE RESEARCH and MARKET DATA. Reference past risk discussions with this
         break;
       
       case 'opportunities':
-        topic = 'Investment Opportunities Discussion';
-        prompt = `OPPORTUNITY HUNT: Find the best opportunities for this portfolio right now.
+        topic = 'Investment Ideas Generation';
+        prompt = `GENERATE TRADE IDEAS: Use technical analysis and research to find actual trade setups.
 
 ${context}
 
-KEY QUESTIONS:
-- Based on LIVE RESEARCH, which sectors are trending?
-- Any catalysts upcoming for stocks we should add?
-- Should we rotate from defensive to offensive (or vice versa)?
-- What's the best risk/reward setup you see today?
-- Any positions we should exit to free up capital?
+YOUR MISSION: Generate 2-3 specific trade ideas with entry points, targets, and stop losses.
 
-Use the LIVE RESEARCH on market trends, sector rotation, and individual stocks. Be specific with ticker symbols and price targets. Reference what opportunities you discussed with this client before.`;
-        participants = ['GROWTH', 'VALUE', 'STRATEGIST', 'RISK'];
+ANALYST: Scan for technical setups (breakouts, reversals, flags). Use market data provided.
+STRATEGIST: Identify sector rotation plays and macro themes from research.
+GROWTH: Find momentum names with strong fundamentals.
+VALUE: Find oversold quality names ready to bounce.
+RISK: Vet each idea for risk/reward (min 2:1 ratio).
+
+OUTPUT FORMAT for each idea:
+- SYMBOL: [ticker]
+- SETUP: [breakout/reversal/etc]
+- ENTRY: $[price]
+- TARGET: $[price] (+X%)
+- STOP: $[price] (-X%)
+- THESIS: [2 sentences max]
+
+Use LIVE RESEARCH on trends, catalysts, and sector momentum. Be specific - no generic "buy QQQ" ideas. Find actual alpha opportunities.`;
+        participants = ['ANALYST', 'STRATEGIST', 'GROWTH', 'VALUE', 'RISK'];
         break;
       
       case 'performance':
