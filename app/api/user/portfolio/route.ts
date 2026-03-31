@@ -81,9 +81,19 @@ export async function GET(request: NextRequest) {
                   totalPnL += unrealizedPnL;
                   
                   // Ensure all values are primitives, not objects
-                  const symbolStr = typeof p.symbol === 'object' 
-                    ? (p.symbol?.symbol || p.symbol?.ticker || p.symbol?.id || 'UNKNOWN')
-                    : (p.symbol || 'UNKNOWN');
+                  // SnapTrade returns nested: { symbol: { symbol: { symbol: 'AAPL' } } }
+                  let symbolStr = 'UNKNOWN';
+                  if (typeof p.symbol === 'string') {
+                    symbolStr = p.symbol;
+                  } else if (p.symbol) {
+                    // Dig through nested objects to find the actual ticker string
+                    let s = p.symbol;
+                    for (let i = 0; i < 5 && typeof s === 'object'; i++) {
+                      s = s.symbol || s.ticker || s.id || s.raw_symbol || s.description || s;
+                      if (typeof s === 'string') break;
+                    }
+                    symbolStr = typeof s === 'string' ? s : JSON.stringify(s).slice(0, 20);
+                  }
                   
                   allPositions.push({
                     symbol: String(symbolStr),
