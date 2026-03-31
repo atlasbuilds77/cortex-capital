@@ -183,11 +183,13 @@ Respond with a JSON array of trade recommendations. Each should have:
 - confidence: number (0-100)
 - isOption: boolean (true if LEAP/option, false if shares)
 - optionDetails: { expiry: string, strike: number, type: "call" | "put" } (only if isOption)
+- optionSymbol: string (broker option symbol to execute, REQUIRED if isOption=true)
 
 SHARES vs LEAPS DECISION:
 - Use SHARES for: core holdings, dividend stocks, lower conviction, conservative profiles
 - Use LEAPS for: high conviction (85%+), growth plays, aggressive profiles, leveraged exposure
 - LEAPS = 6 months to 2 years expiry, 0.60-0.80 delta, calls for bullish
+- ULTRA-AGGRESSIVE: intraday "day trader" mode is allowed, BUT still prefer LEAPS unless a specific intraday setup is identified
 - If using LEAPS, allocate LESS capital (options are leveraged)
 
 Rules:
@@ -245,6 +247,10 @@ async function executeTrade(
       side: trade.action,
       qty: trade.quantity,
       type: 'market',
+      ...(trade.isOption && {
+        isOption: true,
+        optionSymbol: (trade as any).optionSymbol || (trade as any).option_symbol,
+      }),
     });
 
     if (result.success) {

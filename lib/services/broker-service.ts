@@ -499,7 +499,16 @@ export async function saveBrokerConnection(
  */
 export async function executeUserTrade(
   userId: string,
-  order: { symbol: string; side: 'buy' | 'sell'; qty: number; type: 'market' | 'limit'; limitPrice?: number }
+  order: {
+    symbol: string;
+    side: 'buy' | 'sell';
+    qty: number;
+    type: 'market' | 'limit';
+    limitPrice?: number;
+    // Options support (SnapTrade)
+    isOption?: boolean;
+    optionSymbol?: string; // broker/SnapTrade option identifier
+  }
 ): Promise<{ success: boolean; orderId?: string; avgPrice?: number; error?: string }> {
   try {
     // First check for SnapTrade connection (primary method)
@@ -514,24 +523,73 @@ export async function executeUserTrade(
     
     if (snapUserId && snapUserSecret && selectedAccount) {
       // Use SnapTrade for execution
-      const { snaptrade } = await import('../integrations/snaptrade');
-      
-      const result = await snaptrade.trading.placeOrder({
+      const snap = await import('../integrations/snaptrade');
+
+      // OPTIONS (SnapTrade)
+      if (order.isOption) {
+        if (!order.optionSymbol) {
+          return { success: false, error: 'Missing optionSymbol for option order' };
+        }
+
+        const result = await snap.placeOptionOrder(
+          snapUserId,
+          snapUserSecret,
+          selectedAccount,
+          {
+            orderType: order.type === 'limit' ? 'Limit' : 'Market',
+            timeInForce: 'Day',
+            ...(order.limitPrice && { limitPrice: order.limitPrice }),
+            legs: [
+              {
+                symbol: order.optionSymbol,
+                action: order.side === 'buy' ? 'BUY_TO_OPEN' : 'SELL_TO_OPEN',
+                quantity: order.qty,
+              },
+            ],
+          },
+        );
+
+        return {
+          success: true,
+          orderId: (result as any)?.brokerageOrder_id || (result as any)?.brokerageOrderId || 'pending',
+          avgPrice: 0,
+        };
+      }
+
+      // STOCKS (SnapTrade)
+      // NOTE: SnapTrade requires universal_symbol_id. Resolve it via account-scoped symbol search.
+      const symbols = await snap.snaptrade.referenceData.symbolSearchUserAccount({
+        userId: snapUserId,
+        userSecret: snapUserSecret,
+        accountId: selectedAccount,
+        substring: order.symbol,
+      });
+
+      const matches = (symbols.data as any[]) || [];
+      const exact = matches.find((m) => (m?.symbol || '').toUpperCase() === order.symbol.toUpperCase());
+      const first = exact || matches[0];
+      const universalSymbolId = first?.universal_symbol_id || first?.universalSymbolId || first?.id;
+
+      if (!universalSymbolId) {
+        return { success: false, error: `Could not resolve universal_symbol_id for ${order.symbol}` };
+      }
+
+      const result = await snap.snaptrade.trading.placeForceOrder({
         userId: snapUserId,
         userSecret: snapUserSecret,
         accountId: selectedAccount,
         action: order.side === 'buy' ? 'BUY' : 'SELL',
-        orderType: order.type === 'limit' ? 'Limit' : 'Market',
-        timeInForce: 'Day',
-        universalSymbolId: order.symbol,
+        order_type: order.type === 'limit' ? 'Limit' : 'Market',
+        time_in_force: 'Day',
+        universal_symbol_id: universalSymbolId,
         units: order.qty,
-        price: order.limitPrice,
+        ...(order.limitPrice && { price: order.limitPrice }),
       });
-      
+
       return {
         success: true,
         orderId: result.data?.brokerageOrderId || 'pending',
-        avgPrice: 0, // SnapTrade doesn't return fill price immediately
+        avgPrice: 0,
       };
     }
     
