@@ -238,31 +238,80 @@ ${profile.excluded_sectors ? `- Excluded Sectors: ${profile.excluded_sectors.joi
     switch (focusArea) {
       case 'rebalancing':
         topic = 'Portfolio Rebalancing Discussion';
-        prompt = `Review this portfolio and discuss whether rebalancing is needed:\n\n${context}\n\nConsider: sector allocation, position sizing, cash levels, and alignment with user's risk profile.`;
+        prompt = `REBALANCING MISSION: Review this portfolio and determine if rebalancing is needed.
+
+${context}
+
+KEY QUESTIONS:
+- Which positions are overweight/underweight vs target allocation?
+- Should we trim winners or add to losers?
+- Is cash level appropriate given market conditions?
+- Any sector concentration risks to address?
+
+Use the LIVE RESEARCH and MARKET DATA provided above. Reference your past discussions with this client about their rebalancing preferences. Be specific with numbers.`;
         participants = ['ANALYST', 'STRATEGIST', 'RISK'];
         break;
       
       case 'risk':
         topic = 'Risk Assessment Review';
-        prompt = `Analyze the risk profile of this portfolio:\n\n${context}\n\nDiscuss: concentration risk, volatility exposure, downside protection, and whether it matches the user's stated risk tolerance.`;
+        prompt = `RISK AUDIT: Analyze the risk profile of this portfolio comprehensively.
+
+${context}
+
+KEY QUESTIONS:
+- What's the portfolio's beta vs SPY? Too aggressive or too conservative?
+- Any single-name concentration risks (>10% in one position)?
+- How does current volatility (VIX) affect our risk budget?
+- Are we aligned with the client's stated risk tolerance?
+- What's the max drawdown scenario?
+
+Use the LIVE RESEARCH and MARKET DATA. Reference past risk discussions with this client. Give specific risk metrics.`;
         participants = ['RISK', 'ANALYST', 'STRATEGIST'];
         break;
       
       case 'opportunities':
         topic = 'Investment Opportunities Discussion';
-        prompt = `Given this portfolio, what opportunities should we consider:\n\n${context}\n\nDebate: sectors to rotate into, individual stocks to add, and timing considerations.`;
+        prompt = `OPPORTUNITY HUNT: Find the best opportunities for this portfolio right now.
+
+${context}
+
+KEY QUESTIONS:
+- Based on LIVE RESEARCH, which sectors are trending?
+- Any catalysts upcoming for stocks we should add?
+- Should we rotate from defensive to offensive (or vice versa)?
+- What's the best risk/reward setup you see today?
+- Any positions we should exit to free up capital?
+
+Use the LIVE RESEARCH on market trends, sector rotation, and individual stocks. Be specific with ticker symbols and price targets. Reference what opportunities you discussed with this client before.`;
         participants = ['GROWTH', 'VALUE', 'STRATEGIST', 'RISK'];
         break;
       
       case 'performance':
         topic = 'Performance Review';
-        prompt = `Review the performance of current holdings:\n\n${context}\n\nDiscuss: winners to trim, losers to cut, and positions to add to.`;
+        prompt = `PERFORMANCE POST-MORTEM: Review how this portfolio is performing.
+
+${context}
+
+KEY QUESTIONS:
+- Which positions are working? Which aren't?
+- Are we beating SPY/QQQ or lagging?
+- Any positions to cut losses on?
+- Winners to trim and take profits?
+- Is our strategy working or do we need to adapt?
+
+Use the LIVE MARKET DATA. Compare to benchmarks. Reference past performance reviews with this client. Be honest about what's working.`;
         participants = ['ANALYST', 'GROWTH', 'VALUE'];
         break;
       
       default:
         topic = 'Weekly Portfolio Review';
-        prompt = `Conduct a comprehensive review of this portfolio:\n\n${context}\n\nCover: current performance, risk alignment, rebalancing needs, and opportunities.`;
+        prompt = `COMPREHENSIVE PORTFOLIO REVIEW: Full analysis of current holdings and strategy.
+
+${context}
+
+Cover: performance vs benchmarks, risk alignment, rebalancing needs, opportunities, and strategy adjustments.
+
+Use all LIVE RESEARCH and MARKET DATA provided. Reference your memory of past discussions with this client.`;
         participants = ['ANALYST', 'STRATEGIST', 'RISK', 'GROWTH'];
     }
 
