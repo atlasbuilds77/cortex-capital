@@ -83,39 +83,22 @@ function calculateRelativeStrength(sectorReturn: number, benchmarkReturn: number
 }
 
 /**
- * Simulate historical returns for demonstration
- * In production, replace with actual historical API calls
+ * Historical returns - DISABLED (simulated data removed)
+ * 
+ * To enable real historical data:
+ * 1. Upgrade to Polygon paid tier ($199/mo) for historical aggregates
+ * 2. Or use Tradier historical API (requires paid Tradier account)
+ * 3. Or cache daily closes in database and calculate from there
+ * 
+ * For now, we only use TODAY's real performance data from Polygon.
  */
 function simulateHistoricalReturns(
-  currentPrice: number, 
-  symbol: string
+  _currentPrice: number,
+  _symbol: string
 ): { oneWeek: number; oneMonth: number; threeMonth: number } {
-  // Generate realistic simulated returns based on sector volatility
-  const sectorVolatility: Record<string, number> = {
-    'XLK': 0.25,  // Tech: high volatility
-    'XLF': 0.20,  // Financials: medium-high
-    'XLE': 0.30,  // Energy: high volatility
-    'XLV': 0.18,  // Healthcare: medium
-    'XLY': 0.22,  // Consumer Discretionary: medium-high
-    'XLI': 0.20,  // Industrials: medium
-    'XLB': 0.22,  // Materials: medium-high
-    'XLU': 0.15,  // Utilities: low volatility
-    'XLRE': 0.18, // Real Estate: medium
-    'XLC': 0.24,  // Communications: high
-    'SPY': 0.18,  // Benchmark: medium
-  };
-  
-  const volatility = sectorVolatility[symbol] || 0.20;
-  
-  // Simulate returns with some correlation to market conditions
-  const baseReturn = Math.random() * 0.1 - 0.05; // -5% to +5% base
-  const randomFactor = (Math.random() - 0.5) * 2 * volatility;
-  
-  const oneWeek = baseReturn * 0.25 + randomFactor * 0.5;
-  const oneMonth = baseReturn + randomFactor * 0.7;
-  const threeMonth = baseReturn * 3 + randomFactor * 1.2;
-  
-  return { oneWeek, oneMonth, threeMonth };
+  // Return null values to indicate historical data unavailable
+  // Agents should rely on today's actual performance only
+  return { oneWeek: 0, oneMonth: 0, threeMonth: 0 };
 }
 
 /**
@@ -169,57 +152,75 @@ function determineTrend(score: number): {
 }
 
 /**
- * Get sector momentum analysis for all sectors
+ * Get sector performance analysis using ONLY real data (today's change)
+ * Historical momentum data disabled - requires paid API tier for historical data
  */
 export async function getSectorMomentum(): Promise<SectorMomentum[]> {
   const { sectors, benchmark } = await fetchSectorQuotes();
-  
+
   if (!benchmark) {
     throw new Error(`Benchmark ${BENCHMARK_SYMBOL} not found`);
   }
-  
-  const benchmarkPrice = benchmark.last || benchmark.close || 100;
-  const benchmarkReturns = simulateHistoricalReturns(benchmarkPrice, BENCHMARK_SYMBOL);
-  
+
+  // Get benchmark's real today's performance
+  const benchmarkChangePct = benchmark.change_percentage || 0;
+
   const sectorMomentums: SectorMomentum[] = [];
-  
+
   for (const sector of SECTOR_ETFS) {
     const quote = sectors[sector.symbol];
     if (!quote) continue;
-    
-    const sectorPrice = quote.last || quote.close || 100;
-    const sectorReturns = simulateHistoricalReturns(sectorPrice, sector.symbol);
-    
-    // Calculate relative strength vs benchmark
-    const oneWeekRS = calculateRelativeStrength(sectorReturns.oneWeek, benchmarkReturns.oneWeek);
-    const oneMonthRS = calculateRelativeStrength(sectorReturns.oneMonth, benchmarkReturns.oneMonth);
-    const threeMonthRS = calculateRelativeStrength(sectorReturns.threeMonth, benchmarkReturns.threeMonth);
-    
-    // Calculate momentum score
-    const momentumScore = calculateMomentumScore(oneWeekRS, oneMonthRS, threeMonthRS);
-    
-    // Determine trend
-    const { trend, confidence } = determineTrend(momentumScore);
-    
+
+    // Use ONLY today's real change percentage
+    const sectorChangePct = quote.change_percentage || 0;
+
+    // Calculate relative strength vs benchmark (today only)
+    const todayRS = sectorChangePct - benchmarkChangePct;
+
+    // Simple momentum score based on today's performance only
+    // Scale: -5% to +5% maps to 0-100 score
+    const momentumScore = Math.min(100, Math.max(0, ((todayRS + 5) / 10) * 100));
+
+    // Determine trend from today's performance only
+    let trend: SectorMomentum['trend'];
+    let confidence: number;
+
+    if (todayRS > 2) {
+      trend = 'strong_bullish';
+      confidence = 75 + Math.min(20, todayRS * 5);
+    } else if (todayRS > 0.5) {
+      trend = 'bullish';
+      confidence = 60 + todayRS * 10;
+    } else if (todayRS > -0.5) {
+      trend = 'neutral';
+      confidence = 50;
+    } else if (todayRS > -2) {
+      trend = 'bearish';
+      confidence = 60 - todayRS * 10;
+    } else {
+      trend = 'strong_bearish';
+      confidence = 75 + Math.min(20, -todayRS * 5);
+    }
+
     sectorMomentums.push({
       symbol: sector.symbol,
       name: sector.name,
-      oneWeek: oneWeekRS,
-      oneMonth: oneMonthRS,
-      threeMonth: threeMonthRS,
+      oneWeek: 0, // Historical data unavailable
+      oneMonth: 0, // Historical data unavailable
+      threeMonth: 0, // Historical data unavailable
       momentumScore,
       rank: 0, // Will be set after sorting
       trend,
       confidence: Math.min(100, Math.max(0, confidence))
     });
   }
-  
+
   // Sort by momentum score (highest first) and assign ranks
   sectorMomentums.sort((a, b) => b.momentumScore - a.momentumScore);
   sectorMomentums.forEach((sector, index) => {
     sector.rank = index + 1;
   });
-  
+
   return sectorMomentums;
 }
 
