@@ -2164,13 +2164,19 @@ export function RetroOffice3D({
     animationState?.githubHoldByAgentId ??
     (githubReviewAgentId ? { [githubReviewAgentId]: true } : {});
   
-  // Mock market state for agent moods (TODO: replace with real market data)
-  const [mockMarketState, setMockMarketState] = useState<{
+  // Real market state for agent moods - fetched from live data
+  const [marketState, setMarketState] = useState<{
     trend: "up" | "down" | "flat";
     volatility: "high" | "low";
+    spyChange: number;
+    vixLevel: number;
+    lastUpdated: number;
   }>({
-    trend: "up",
+    trend: "flat",
     volatility: "low",
+    spyChange: 0,
+    vixLevel: 20,
+    lastUpdated: 0,
   });
   const [furniture, setFurniture] = useState<FurnitureItem[]>(() =>
     ensureOfficeQaLab(
@@ -2483,10 +2489,38 @@ export function RetroOffice3D({
     }
   }, [statusFeedEvents]);
 
-  // Mood update system - periodically update agent moods based on market
+  // Mood update system - uses REAL market data, updates every 5 minutes
   useEffect(() => {
+    const fetchMarketData = async () => {
+      try {
+        // Fetch live SPY and VIX data
+        const response = await fetch('/api/market/snapshot');
+        if (response.ok) {
+          const data = await response.json();
+          const spyChange = data.spy?.changePercent || 0;
+          const vixLevel = data.vix || 20;
+          
+          // Determine trend and volatility from real data
+          let trend: "up" | "down" | "flat" = "flat";
+          if (spyChange > 1) trend = "up";
+          else if (spyChange < -1) trend = "down";
+          
+          let volatility: "high" | "low" = vixLevel > 25 ? "high" : "low";
+          
+          setMarketState({
+            trend,
+            volatility,
+            spyChange,
+            vixLevel,
+            lastUpdated: Date.now(),
+          });
+        }
+      } catch (error) {
+        console.error('[RetroOffice] Failed to fetch market data:', error);
+      }
+    };
+
     const updateMoods = () => {
-      const now = Date.now();
       const currentTime = new Date();
       
       renderAgentsRef.current.forEach((agent) => {
@@ -2496,25 +2530,38 @@ export function RetroOffice3D({
         // Don't override celebration mood
         if (agent.state === "celebrating") return;
         
-        // Update mood based on market conditions
-        const newMood = determineAgentMood({
-          marketTrend: mockMarketState.trend,
-          volatility: mockMarketState.volatility,
-          timeOfDay: currentTime,
-        });
+        // Only update mood if it's been more than 10 minutes OR market changed significantly
+        const lastMoodUpdate = (agent as any).lastMoodUpdate || 0;
+        const timeSinceUpdate = Date.now() - lastMoodUpdate;
+        const marketChangedSignificantly = Math.abs(marketState.spyChange) > 2;
         
-        agent.mood = newMood;
+        if (timeSinceUpdate > 10 * 60 * 1000 || marketChangedSignificantly) {
+          // Update mood based on REAL market conditions
+          const newMood = determineAgentMood({
+            marketTrend: marketState.trend,
+            volatility: marketState.volatility,
+            timeOfDay: currentTime,
+          });
+          
+          agent.mood = newMood;
+          (agent as any).lastMoodUpdate = Date.now();
+        }
       });
     };
     
-    // Update moods every 30 seconds
+    // Initial fetch
+    fetchMarketData();
     updateMoods();
-    const intervalId = window.setInterval(updateMoods, 30000);
+    
+    // Fetch market data every 5 minutes, update moods only when needed
+    const marketIntervalId = window.setInterval(fetchMarketData, 5 * 60 * 1000);
+    const moodIntervalId = window.setInterval(updateMoods, 60 * 1000); // Check every minute, but only update if needed
     
     return () => {
-      window.clearInterval(intervalId);
+      window.clearInterval(marketIntervalId);
+      window.clearInterval(moodIntervalId);
     };
-  }, [mockMarketState]);
+  }, [marketState]);
 
   useEffect(() => {
     if (resolvedCleaningCues.length === 0) return;
