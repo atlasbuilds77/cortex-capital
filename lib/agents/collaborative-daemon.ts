@@ -23,6 +23,36 @@ import { query } from '../db';
 import { getMarketContextForAgents } from './data/market-data';
 import { loadUserPreferences, generatePreferencesContext, UserPreferences } from './user-preferences-context';
 import { getFullResearchContext } from './data/research-engine';
+import { query } from '../db';
+
+/**
+ * Get cached research from 8 AM cron, fallback to fresh if not available
+ */
+async function getCachedOrFreshResearch(
+  userId: string,
+  userSectors: string[],
+  positionSymbols: string[]
+): Promise<string> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const cached = await query(`
+      SELECT content FROM agent_memories 
+      WHERE user_id = $1 
+        AND agent_id = 'RESEARCH' 
+        AND memory_type = 'daily_research'
+        AND created_at::date = $2::date
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `, [userId, today]);
+
+    if (cached.rows.length > 0 && cached.rows[0].content) {
+      return cached.rows[0].content;
+    }
+  } catch (error) {
+    console.warn('[CollaborativeDaemon] Failed to fetch cached research:', error);
+  }
+  return getFullResearchContext(userSectors, positionSymbols, []);
+}
 import { recallMemories, generateLearningSummary } from './learning/agent-memory';
 
 // Agent definitions with personalities
@@ -325,7 +355,8 @@ RULES:
             const positionMatches = context.match(/([A-Z]{1,5}):/g) || [];
             const positions = positionMatches.map(m => m.replace(':', '')).slice(0, 5);
             
-            const researchContext = await getFullResearchContext(
+            const researchContext = await getCachedOrFreshResearch(
+              odItem.userId,
               prefs.sectorInterests || ['Technology', 'Healthcare'],
               positions
             );
