@@ -13,8 +13,8 @@
 
 import { Snaptrade } from 'snaptrade-typescript-sdk';
 
-const SNAPTRADE_CLIENT_ID = process.env.SNAPTRADE_CLIENT_ID || 'ZERO-G-TRADING-TEST-HTFTZ';
-const SNAPTRADE_CONSUMER_KEY = process.env.SNAPTRADE_CONSUMER_KEY || 'qIFGwzDBhQTYpP3HjKVJQaDSpmF0spqhuX31HC7jscFsQimJlx';
+const SNAPTRADE_CLIENT_ID = process.env.SNAPTRADE_CLIENT_ID || 'ZERO-G-TRADING-XSJQB';
+const SNAPTRADE_CONSUMER_KEY = process.env.SNAPTRADE_CONSUMER_KEY || 'geLGVwBH7yG6PLhNzrDPJ9aKtfEZpcXNRKmhV954XCPQamx4H1';
 
 // Initialize SnapTrade client
 const snaptrade = new Snaptrade({
