@@ -23,70 +23,82 @@ import {
   type AgentDiscussionMessage 
 } from "@/lib/cortex-capital-api";
 
-// Agent definitions with positions on the floor
+// Import shared agent config for avatars
+import { AGENTS as AGENT_CONFIG } from "@/lib/agents/agent-config";
+import Image from "next/image";
+
+// Agent definitions with positions on the floor - using real avatars
 const FLOOR_AGENTS = [
-  { 
-    id: "atlas", 
-    name: "ATLAS", 
-    emoji: "⚡", 
-    role: "General Manager", 
+  {
+    id: "atlas",
+    name: "ATLAS",
+    emoji: "⚡",
+    avatar: "/avatars/analyst.jpg", // Atlas uses analyst avatar for now
+    role: "General Manager",
     color: "#F59E0B",
     desk: { x: 85, y: 75 },  // GM office - corner
     isGM: true
   },
-  { 
-    id: "analyst", 
-    name: "ANALYST", 
-    emoji: "📊", 
-    role: "Market Analyst", 
+  {
+    id: "analyst",
+    name: "ANALYST",
+    emoji: "📊",
+    avatar: "/avatars/analyst.jpg",
+    role: "Market Analyst",
     color: "#3B82F6",
     desk: { x: 15, y: 25 }
   },
-  { 
-    id: "strategist", 
-    name: "STRATEGIST", 
-    emoji: "🎯", 
-    role: "Chief Strategist", 
+  {
+    id: "strategist",
+    name: "STRATEGIST",
+    emoji: "🎯",
+    avatar: "/avatars/strategist.jpg",
+    role: "Chief Strategist",
     color: "#8B5CF6",
     desk: { x: 35, y: 25 }
   },
-  { 
-    id: "risk", 
-    name: "RISK", 
-    emoji: "🛡️", 
-    role: "Risk Manager", 
+  {
+    id: "risk",
+    name: "RISK",
+    emoji: "🛡️",
+    avatar: "/avatars/risk.jpg",
+    role: "Risk Manager",
     color: "#EF4444",
     desk: { x: 55, y: 25 }
   },
-  { 
-    id: "executor", 
-    name: "EXECUTOR", 
-    emoji: "🎬", 
-    role: "Trade Executor", 
+  {
+    id: "executor",
+    name: "EXECUTOR",
+    emoji: "🎬",
+    avatar: "/avatars/executor.jpg",
+    role: "Trade Executor",
     color: "#6366F1",
     desk: { x: 15, y: 50 }
   },
-  { 
-    id: "momentum", 
-    name: "MOMENTUM", 
-    emoji: "🚀", 
-    role: "Momentum Trader", 
+  {
+    id: "momentum",
+    name: "MOMENTUM",
+    emoji: "🚀",
+    avatar: "/avatars/momentum.jpg",
+    role: "Momentum Trader",
     color: "#10B981",
     desk: { x: 35, y: 50 }
   },
-  { 
-    id: "growth", 
-    name: "GROWTH", 
-    emoji: "📈", 
-    role: "Growth Advocate", 
+  {
+    id: "growth",
+    name: "GROWTH",
+    emoji: "📈",
+    avatar: "/avatars/growth.jpg",
+    role: "Growth Advocate",
     color: "#22C55E",
     desk: { x: 55, y: 50 }
   },
-  { 
-    id: "value", 
-    name: "VALUE", 
-    emoji: "💎", 
-    role: "Value Investor", 
+  {
+    id: "value",
+    name: "VALUE",
+    emoji: "💎",
+    avatar: "/avatars/value.jpg",
+    role: "Value Investor",
     color: "#0EA5E9",
     desk: { x: 15, y: 75 }
   },
@@ -203,7 +215,24 @@ function AgentAvatar({
           boxShadow: isSpeaking ? `0 0 30px ${agent.color}80` : `0 4px 12px rgba(0,0,0,0.3)`
         }}
       >
-        <span className="text-2xl">{agent.emoji}</span>
+        <div className="w-10 h-10 rounded-full overflow-hidden">
+          <Image
+            src={agent.avatar}
+            alt={agent.name}
+            width={40}
+            height={40}
+            className="object-cover"
+            onError={(e) => {
+              // Fallback to emoji if image fails
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `<span class="text-2xl">${agent.emoji}</span>`;
+              }
+            }}
+          />
+        </div>
         
         {/* GM badge */}
         {agent.isGM && (
