@@ -1,12 +1,13 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { OfficeAgent } from "@/features/retro-office/core/types";
 
 type AgentStatsCardProps = {
   agent: OfficeAgent;
   onClose: () => void;
+  userId?: string;
   stats?: {
     currentMood?: string;
     recentTrades?: string[];
@@ -14,17 +15,37 @@ type AgentStatsCardProps = {
   };
 };
 
-export function AgentStatsCard({ agent, onClose, stats }: AgentStatsCardProps) {
+export function AgentStatsCard({ agent, onClose, userId, stats }: AgentStatsCardProps) {
+  const [realTrades, setRealTrades] = useState<string[]>([]);
+  
+  // Fetch real trades from API
+  useEffect(() => {
+    if (userId) {
+      fetch(`/api/user/trades?userId=${userId}&limit=3`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.trades?.length > 0) {
+            setRealTrades(data.trades.map((t: any) => 
+              `${t.direction === 'long' ? 'Long' : 'Short'} ${t.symbol} @ $${t.entry.toFixed(2)}`
+            ));
+          }
+        })
+        .catch(() => {
+          // Fallback to empty, will use defaults below
+        });
+    }
+  }, [userId]);
+
   // Memoize random values so they don't change on every render
   const { trustScore, mood, recentTrades } = useMemo(() => ({
     trustScore: stats?.trustScore ?? Math.floor(Math.random() * 30) + 70,
     mood: stats?.currentMood ?? ["Focused", "Optimistic", "Calculating", "Confident"][Math.floor(Math.random() * 4)],
-    recentTrades: stats?.recentTrades ?? [
-      "Long SPY 450c 0DTE",
-      "Short TSLA 240p weekly",
-      "Scalp QQQ intraday",
-    ],
-  }), [stats?.trustScore, stats?.currentMood, stats?.recentTrades]);
+    recentTrades: realTrades.length > 0 ? realTrades : (stats?.recentTrades ?? [
+      "No recent trades",
+      "Connect broker to see trades",
+      "Ready to execute",
+    ]),
+  }), [stats?.trustScore, stats?.currentMood, stats?.recentTrades, realTrades]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

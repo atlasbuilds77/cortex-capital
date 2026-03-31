@@ -448,35 +448,55 @@ export async function getBalances(userId: string): Promise<BrokerBalance> {
  */
 export async function placeOrder(userId: string, params: PlaceOrderParams): Promise<BrokerOrder> {
   const broker = await getUserBroker(userId);
-  
+
   // Log for audit
   console.log(`[BROKER] Placing order for user ${userId}:`, params);
-  
+
+  let result: BrokerOrder;
+
   switch (broker.type) {
     case 'robinhood':
-      return robinhoodPlaceOrder(broker.credentials, params);
-    
+      result = await robinhoodPlaceOrder(broker.credentials, params);
+      break;
+
     case 'webull':
       // Webull via SnapTrade - FULL EXECUTION SUPPORTED (Dec 2025 partnership)
-      return snaptradeTradeOrder(
+      result = await snaptradeTradeOrder(
         broker.credentials.snaptradeUserId,
         broker.credentials.snaptradeUserSecret,
         broker.accountId,
         params
       );
-    
+      break;
+
     case 'tradier':
       // TODO: Implement Tradier order placement
       throw new Error('Tradier order placement not implemented yet');
-    
+
     case 'snaptrade':
       // SnapTrade supports trading for some brokers
       // TODO: Check if this specific broker supports trading via SnapTrade
       throw new Error('SnapTrade order placement - check broker support');
-    
+
     default:
       throw new Error(`Unknown broker type: ${broker.type}`);
   }
+
+  // Log trade to agent memory system
+  try {
+    const { addTradeToHistory } = await import('./user-universe-db');
+    await addTradeToHistory(userId, {
+      symbol: params.symbol,
+      direction: params.side === 'buy' ? 'long' : 'short',
+      entry: params.price || 0,
+      outcome: 'pending',
+    });
+    console.log(`[BROKER] Logged trade to agent memory for user ${userId}`);
+  } catch (logErr) {
+    console.error('[BROKER] Failed to log trade to agent memory:', logErr);
+  }
+
+  return result;
 }
 
 /**

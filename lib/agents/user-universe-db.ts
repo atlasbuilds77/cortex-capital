@@ -248,6 +248,8 @@ export async function getUserAgentContext(
   agentId: string
 ): Promise<string> {
   try {
+    // Ensure universe exists before loading
+    await ensureUserUniverse(userId);
     const universe = await getUserUniverse(userId);
     
     const memories = universe.agentMemories[agentId] || [];
@@ -294,6 +296,7 @@ export async function getUserAgentContext(
     return context;
   } catch (error: any) {
     console.error('[UserUniverse] Failed to get agent context:', error.message);
+    console.error('[UserUniverse] Stack:', error.stack);
     return '';
   }
 }
