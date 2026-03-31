@@ -219,3 +219,162 @@ export async function checkStatus() {
   const response = await snaptrade.apiStatus.check();
   return response.data;
 }
+
+// ============================================
+// OPTIONS TRADING
+// ============================================
+
+/**
+ * Get option quote for a specific option symbol
+ * @param symbol - Option symbol (e.g., "AAPL 240119C00185000" or broker-specific format)
+ */
+export async function getOptionQuote(
+  userId: string,
+  userSecret: string,
+  accountId: string,
+  symbol: string
+) {
+  const response = await snaptrade.options.getOptionQuote({
+    userId,
+    userSecret,
+    accountId,
+    symbol,
+  });
+  return response.data;
+}
+
+/**
+ * List current option holdings for an account
+ */
+export async function listOptionHoldings(
+  userId: string,
+  userSecret: string,
+  accountId: string
+) {
+  const response = await snaptrade.options.listOptionHoldings({
+    userId,
+    userSecret,
+    accountId,
+  });
+  return response.data;
+}
+
+/**
+ * Option leg for multi-leg orders
+ */
+export interface OptionLeg {
+  symbol: string;           // Option symbol
+  action: 'BUY_TO_OPEN' | 'BUY_TO_CLOSE' | 'SELL_TO_OPEN' | 'SELL_TO_CLOSE';
+  quantity: number;
+}
+
+/**
+ * Preview option order impact (check buying power, margin, etc.)
+ */
+export async function getOptionOrderImpact(
+  userId: string,
+  userSecret: string,
+  accountId: string,
+  order: {
+    orderType: 'Limit' | 'Market';
+    timeInForce: 'Day' | 'GTC';
+    limitPrice?: number;
+    legs: OptionLeg[];
+  }
+) {
+  const response = await snaptrade.trading.getOptionImpact({
+    userId,
+    userSecret,
+    accountId,
+    order_type: order.orderType,
+    time_in_force: order.timeInForce,
+    ...(order.limitPrice && { limit_price: order.limitPrice }),
+    price_effect: 'debit', // Will be calculated by broker
+    legs: order.legs.map(leg => ({
+      symbol: leg.symbol,
+      action: leg.action,
+      quantity: leg.quantity,
+    })),
+  });
+  return response.data;
+}
+
+/**
+ * Place option order (single or multi-leg)
+ * Supports: single calls/puts, spreads, straddles, etc.
+ * 
+ * @example
+ * // Buy a LEAP call
+ * await placeOptionOrder(userId, userSecret, accountId, {
+ *   orderType: 'Limit',
+ *   timeInForce: 'GTC',
+ *   limitPrice: 15.50,
+ *   legs: [{
+ *     symbol: 'AAPL  260116C00200000',
+ *     action: 'BUY_TO_OPEN',
+ *     quantity: 1
+ *   }]
+ * });
+ * 
+ * @example
+ * // Sell a covered call
+ * await placeOptionOrder(userId, userSecret, accountId, {
+ *   orderType: 'Limit',
+ *   timeInForce: 'Day',
+ *   limitPrice: 2.50,
+ *   legs: [{
+ *     symbol: 'AAPL  240419C00190000',
+ *     action: 'SELL_TO_OPEN',
+ *     quantity: 1
+ *   }]
+ * });
+ */
+export async function placeOptionOrder(
+  userId: string,
+  userSecret: string,
+  accountId: string,
+  order: {
+    orderType: 'Limit' | 'Market';
+    timeInForce: 'Day' | 'GTC';
+    limitPrice?: number;
+    stopPrice?: number;
+    legs: OptionLeg[];
+  }
+) {
+  const response = await snaptrade.trading.placeMlegOrder({
+    userId,
+    userSecret,
+    accountId,
+    order_type: order.orderType,
+    time_in_force: order.timeInForce,
+    ...(order.limitPrice && { limit_price: order.limitPrice }),
+    ...(order.stopPrice && { stop_price: order.stopPrice }),
+    price_effect: 'debit', // Broker will calculate actual effect
+    legs: order.legs.map(leg => ({
+      symbol: leg.symbol,
+      action: leg.action,
+      quantity: leg.quantity,
+    })),
+  });
+  return response.data;
+}
+
+/**
+ * Search for available options on a symbol
+ * Note: This searches within the user's broker for tradeable options
+ */
+export async function searchOptions(
+  userId: string,
+  userSecret: string,
+  accountId: string,
+  underlying: string
+) {
+  // Use symbol search scoped to the account
+  const response = await snaptrade.referenceData.symbolSearchUserAccount({
+    userId,
+    userSecret,
+    accountId,
+    substring: underlying,
+  });
+  return response.data;
+}
