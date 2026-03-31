@@ -80,13 +80,18 @@ export async function GET(request: NextRequest) {
                   totalValue += marketValue;
                   totalPnL += unrealizedPnL;
                   
+                  // Ensure all values are primitives, not objects
+                  const symbolStr = typeof p.symbol === 'object' 
+                    ? (p.symbol?.symbol || p.symbol?.ticker || p.symbol?.id || 'UNKNOWN')
+                    : (p.symbol || 'UNKNOWN');
+                  
                   allPositions.push({
-                    symbol: p.symbol?.symbol || 'UNKNOWN',
-                    quantity: p.units || 0,
-                    averageCost: p.average_purchase_price || 0,
-                    currentPrice: p.price || 0,
+                    symbol: String(symbolStr),
+                    quantity: Number(p.units) || 0,
+                    averageCost: Number(p.average_purchase_price) || 0,
+                    currentPrice: Number(p.price) || 0,
                     todayChange: 0, // SnapTrade doesn't provide intraday change
-                    unrealizedPnL,
+                    unrealizedPnL: Number(unrealizedPnL) || 0,
                   });
                 }
               } catch (err) {

@@ -212,7 +212,12 @@ export default function ProfilePage() {
           id="phone"
           type="tel"
           value={profile.phone}
-          onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+          onChange={(e) => {
+            // Only allow digits, spaces, dashes, parens, plus sign
+            const cleaned = e.target.value.replace(/[^\d\s\-\(\)\+]/g, '');
+            setProfile({ ...profile, phone: cleaned });
+          }}
+          pattern="[\d\s\-\(\)\+]+"
           className="w-full px-4 py-3 bg-background border border-gray-700 rounded-lg focus:outline-none focus:border-primary transition-colors"
           placeholder="+1 (555) 000-0000"
         />
