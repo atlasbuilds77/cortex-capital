@@ -2,15 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-// Agent types matching backend
+// Agent types matching backend - now with avatar images!
 const AGENTS = [
-  { id: "ANALYST", emoji: "📊", name: "Analyst" },
-  { id: "STRATEGIST", emoji: "🎯", name: "Strategist" },
-  { id: "DAY_TRADER", emoji: "⚡", name: "Day Trader" },
-  { id: "MOMENTUM", emoji: "🚀", name: "Momentum" },
-  { id: "RISK", emoji: "🛡️", name: "Risk" },
-  { id: "EXECUTOR", emoji: "⚔️", name: "Executor" },
-  { id: "REPORTER", emoji: "📰", name: "Reporter" },
+  { id: "ANALYST", emoji: "📊", name: "Analyst", avatar: "/avatars/analyst.jpg" },
+  { id: "STRATEGIST", emoji: "🎯", name: "Strategist", avatar: "/avatars/strategist.jpg" },
+  { id: "DAY_TRADER", emoji: "⚡", name: "Day Trader", avatar: "/avatars/day_trader.jpg" },
+  { id: "MOMENTUM", emoji: "🚀", name: "Momentum", avatar: "/avatars/momentum.jpg" },
+  { id: "OPTIONS_STRATEGIST", emoji: "🎰", name: "Options Pro", avatar: "/avatars/options_strategist.jpg" },
+  { id: "RISK", emoji: "🛡️", name: "Risk", avatar: "/avatars/risk.jpg" },
+  { id: "EXECUTOR", emoji: "🎬", name: "Executor", avatar: "/avatars/executor.jpg" },
+  { id: "GROWTH", emoji: "📈", name: "Growth", avatar: "/avatars/growth.jpg" },
+  { id: "VALUE", emoji: "💎", name: "Value", avatar: "/avatars/value.jpg" },
 ] as const;
 
 type AgentId = typeof AGENTS[number]["id"];
@@ -165,7 +167,11 @@ export function RelationshipMatrix() {
                 key={agent.id}
                 className="w-20 flex-shrink-0 text-center text-xs font-medium text-gray-400 pb-2"
               >
-                <div className="text-lg mb-1">{agent.emoji}</div>
+                <img 
+                  src={agent.avatar} 
+                  alt={agent.name}
+                  className="w-10 h-10 rounded-full mx-auto mb-1 border border-white/20"
+                />
                 <div className="truncate px-1">{agent.name}</div>
               </div>
             ))}
@@ -178,7 +184,11 @@ export function RelationshipMatrix() {
               <div className="w-24 flex-shrink-0 text-right pr-3 text-xs font-medium text-gray-400">
                 <div className="flex items-center justify-end gap-2">
                   <span className="truncate">{rowAgent.name}</span>
-                  <span className="text-base">{rowAgent.emoji}</span>
+                  <img 
+                    src={rowAgent.avatar} 
+                    alt={rowAgent.name}
+                    className="w-8 h-8 rounded-full border border-white/20"
+                  />
                 </div>
               </div>
 

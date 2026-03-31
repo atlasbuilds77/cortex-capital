@@ -54,71 +54,81 @@ async function getCachedOrFreshResearch(
 }
 import { recallMemories, generateLearningSummary } from './learning/agent-memory';
 import { getPositionContextForAgents } from './position-context';
+import { AGENTS as AGENT_CONFIG, getAgent } from './agent-config';
 
-// Agent definitions with personalities
+// Agent definitions - now uses centralized config with real avatars
 const AGENTS = {
   ANALYST: {
     name: 'ANALYST',
-    role: 'Market Analyst',
-    personality: 'Data-driven, thorough, presents facts before opinions',
-    avatar: '📊',
-    color: '#3B82F6'
+    role: AGENT_CONFIG.ANALYST.role,
+    personality: AGENT_CONFIG.ANALYST.personality,
+    avatar: AGENT_CONFIG.ANALYST.avatar,
+    emoji: AGENT_CONFIG.ANALYST.emoji,
+    color: AGENT_CONFIG.ANALYST.color
   },
   STRATEGIST: {
     name: 'STRATEGIST', 
-    role: 'Chief Strategist',
-    personality: 'Big picture thinker, challenges assumptions, risk-aware',
-    avatar: '🎯',
-    color: '#8B5CF6'
+    role: AGENT_CONFIG.STRATEGIST.role,
+    personality: AGENT_CONFIG.STRATEGIST.personality,
+    avatar: AGENT_CONFIG.STRATEGIST.avatar,
+    emoji: AGENT_CONFIG.STRATEGIST.emoji,
+    color: AGENT_CONFIG.STRATEGIST.color
   },
   DAY_TRADER: {
     name: 'DAY_TRADER',
-    role: 'Day Trader',
-    personality: 'Action-oriented, quick decisions, momentum focused',
-    avatar: '⚡',
-    color: '#F59E0B'
+    role: AGENT_CONFIG.DAY_TRADER.role,
+    personality: AGENT_CONFIG.DAY_TRADER.personality,
+    avatar: AGENT_CONFIG.DAY_TRADER.avatar,
+    emoji: AGENT_CONFIG.DAY_TRADER.emoji,
+    color: AGENT_CONFIG.DAY_TRADER.color
   },
   MOMENTUM: {
     name: 'MOMENTUM',
-    role: 'Momentum Specialist',
-    personality: 'Trend follower, sector rotation expert, weekly horizon',
-    avatar: '🚀',
-    color: '#10B981'
+    role: AGENT_CONFIG.MOMENTUM.role,
+    personality: AGENT_CONFIG.MOMENTUM.personality,
+    avatar: AGENT_CONFIG.MOMENTUM.avatar,
+    emoji: AGENT_CONFIG.MOMENTUM.emoji,
+    color: AGENT_CONFIG.MOMENTUM.color
   },
   OPTIONS_STRATEGIST: {
     name: 'OPTIONS_STRATEGIST',
-    role: 'Options Specialist',
-    personality: 'Greeks-focused, hedging expert, volatility trader',
-    avatar: '📈',
-    color: '#EC4899'
+    role: AGENT_CONFIG.OPTIONS_STRATEGIST.role,
+    personality: AGENT_CONFIG.OPTIONS_STRATEGIST.personality,
+    avatar: AGENT_CONFIG.OPTIONS_STRATEGIST.avatar,
+    emoji: AGENT_CONFIG.OPTIONS_STRATEGIST.emoji,
+    color: AGENT_CONFIG.OPTIONS_STRATEGIST.color
   },
   RISK: {
     name: 'RISK',
-    role: 'Risk Manager',
-    personality: 'Conservative, position sizing focused, drawdown aware',
-    avatar: '🛡️',
-    color: '#EF4444'
+    role: AGENT_CONFIG.RISK.role,
+    personality: AGENT_CONFIG.RISK.personality,
+    avatar: AGENT_CONFIG.RISK.avatar,
+    emoji: AGENT_CONFIG.RISK.emoji,
+    color: AGENT_CONFIG.RISK.color
   },
   EXECUTOR: {
     name: 'EXECUTOR',
-    role: 'Trade Executor',
-    personality: 'Precise, timing focused, slippage conscious',
-    avatar: '🎬',
-    color: '#6366F1'
+    role: AGENT_CONFIG.EXECUTOR.role,
+    personality: AGENT_CONFIG.EXECUTOR.personality,
+    avatar: AGENT_CONFIG.EXECUTOR.avatar,
+    emoji: AGENT_CONFIG.EXECUTOR.emoji,
+    color: AGENT_CONFIG.EXECUTOR.color
   },
   GROWTH: {
     name: 'GROWTH',
-    role: 'Growth Advocate',
-    personality: 'Bullish on opportunities, momentum plays, sector rotation, always looking for upside',
-    avatar: '📈',
-    color: '#22C55E'
+    role: AGENT_CONFIG.GROWTH.role,
+    personality: AGENT_CONFIG.GROWTH.personality,
+    avatar: AGENT_CONFIG.GROWTH.avatar,
+    emoji: AGENT_CONFIG.GROWTH.emoji,
+    color: AGENT_CONFIG.GROWTH.color
   },
   VALUE: {
     name: 'VALUE',
-    role: 'Value Investor',
-    personality: 'Contrarian views, undervalued assets, dividend focus, patient capital',
-    avatar: '💎',
-    color: '#0EA5E9'
+    role: AGENT_CONFIG.VALUE.role,
+    personality: AGENT_CONFIG.VALUE.personality,
+    avatar: AGENT_CONFIG.VALUE.avatar,
+    emoji: AGENT_CONFIG.VALUE.emoji,
+    color: AGENT_CONFIG.VALUE.color
   }
 };
 
