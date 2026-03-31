@@ -28,6 +28,7 @@ export interface CortexAgentConfig {
   role: CortexAgentRole;
   color: string; // hex color for agent avatar
   emoji?: string;
+  avatar?: string; // path to avatar image
   desk: {
     x: number; // canvas grid position
     y: number; // canvas grid position
@@ -46,6 +47,7 @@ export const CORTEX_AGENTS: CortexAgentConfig[] = [
     role: "ANALYST",
     color: "#3B82F6", // blue
     emoji: "📊",
+    avatar: "/avatars/analyst.jpg",
     desk: {
       x: 5,
       y: 3,
@@ -58,7 +60,8 @@ export const CORTEX_AGENTS: CortexAgentConfig[] = [
     name: "Strategist",
     role: "STRATEGIST",
     color: "#8B5CF6", // purple
-    emoji: "♟️",
+    emoji: "🎯",
+    avatar: "/avatars/strategist.jpg",
     desk: {
       x: 8,
       y: 3,
@@ -71,7 +74,8 @@ export const CORTEX_AGENTS: CortexAgentConfig[] = [
     name: "Executor",
     role: "EXECUTOR",
     color: "#10B981", // green
-    emoji: "⚡",
+    emoji: "🎬",
+    avatar: "/avatars/executor.jpg",
     desk: {
       x: 5,
       y: 6,
@@ -84,7 +88,8 @@ export const CORTEX_AGENTS: CortexAgentConfig[] = [
     name: "Reporter",
     role: "REPORTER",
     color: "#F59E0B", // amber
-    emoji: "📝",
+    emoji: "📰",
+    avatar: "/avatars/analyst.jpg",
     desk: {
       x: 8,
       y: 6,
@@ -97,7 +102,8 @@ export const CORTEX_AGENTS: CortexAgentConfig[] = [
     name: "Options Strategist",
     role: "OPTIONS_STRATEGIST",
     color: "#EF4444", // red
-    emoji: "🎯",
+    emoji: "🎰",
+    avatar: "/avatars/options_strategist.jpg",
     desk: {
       x: 11,
       y: 3,
@@ -110,7 +116,8 @@ export const CORTEX_AGENTS: CortexAgentConfig[] = [
     name: "Day Trader",
     role: "DAY_TRADER",
     color: "#06B6D4", // cyan
-    emoji: "📈",
+    emoji: "⚡",
+    avatar: "/avatars/day_trader.jpg",
     desk: {
       x: 11,
       y: 6,
