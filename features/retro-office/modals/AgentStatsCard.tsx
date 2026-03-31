@@ -52,14 +52,35 @@ export function AgentStatsCard({ agent, onClose, stats }: AgentStatsCardProps) {
             <X size={14} />
           </button>
 
-          {/* Agent avatar circle */}
-          <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-4 text-3xl font-bold" style={{
-            backgroundColor: agent.color,
-            borderColor: '#0a0a0a',
-            color: '#0a0a0a',
-          }}>
-            {agent.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-          </div>
+          {/* Agent avatar */}
+          {agent.avatar ? (
+            <div className="mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full border-4" style={{
+              borderColor: '#0a0a0a',
+            }}>
+              <img 
+                src={agent.avatar} 
+                alt={agent.name}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  // Fallback to initials if image fails
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `<div class="flex h-full w-full items-center justify-center text-3xl font-bold" style="background-color: ${agent.color}; color: #0a0a0a;">${agent.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</div>`;
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border-4 text-3xl font-bold" style={{
+              backgroundColor: agent.color,
+              borderColor: '#0a0a0a',
+              color: '#0a0a0a',
+            }}>
+              {agent.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+            </div>
+          )}
 
           {/* Agent name */}
           <h2 className="text-center text-2xl font-bold text-white">{agent.name}</h2>
