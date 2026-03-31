@@ -53,7 +53,13 @@ export async function POST(request: NextRequest) {
         break;
       case 'portfolio_review':
         // Full portfolio review - uses userId if provided, else demo
+        console.log('[API] portfolio_review - fetching portfolio for userId:', userId);
         const reviewPortfolio = await portfolioDiscussionEngine.fetchPortfolio(userId);
+        console.log('[API] portfolio_review - fetched:', reviewPortfolio ? {
+          portfolio_value: reviewPortfolio.portfolio_value,
+          cash: reviewPortfolio.cash,
+          positions_count: reviewPortfolio.positions.length
+        } : 'NULL');
         
         // Check if user has a broker connected (SnapTrade OR legacy broker_credentials)
         if (userId) {
@@ -133,6 +139,19 @@ export async function POST(request: NextRequest) {
           }
           
           await portfolioDiscussionEngine.discussPortfolio(reviewPortfolio, userPrefs, undefined, userId);
+        } else {
+          // User has broker connection but fetch failed (expired credentials, etc.)
+          await collaborativeDaemon.runDiscussion(
+            'Broker Connection Issue',
+            ['ANALYST'],
+            "The user has a broker connected but we couldn't fetch their portfolio data (credentials may have expired). Let them know they may need to reconnect their broker in Settings → Brokers. Offer to discuss general market opportunities instead.",
+            1
+          );
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Broker fetch failed - notified user',
+            brokerError: true
+          });
         }
         return NextResponse.json({ 
           success: true, 
