@@ -192,7 +192,7 @@ export function toOfficeAgent(
     status,
     color: config.color,
     item: "laptop", // default item for office agents
-    avatarProfile: null, // Use default avatar generation
+    avatarProfile: config.avatar || null, // Use avatar from config
   };
 }
 
