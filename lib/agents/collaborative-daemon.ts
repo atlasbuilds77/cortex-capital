@@ -205,24 +205,6 @@ class CollaborativeDaemon {
     const agentInfo = AGENTS[agent];
     const soul = this.loadAgentSoul(agent);
     
-    // Get agent memories via recall gate + learning system
-    let memoryContext = '';
-    try {
-      const memories = recallGate.recall(agent.toLowerCase(), context);
-      if (memories) {
-        memoryContext = `\n[YOUR MEMORIES]\n${memories}\n[/YOUR MEMORIES]\nUse these memories to inform your response. Reference past calls when relevant.`;
-      }
-      
-      // Add learned patterns from trade outcomes
-      const learnedMemories = await recallMemories(agent, context, 5);
-      if (learnedMemories.length > 0) {
-        const learningSummary = learnedMemories.map(m => `- ${m.content}`).join('\n');
-        memoryContext += `\n[LEARNED FROM EXPERIENCE]\n${learningSummary}\n[/LEARNED]`;
-      }
-    } catch {}
-
-    // Get relationship context for this agent
-    let relationshipContext = '';
     try {
       const agentType = agent as AgentType;
       const relationships = relationshipMatrix.getAgentRelationships(agentType);
@@ -244,7 +226,7 @@ Personality: ${agentInfo.personality}
 
 ${soul ? `Your detailed personality and approach:\n${soul}\n` : ''}${relationshipContext}${memoryContext}
 
-RULES:
+CRITICAL RULES:
 - Keep responses concise (2-4 sentences max)
 - Stay in character
 - Be specific with numbers when discussing trades
@@ -253,7 +235,11 @@ RULES:
 - Do NOT ask for "required action" or request additional data
 - Do NOT use markdown formatting (no **, *, #, or \`)
 - Work with the data provided - if limited, acknowledge and give general guidance
-- You are having a DISCUSSION, not requesting tasks`;
+- You are having a DISCUSSION, not requesting tasks
+- ONLY discuss data explicitly provided in your context below
+- NEVER reference "past conversations", "memories", "last week", or "Q4" - you have no memory
+- NEVER invent portfolio values, positions, or trades that aren't in the data
+- If portfolio data seems wrong (e.g., $7M when user has $100), point it out`
 
     const userPrompt = replyTo 
       ? `${replyTo.agent} said: "${replyTo.content}"\n\nRespond to this in context of: ${context}`

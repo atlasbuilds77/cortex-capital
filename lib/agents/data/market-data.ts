@@ -32,10 +32,11 @@ interface MarketSnapshot {
 
 // Cache to avoid hammering APIs
 const quoteCache = new Map<string, { quote: Quote; expires: number }>();
-const CACHE_TTL = 60000; // 1 minute
+const CACHE_TTL = 5000; // 5 seconds - fresh data for trading decisions
 
 /**
- * Get quote for a single symbol using Polygon
+ * Get LIVE quote for a single symbol using Polygon
+ * Uses snapshot API for real-time data (free tier)
  */
 export async function getQuote(symbol: string): Promise<Quote | null> {
   const cached = quoteCache.get(symbol);
@@ -44,31 +45,54 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
   }
 
   try {
-    // Use Polygon's previous day endpoint (works on free tier)
-    const response = await fetch(
-      `${POLYGON_BASE}/v2/aggs/ticker/${symbol}/prev?apiKey=${POLYGON_API_KEY}`
+    // Try live snapshot first (real-time data)
+    const snapshotResponse = await fetch(
+      `${POLYGON_BASE}/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`
     );
-    const data = await response.json();
-    
-    if (data.status !== 'OK' || !data.results?.[0]) {
-      console.error(`[MarketData] No data for ${symbol}:`, data);
-      return null;
+    const snapshotData = await snapshotResponse.json();
+
+    if (snapshotData.status === 'OK' && snapshotData.ticker) {
+      const ticker = snapshotData.ticker;
+      const quote: Quote = {
+        symbol,
+        price: ticker.lastTrade?.p || ticker.day?.c || 0,
+        change: ticker.todaysChange || 0,
+        changePercent: ticker.todaysChangePerc || 0,
+        high: ticker.day?.h || 0,
+        low: ticker.day?.l || 0,
+        volume: ticker.day?.v || 0,
+        timestamp: new Date().toISOString(),
+      };
+
+      quoteCache.set(symbol, { quote, expires: Date.now() + CACHE_TTL });
+      return quote;
     }
 
-    const bar = data.results[0];
-    const quote: Quote = {
-      symbol,
-      price: bar.c || 0,  // close
-      change: (bar.c || 0) - (bar.o || 0),
-      changePercent: bar.o ? ((bar.c - bar.o) / bar.o) * 100 : 0,
-      high: bar.h || 0,
-      low: bar.l || 0,
-      volume: bar.v || 0,
-      timestamp: new Date().toISOString(),
-    };
+    // Fallback to last trade endpoint
+    const lastTradeResponse = await fetch(
+      `${POLYGON_BASE}/v2/last/trade/${symbol}?apiKey=${POLYGON_API_KEY}`
+    );
+    const lastTradeData = await lastTradeResponse.json();
 
-    quoteCache.set(symbol, { quote, expires: Date.now() + CACHE_TTL });
-    return quote;
+    if (lastTradeData.status === 'OK' && lastTradeData.results) {
+      const trade = lastTradeData.results;
+      const quote: Quote = {
+        symbol,
+        price: trade.p || 0,
+        change: 0, // Can't calculate without prev close
+        changePercent: 0,
+        high: trade.p || 0,
+        low: trade.p || 0,
+        volume: 0,
+        timestamp: new Date(trade.t).toISOString(),
+      };
+
+      quoteCache.set(symbol, { quote, expires: Date.now() + CACHE_TTL });
+      return quote;
+    }
+
+    console.error(`[MarketData] No live data for ${symbol}`);
+    return null;
   } catch (error) {
     console.error(`[MarketData] Failed to get quote for ${symbol}:`, error);
     return null;
@@ -80,7 +104,7 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
  */
 export async function getQuotes(symbols: string[]): Promise<Map<string, Quote>> {
   const results = new Map<string, Quote>();
-  
+
   // Check cache first
   const uncached: string[] = [];
   for (const symbol of symbols) {
@@ -107,6 +131,16 @@ export async function getQuotes(symbols: string[]): Promise<Map<string, Quote>> 
   });
 
   return results;
+}
+
+/**
+ * Force fresh live quotes (bypass cache) - use when user clicks buttons
+ */
+export async function getLiveQuotesFresh(symbols: string[]): Promise<Map<string, Quote>> {
+  // Clear cache for these symbols
+  symbols.forEach(symbol => quoteCache.delete(symbol));
+  // Fetch fresh
+  return getQuotes(symbols);
 }
 
 /**

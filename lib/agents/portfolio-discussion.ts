@@ -174,8 +174,16 @@ class PortfolioDiscussionEngine {
   /**
    * Format portfolio for agent context
    */
-  private formatPortfolioContext(portfolio: PortfolioData, profile: UserProfile): string {
-    console.log('[PortfolioDiscussion] formatPortfolioContext - portfolio_value:', portfolio.portfolio_value, 'cash:', portfolio.cash, 'positions:', portfolio.positions.length);
+  private formatPortfolioContext(portfolio: PortfolioData, profile: UserProfile, userId?: string): string {
+    console.log('[PortfolioDiscussion] formatPortfolioContext - userId:', userId, 'portfolio_value:', portfolio.portfolio_value, 'cash:', portfolio.cash, 'positions:', portfolio.positions.length);
+
+    // FLAG: If portfolio value seems like demo data (> $1M with few positions), warn agents
+    const isDemoData = portfolio.portfolio_value > 1000000 && portfolio.positions.length < 3;
+    const demoWarning = isDemoData ? `
+⚠️ WARNING: This portfolio data appears to be DEMO/SAMPLE data (value: $${portfolio.portfolio_value.toLocaleString()}).
+The user's actual account may have different values. Discuss generically or ask for clarification.
+` : '';
+
     const positionSummary = portfolio.positions.length > 0
       ? portfolio.positions.map(p => 
           `${p.symbol}: ${p.qty} shares @ $${p.current_price.toFixed(2)} (${p.unrealized_pnl_pct >= 0 ? '+' : ''}${p.unrealized_pnl_pct.toFixed(1)}%)`

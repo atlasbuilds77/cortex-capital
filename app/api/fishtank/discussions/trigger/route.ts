@@ -3,18 +3,25 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { collaborativeDaemon } from '@/lib/agents/collaborative-daemon';
 import { getAuthUser } from '@/lib/auth-middleware';
+import { getLiveQuotesFresh, getMarketSnapshot } from '@/lib/agents/data/market-data';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { type, params } = body;
-    
+
     // Get userId from auth token if not provided
     let userId = body.userId;
     if (!userId) {
       const authUser = await getAuthUser(request);
       userId = authUser?.userId;
     }
+
+    // FORCE FRESH LIVE DATA when user clicks buttons
+    console.log(`[API] ${type} triggered - fetching fresh live data...`);
+    await getLiveQuotesFresh(['SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL']);
+    const freshMarketSnapshot = await getMarketSnapshot();
+    console.log(`[API] Fresh data - SPY: $${freshMarketSnapshot.spy.price}, QQQ: $${freshMarketSnapshot.qqq.price}`);
     
     // Import portfolio discussion engine (lazy load)
     const { portfolioDiscussionEngine } = await import('@/lib/agents/portfolio-discussion');
