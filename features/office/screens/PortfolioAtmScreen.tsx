@@ -204,7 +204,7 @@ export function PortfolioAtmScreen({ token }: { token?: string | null }) {
               <div className="flex gap-1">
                 {[
                   { key: 'symbol' as SortKey, label: 'A-Z' },
-                  { key: 'value' as SortKey, label: '$' },
+                  { key: 'value' as SortKey, label: 'Size' },
                   { key: 'pnl' as SortKey, label: 'P/L' },
                 ].map(({ key, label }) => (
                   <button
@@ -237,8 +237,9 @@ export function PortfolioAtmScreen({ token }: { token?: string | null }) {
                     <div className={pos.unrealizedPnL >= 0 ? "text-emerald-400" : "text-red-400"}>
                       {formatCurrency(pos.unrealizedPnL)}
                     </div>
-                    <div className={`text-sm ${pos.todayChange >= 0 ? "text-emerald-300/60" : "text-red-300/60"}`}>
-                      {formatPercent(pos.todayChange)}
+                    <div className={`text-sm ${pos.unrealizedPnL >= 0 ? "text-emerald-300/60" : "text-red-300/60"}`}>
+                      {/* Calculate P/L % from cost basis */}
+                      {formatPercent(pos.averageCost > 0 ? ((pos.currentPrice - pos.averageCost) / pos.averageCost) * 100 : 0)}
                     </div>
                   </div>
                 </div>
