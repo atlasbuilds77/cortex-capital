@@ -50,12 +50,14 @@ interface TradeExecution {
 }
 
 /**
- * Place an order via Alpaca
+ * Place a bracket order via Alpaca (entry + stop loss + take profit)
  */
-async function placeAlpacaOrder(
+async function placeAlpacaBracketOrder(
   symbol: string, 
   qty: number, 
-  side: 'buy' | 'sell'
+  side: 'buy' | 'sell',
+  stopLossPercent: number,
+  takeProfitPercent: number
 ): Promise<TradeExecution | null> {
   try {
     const credentials = getAlpacaCredentials();
@@ -63,6 +65,93 @@ async function placeAlpacaOrder(
       console.error('[EXECUTOR] Missing Alpaca credentials in environment');
       return null;
     }
+
+    // First get current price to calculate SL/TP levels
+    const quoteRes = await fetch(`https://data.alpaca.markets/v2/stocks/${symbol}/quotes/latest`, {
+      headers: {
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
+      },
+    });
+    const quote = await quoteRes.json();
+    const currentPrice = quote.quote?.ap || quote.quote?.bp || 0;
+    
+    if (!currentPrice) {
+      console.error(`[EXECUTOR] Could not get price for ${symbol}`);
+      return null;
+    }
+
+    // Calculate stop and take profit prices
+    const stopLossPrice = side === 'buy' 
+      ? currentPrice * (1 - stopLossPercent / 100)
+      : currentPrice * (1 + stopLossPercent / 100);
+    
+    const takeProfitPrice = side === 'buy'
+      ? currentPrice * (1 + takeProfitPercent / 100)
+      : currentPrice * (1 - takeProfitPercent / 100);
+
+    console.log(`[EXECUTOR] Bracket order: ${symbol} @ ~$${currentPrice.toFixed(2)}`);
+    console.log(`[EXECUTOR] Stop Loss: $${stopLossPrice.toFixed(2)} (-${stopLossPercent}%)`);
+    console.log(`[EXECUTOR] Take Profit: $${takeProfitPrice.toFixed(2)} (+${takeProfitPercent}%)`);
+
+    const res = await fetch(`${ALPACA_BASE}/orders`, {
+      method: 'POST',
+      headers: {
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        symbol,
+        qty: qty.toString(),
+        side,
+        type: 'market',
+        time_in_force: 'gtc',
+        order_class: 'bracket',
+        stop_loss: {
+          stop_price: stopLossPrice.toFixed(2),
+        },
+        take_profit: {
+          limit_price: takeProfitPrice.toFixed(2),
+        },
+      }),
+    });
+
+    const order = await res.json();
+    
+    if (order.id) {
+      console.log(`[EXECUTOR] Bracket order placed: ${side} ${qty} ${symbol} - ID: ${order.id}`);
+      return {
+        orderId: order.id,
+        symbol,
+        side,
+        qty,
+        filledPrice: currentPrice,
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      console.error(`[EXECUTOR] Bracket order failed:`, order);
+      // Fallback to simple market order if bracket fails
+      console.log(`[EXECUTOR] Falling back to simple market order...`);
+      return placeSimpleAlpacaOrder(symbol, qty, side);
+    }
+  } catch (error: any) {
+    console.error(`[EXECUTOR] Bracket order error:`, error.message);
+    return null;
+  }
+}
+
+/**
+ * Place a simple market order (fallback)
+ */
+async function placeSimpleAlpacaOrder(
+  symbol: string, 
+  qty: number, 
+  side: 'buy' | 'sell'
+): Promise<TradeExecution | null> {
+  try {
+    const credentials = getAlpacaCredentials();
+    if (!credentials) return null;
 
     const res = await fetch(`${ALPACA_BASE}/orders`, {
       method: 'POST',
@@ -83,23 +172,31 @@ async function placeAlpacaOrder(
     const order = await res.json();
     
     if (order.id) {
-      console.log(`[EXECUTOR] Order placed: ${side} ${qty} ${symbol} - ID: ${order.id}`);
+      console.log(`[EXECUTOR] Simple order placed: ${side} ${qty} ${symbol} - ID: ${order.id}`);
       return {
         orderId: order.id,
         symbol,
         side,
         qty,
-        filledPrice: 0, // Will be filled async
+        filledPrice: 0,
         timestamp: new Date().toISOString(),
       };
-    } else {
-      console.error(`[EXECUTOR] Order failed:`, order);
-      return null;
     }
+    return null;
   } catch (error: any) {
-    console.error(`[EXECUTOR] Order error:`, error.message);
+    console.error(`[EXECUTOR] Simple order error:`, error.message);
     return null;
   }
+}
+
+// Legacy function name for compatibility
+async function placeAlpacaOrder(
+  symbol: string, 
+  qty: number, 
+  side: 'buy' | 'sell'
+): Promise<TradeExecution | null> {
+  // Default to 7% stop, 15% TP (moderate profile defaults)
+  return placeAlpacaBracketOrder(symbol, qty, side, 7, 15);
 }
 
 /**
@@ -235,9 +332,15 @@ export async function executeTradeIdea(signal: TradeSignal): Promise<void> {
   
   console.log(`[PIPELINE] Position sizing: ${positionSizing.reasoning}`);
 
-  // Step 4: EXECUTOR places the trade
+  // Step 4: EXECUTOR places the trade with bracket order (SL + TP)
   const side = signal.direction === 'long' ? 'buy' : 'sell';
-  const execution = await placeAlpacaOrder(signal.symbol, qty, side);
+  const execution = await placeAlpacaBracketOrder(
+    signal.symbol, 
+    qty, 
+    side,
+    positionSizing.stopLossPercent,
+    positionSizing.takeProfitPercent
+  );
 
   if (execution) {
     // Emit execution event
@@ -248,7 +351,7 @@ export async function executeTradeIdea(signal: TradeSignal): Promise<void> {
       role: 'Trade Executor',
       avatar: '🎬',
       color: '#6366F1',
-      content: `Filled ${qty} ${signal.symbol} @ market. Order ID: ${execution.orderId.slice(0, 8)}...`,
+      content: `Bracket order filled: ${qty} ${signal.symbol} @ ~$${execution.filledPrice?.toFixed(2) || 'market'}. Stop: -${positionSizing.stopLossPercent}% | TP: +${positionSizing.takeProfitPercent}%. Order ID: ${execution.orderId.slice(0, 8)}...`,
       discussionId: discussion?.id,
       discussionTopic: 'Trade Execution',
     });

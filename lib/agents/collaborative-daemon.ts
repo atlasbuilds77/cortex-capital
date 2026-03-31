@@ -53,6 +53,7 @@ async function getCachedOrFreshResearch(
   return getFullResearchContext(userSectors, positionSymbols, []);
 }
 import { recallMemories, generateLearningSummary } from './learning/agent-memory';
+import { getPositionContextForAgents } from './position-context';
 
 // Agent definitions with personalities
 const AGENTS = {
@@ -506,14 +507,32 @@ RULES:
     symbol: string,
     direction: 'long' | 'short',
     thesis: string,
-    riskProfile: string = 'moderate'
+    riskProfile: string = 'moderate',
+    userId?: string
   ): Promise<Discussion> {
-    const context = `Evaluate this trade idea:
+    // Get current position context so agents are aware
+    let positionContext = '';
+    if (userId) {
+      try {
+        const { contextForAgents, alertMessages } = await getPositionContextForAgents(userId);
+        positionContext = contextForAgents;
+        
+        // If there are urgent alerts, agents should address them first
+        if (alertMessages.length > 0) {
+          positionContext += '\n⚠️ ADDRESS THESE BEFORE NEW TRADES:\n' + alertMessages.join('\n') + '\n';
+        }
+      } catch (error) {
+        console.warn('[Daemon] Failed to get position context:', error);
+      }
+    }
+    
+    const context = `${positionContext}
+Evaluate this trade idea:
 Symbol: ${symbol}
 Direction: ${direction.toUpperCase()}
 Thesis: ${thesis}
 
-Discuss entry, targets, stop loss, and position sizing.`;
+Consider current positions before adding new exposure. Discuss entry, targets, stop loss, and position sizing.`;
 
     // Base agents for all profiles
     let agents = ['ANALYST', 'STRATEGIST', 'OPTIONS_STRATEGIST', 'RISK', 'EXECUTOR'];
