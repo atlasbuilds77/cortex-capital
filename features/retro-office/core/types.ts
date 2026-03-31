@@ -7,6 +7,7 @@ export type OfficeAgent = {
   color: string;
   item: string;
   avatarProfile?: AgentAvatarProfile | null;
+  avatar?: string | null; // Image path for cartoon avatars
 };
 
 export type JanitorTool = "broom" | "vacuum" | "floor_scrubber";
