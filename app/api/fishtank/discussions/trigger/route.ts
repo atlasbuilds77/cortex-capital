@@ -197,10 +197,11 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ success: true, data: discussion });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Discussion trigger failed:', error);
+    console.error('Stack:', error?.stack);
     return NextResponse.json(
-      { error: 'Failed to trigger discussion' },
+      { error: 'Failed to trigger discussion', details: error?.message || 'Unknown error' },
       { status: 500 }
     );
   }
