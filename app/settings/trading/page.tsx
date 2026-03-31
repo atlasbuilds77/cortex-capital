@@ -182,7 +182,75 @@ export default function TradingSettingsPage() {
           </div>
         </motion.div>
 
-
+        {/* Risk Profile */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-surface-elevated rounded-xl p-6 border border-gray-700"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <AlertTriangle className="w-6 h-6 text-primary" />
+            <h3 className="text-lg font-semibold text-text-primary">Risk Profile</h3>
+          </div>
+          <p className="text-text-secondary mb-6 text-sm">
+            Your risk profile determines position sizing, stop losses, and take profit targets.
+          </p>
+          
+          <div className="space-y-3">
+            {[
+              { 
+                value: 'conservative', 
+                label: 'Conservative', 
+                desc: '3-5% per trade, max 3 positions',
+                color: 'text-green-400',
+                stats: 'Stop: 5% | TP: 10%'
+              },
+              { 
+                value: 'moderate', 
+                label: 'Moderate', 
+                desc: '5-10% per trade, max 4 positions',
+                color: 'text-blue-400',
+                stats: 'Stop: 7% | TP: 15%'
+              },
+              { 
+                value: 'aggressive', 
+                label: 'Aggressive', 
+                desc: '10-15% per trade, max 5 positions',
+                color: 'text-orange-400',
+                stats: 'Stop: 10% | TP: 25%'
+              },
+              { 
+                value: 'ultra_aggressive', 
+                label: 'Ultra Aggressive', 
+                desc: '15-25% per trade, max 6 positions',
+                color: 'text-red-400',
+                stats: 'Stop: 15% | TP: 40%'
+              },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSettings({ ...settings, risk_profile: option.value as TradingSettings['risk_profile'] })}
+                className={`w-full p-4 rounded-lg border text-left transition-all ${
+                  settings.risk_profile === option.value
+                    ? 'border-primary bg-primary/10'
+                    : 'border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className={`font-medium ${option.color}`}>{option.label}</div>
+                    <div className="text-sm text-text-secondary">{option.desc}</div>
+                    <div className="text-xs text-text-secondary mt-1">{option.stats}</div>
+                  </div>
+                  {settings.risk_profile === option.value && (
+                    <CheckCircle className="w-5 h-5 text-primary" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </motion.div>
 
         {/* Position Limits */}
         <motion.div
