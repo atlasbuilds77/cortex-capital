@@ -23,7 +23,6 @@ import { query } from '../db';
 import { getMarketContextForAgents } from './data/market-data';
 import { loadUserPreferences, generatePreferencesContext, UserPreferences } from './user-preferences-context';
 import { getFullResearchContext } from './data/research-engine';
-import { query } from '../db';
 
 /**
  * Get cached research from 8 AM cron, fallback to fresh if not available
@@ -356,7 +355,7 @@ RULES:
             const positions = positionMatches.map(m => m.replace(':', '')).slice(0, 5);
             
             const researchContext = await getCachedOrFreshResearch(
-              odItem.userId,
+              userId,
               prefs.sectorInterests || ['Technology', 'Healthcare'],
               positions
             );
