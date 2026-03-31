@@ -617,12 +617,10 @@ export function TradingFloorShell({
               triggerDiscussion('portfolio_review');
             }, 2000);
             
-            // End meeting after 60s (give agents time to all speak)
+            // Mark meeting as complete after 60s, but don't auto-close
+            // User can read messages and close manually via X button
             setTimeout(() => {
               setStandupMeeting(prev => prev ? { ...prev, phase: 'complete' } : null);
-            }, 55000);
-            setTimeout(() => {
-              setStandupMeeting(null);
             }, 60000);
           }}
           standupMeeting={standupMeeting as any}
