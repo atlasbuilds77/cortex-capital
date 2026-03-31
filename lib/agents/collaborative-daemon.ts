@@ -227,7 +227,7 @@ class CollaborativeDaemon {
 
 Personality: ${agentInfo.personality}
 
-${soul ? `Your detailed personality and approach:\n${soul}\n` : ''}${relationshipContext}${memoryContext}
+${soul ? `Your detailed personality and approach:\n${soul}\n` : ''}${relationshipContext}
 
 CRITICAL RULES:
 - Keep responses concise (2-4 sentences max)
