@@ -2,8 +2,8 @@
 
 import { motion } from 'framer-motion'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { TrendingUp, TrendingDown, Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Loader2, AlertCircle } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { TrendingUp, TrendingDown, Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Loader2, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/lib/auth'
 
 interface Position {
@@ -24,10 +24,15 @@ interface PortfolioData {
   positions: Position[]
 }
 
+type SortKey = 'symbol' | 'quantity' | 'price' | 'cost' | 'value' | 'pnl'
+type SortDir = 'asc' | 'desc'
+
 export default function PortfolioPage() {
   const { token, loading: authLoading } = useAuth()
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sortKey, setSortKey] = useState<SortKey>('value')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [error, setError] = useState<string | null>(null)
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
 
@@ -98,6 +103,57 @@ export default function PortfolioPage() {
   const accountValue = portfolio.accountValue || 0
   const buyingPower = portfolio.buyingPower || 0
   const todayPnL = portfolio.todayPnL || 0
+
+  // Sorting logic
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
+
+  const sortedPositions = useMemo(() => {
+    return [...positions].sort((a, b) => {
+      let cmp = 0
+      switch (sortKey) {
+        case 'symbol':
+          cmp = a.symbol.localeCompare(b.symbol)
+          break
+        case 'quantity':
+          cmp = a.quantity - b.quantity
+          break
+        case 'price':
+          cmp = a.currentPrice - b.currentPrice
+          break
+        case 'cost':
+          cmp = a.averageCost - b.averageCost
+          break
+        case 'value':
+          cmp = (a.quantity * a.currentPrice) - (b.quantity * b.currentPrice)
+          break
+        case 'pnl':
+          cmp = a.unrealizedPnL - b.unrealizedPnL
+          break
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+  }, [positions, sortKey, sortDir])
+
+  const SortHeader = ({ label, sortKeyName }: { label: string, sortKeyName: SortKey }) => (
+    <th 
+      className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary transition-colors select-none"
+      onClick={() => toggleSort(sortKeyName)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortKey === sortKeyName && (
+          sortDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />
+        )}
+      </span>
+    </th>
+  )
   
   const totalCost = positions.reduce((sum, p) => sum + ((p.quantity || 0) * (p.averageCost || 0)), 0)
   const totalGain = positions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0)
@@ -360,16 +416,24 @@ export default function PortfolioPage() {
                 <table className="w-full">
                   <thead className="bg-surface-elevated">
                     <tr>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Symbol</th>
-                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Shares</th>
-                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Price</th>
-                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Avg Cost</th>
-                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">Value</th>
-                      <th className="text-right px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider">P&L</th>
+                      <th 
+                        className="text-left px-6 py-3 text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer hover:text-text-primary transition-colors select-none"
+                        onClick={() => toggleSort('symbol')}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          Symbol
+                          {sortKey === 'symbol' && (sortDir === 'desc' ? <ChevronDown size={14} /> : <ChevronUp size={14} />)}
+                        </span>
+                      </th>
+                      <SortHeader label="Shares" sortKeyName="quantity" />
+                      <SortHeader label="Price" sortKeyName="price" />
+                      <SortHeader label="Avg Cost" sortKeyName="cost" />
+                      <SortHeader label="Value" sortKeyName="value" />
+                      <SortHeader label="P&L" sortKeyName="pnl" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {positions.map((position, index) => {
+                    {sortedPositions.map((position, index) => {
                       const value = position.quantity * position.currentPrice
                       const pnlPercent = position.averageCost > 0 
                         ? ((position.currentPrice - position.averageCost) / position.averageCost) * 100
@@ -411,7 +475,7 @@ export default function PortfolioPage() {
 
               {/* Mobile Cards */}
               <div className="md:hidden p-4 space-y-3">
-                {positions.map((position, index) => {
+                {sortedPositions.map((position, index) => {
                   const value = position.quantity * position.currentPrice
                   const pnlPercent = position.averageCost > 0 
                     ? ((position.currentPrice - position.averageCost) / position.averageCost) * 100
