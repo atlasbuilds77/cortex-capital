@@ -17,11 +17,16 @@ export async function POST(request: NextRequest) {
       userId = authUser?.userId;
     }
 
-    // FORCE FRESH LIVE DATA when user clicks buttons
+    // FORCE FRESH LIVE DATA when user clicks buttons (non-blocking)
     console.log(`[API] ${type} triggered - fetching fresh live data...`);
-    await getLiveQuotesFresh(['SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL']);
-    const freshMarketSnapshot = await getMarketSnapshot();
-    console.log(`[API] Fresh data - SPY: $${freshMarketSnapshot.spy.price}, QQQ: $${freshMarketSnapshot.qqq.price}`);
+    try {
+      await getLiveQuotesFresh(['SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'AAPL']);
+      const freshMarketSnapshot = await getMarketSnapshot();
+      console.log(`[API] Fresh data - SPY: $${freshMarketSnapshot.spy.price}, QQQ: $${freshMarketSnapshot.qqq.price}`);
+    } catch (marketError) {
+      console.warn('[API] Failed to fetch fresh market data, continuing anyway:', marketError);
+      // Don't block discussion if market data fails
+    }
     
     // Import portfolio discussion engine (lazy load)
     const { portfolioDiscussionEngine } = await import('@/lib/agents/portfolio-discussion');
