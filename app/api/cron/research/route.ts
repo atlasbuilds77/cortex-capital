@@ -95,17 +95,29 @@ export async function GET(request: NextRequest) {
         // Store research in agent_memories for this user
         const today = new Date().toISOString().split('T')[0];
         
+        const researchPayload = {
+          text: researchContext,
+          date: today,
+          positionsAnalyzed: positionSymbols.length,
+          sectorsAnalyzed: userSectors.length,
+          allowedSymbolsCount: allowedSymbols.length,
+        };
+
+        // Keep one research snapshot per user/day for deterministic downstream reads.
         await query(`
-          INSERT INTO agent_memories (user_id, agent_id, memory_type, content, metadata, importance, created_at)
-          VALUES ($1, 'RESEARCH', 'daily_research', $2, $3, 8, NOW())
+          DELETE FROM agent_memories
+          WHERE user_id = $1
+            AND agent_name = 'RESEARCH'
+            AND memory_type = 'daily_research'
+            AND created_at::date = $2::date
+        `, [user.id, today]);
+
+        await query(`
+          INSERT INTO agent_memories (agent_name, user_id, memory_type, content, created_at)
+          VALUES ('RESEARCH', $1, 'daily_research', $2::jsonb, NOW())
         `, [
           user.id,
-          researchContext,
-          JSON.stringify({ 
-            date: today, 
-            positionsAnalyzed: positionSymbols.length,
-            sectorsAnalyzed: userSectors.length 
-          })
+          JSON.stringify(researchPayload),
         ]);
 
         results.push({ userId: user.id, success: true });

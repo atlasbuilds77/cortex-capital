@@ -576,9 +576,17 @@ export async function executeUserTrade(
     const snapUserSecret = snapResult.rows[0]?.snaptrade_user_secret;
     const selectedAccount = snapResult.rows[0]?.selected_snaptrade_account;
     
-    if (snapUserId && snapUserSecret && selectedAccount) {
+    if (snapUserId && snapUserSecret) {
       // Use SnapTrade for execution
       const snap = await import('../integrations/snaptrade');
+      let accountId: string | undefined = selectedAccount;
+      if (!accountId) {
+        const accounts = await snap.listAccounts(snapUserId, snapUserSecret);
+        accountId = accounts[0]?.id;
+      }
+      if (!accountId) {
+        return { success: false, error: 'No SnapTrade account available for execution' };
+      }
 
       // OPTIONS (SnapTrade)
       if (order.isOption) {
@@ -589,7 +597,7 @@ export async function executeUserTrade(
         const result = await snap.placeOptionOrder(
           snapUserId,
           snapUserSecret,
-          selectedAccount,
+          accountId,
           {
             orderType: order.type === 'limit' ? 'Limit' : 'Market',
             timeInForce: 'Day',
@@ -597,7 +605,7 @@ export async function executeUserTrade(
             legs: [
               {
                 symbol: order.optionSymbol,
-                action: order.side === 'buy' ? 'BUY_TO_OPEN' : 'SELL_TO_OPEN',
+                action: order.side === 'buy' ? 'BUY_TO_OPEN' : 'SELL_TO_CLOSE',
                 quantity: order.qty,
               },
             ],
@@ -616,7 +624,7 @@ export async function executeUserTrade(
       const symbols = await snap.snaptrade.referenceData.symbolSearchUserAccount({
         userId: snapUserId,
         userSecret: snapUserSecret,
-        accountId: selectedAccount,
+        accountId,
         substring: order.symbol,
       });
 
@@ -632,7 +640,7 @@ export async function executeUserTrade(
       const result = await snap.snaptrade.trading.placeForceOrder({
         userId: snapUserId,
         userSecret: snapUserSecret,
-        account_id: selectedAccount,
+        account_id: accountId,
         action: order.side === 'buy' ? 'BUY' : 'SELL',
         order_type: order.type === 'limit' ? 'Limit' : 'Market',
         time_in_force: 'Day',

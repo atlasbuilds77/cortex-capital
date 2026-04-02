@@ -218,7 +218,7 @@ export async function getMarketResearch(): Promise<{
   const marketSentiment = avgChange > 0.5 ? 'risk-on' : avgChange < -0.5 ? 'risk-off' : 'neutral';
 
   // Calculate key levels (simple support/resistance)
-  const spyPrice = spySnap?.latestTrade?.p || 500;
+  const spyPrice = spyQuote?.price || 500;
   const keyLevels = {
     spy: {
       support: Math.floor(spyPrice / 5) * 5 - 5,  // Round down to nearest 5
@@ -306,9 +306,5 @@ ${stockRes.news.slice(0, 2).map(n => `- ${n.title}`).join('\n')}`);
   return sections.join('\n\n');
 }
 
-export {
-  searchBrave,
-  NewsItem,
-  StockResearch,
-  SectorResearch,
-};
+export { searchBrave };
+export type { NewsItem, StockResearch, SectorResearch };

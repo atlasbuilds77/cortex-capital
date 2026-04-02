@@ -16,7 +16,7 @@
 
 import { query } from '../db';
 import * as brokerService from '../services/broker-service';
-import { loadUserPreferences, generatePreferencesContext, getPositionSizeGuidance } from './user-preferences-context';
+import { loadUserPreferences, generatePreferencesContext, getPositionSizeGuidance, isSymbolExcluded } from './user-preferences-context';
 import { getMarketContextForAgents } from './data/market-data';
 import { getFullResearchContext } from './data/research-engine';
 import { notifyTradeExecution, notifyTradeSignal } from '../notifications/trade-notifier';
@@ -38,7 +38,7 @@ async function getCachedOrFreshResearch(
     const cached = await query(`
       SELECT content FROM agent_memories 
       WHERE user_id = $1 
-        AND agent_id = 'RESEARCH' 
+        AND agent_name = 'RESEARCH' 
         AND memory_type = 'daily_research'
         AND created_at::date = $2::date
       ORDER BY created_at DESC 
@@ -47,7 +47,11 @@ async function getCachedOrFreshResearch(
 
     if (cached.rows.length > 0 && cached.rows[0].content) {
       console.log(`[AutoTrade] Using cached research for user ${userId}`);
-      return cached.rows[0].content;
+      const content = cached.rows[0].content;
+      if (typeof content === 'string') return content;
+      if (content && typeof content === 'object') {
+        return String((content as any).text || JSON.stringify(content));
+      }
     }
   } catch (error) {
     console.warn('[AutoTrade] Failed to fetch cached research:', error);
@@ -335,13 +339,17 @@ export async function runAutoTradingCycle(): Promise<{
         console.log(`[AutoTrading] ${user.email}: ${recommendations.length} raw recommendations`);
 
         // Filter by allowed symbols (if user has set any)
-        const allowedSymbols = prefs.allowedSymbols || [];
+        const allowedSymbols = (prefs.allowedSymbols || []).map((s: string) => s.toUpperCase());
         if (allowedSymbols.length > 0) {
           recommendations = recommendations.filter(r => 
             allowedSymbols.includes(r.symbol.toUpperCase())
           );
           console.log(`[AutoTrading] ${user.email}: ${recommendations.length} after allowed_symbols filter`);
         }
+        
+        // Hard exclusion gate (non-negotiable), independent of model prompt fidelity.
+        recommendations = recommendations.filter((r) => !isSymbolExcluded(r.symbol, prefs));
+        console.log(`[AutoTrading] ${user.email}: ${recommendations.length} after exclusions filter`);
 
         // Skip if no recommendations
         if (recommendations.length === 0) {
@@ -398,16 +406,6 @@ export async function runAutoTradingCycle(): Promise<{
             if (success) {
               results.tradesExecuted++;
               console.log(`[AutoTrading] Executed: ${trade.action} ${trade.quantity} ${trade.symbol} for ${user.email}`);
-              
-              // Notify user via email
-              await notifyTradeExecution({
-                userId: user.id,
-                symbol: trade.symbol,
-                action: trade.action,
-                quantity: trade.quantity,
-                price: 0, // Filled price comes from broker
-                reason: trade.reason,
-              });
             }
           } else {
             // User has auto_execute OFF - just show recommendation

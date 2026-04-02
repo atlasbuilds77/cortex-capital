@@ -30,14 +30,15 @@ import { getFullResearchContext } from './data/research-engine';
 async function getCachedOrFreshResearch(
   userId: string,
   userSectors: string[],
-  positionSymbols: string[]
+  positionSymbols: string[],
+  allowedSymbols: string[]
 ): Promise<string> {
   try {
     const today = new Date().toISOString().split('T')[0];
     const cached = await query(`
       SELECT content FROM agent_memories 
       WHERE user_id = $1 
-        AND agent_id = 'RESEARCH' 
+        AND agent_name = 'RESEARCH' 
         AND memory_type = 'daily_research'
         AND created_at::date = $2::date
       ORDER BY created_at DESC 
@@ -45,12 +46,16 @@ async function getCachedOrFreshResearch(
     `, [userId, today]);
 
     if (cached.rows.length > 0 && cached.rows[0].content) {
-      return cached.rows[0].content;
+      const content = cached.rows[0].content;
+      if (typeof content === 'string') return content;
+      if (content && typeof content === 'object') {
+        return String((content as any).text || JSON.stringify(content));
+      }
     }
   } catch (error) {
     console.warn('[CollaborativeDaemon] Failed to fetch cached research:', error);
   }
-  return getFullResearchContext(userSectors, positionSymbols, []);
+  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols);
 }
 import { recallMemories, generateLearningSummary } from './learning/agent-memory';
 import { getPositionContextForAgents } from './position-context';
@@ -357,7 +362,8 @@ CRITICAL RULES:
             const researchContext = await getCachedOrFreshResearch(
               userId,
               prefs.sectorInterests || ['Technology', 'Healthcare'],
-              positions
+              positions,
+              prefs.allowedSymbols || []
             );
             enrichedContext = `LIVE RESEARCH:\n${researchContext}\n\n${enrichedContext}`;
           } catch (researchErr) {
