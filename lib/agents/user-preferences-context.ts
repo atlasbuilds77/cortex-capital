@@ -24,13 +24,25 @@ function parseStringArray(value: unknown): string[] {
   }
 
   if (typeof value === 'string' && value.trim().length > 0) {
+    const raw = value.trim();
+
+    // PostgreSQL array literal support: {AAPL,MSFT} or {"AAPL","MSFT"}
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      const inner = raw.slice(1, -1).trim();
+      if (!inner) return [];
+      return inner
+        .split(',')
+        .map((item) => item.trim().replace(/^"(.*)"$/, '$1'))
+        .filter(Boolean);
+    }
+
     try {
-      const parsed = JSON.parse(value);
+      const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         return parseStringArray(parsed);
       }
     } catch {
-      return value.split(',').map((item) => item.trim()).filter(Boolean);
+      return raw.split(',').map((item) => item.trim()).filter(Boolean);
     }
   }
 
