@@ -249,15 +249,8 @@ async function executeTrade(
   trade: TradeRecommendation
 ): Promise<boolean> {
   try {
-    // Get user's broker connection
-    const connection = await brokerService.getBrokerConnection(userId);
-    if (!connection) {
-      console.error('[AutoTrading] No broker connection for user:', userId);
-      return false;
-    }
-
-    // Execute based on broker type
-    // For now, we'll use the unified broker service
+    // Execute through unified broker service.
+    // This path supports SnapTrade-first users and legacy brokers.
     const result = await brokerService.executeUserTrade(userId, {
       symbol: trade.symbol,
       side: trade.action,
