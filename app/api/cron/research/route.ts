@@ -67,15 +67,21 @@ export async function GET(request: NextRequest) {
         let positionSymbols: string[] = [];
         
         if (user.snaptrade_user_id && user.snaptrade_user_secret) {
-          const accounts = await listAccounts(user.snaptrade_user_id, user.snaptrade_user_secret);
-          const accountId = user.selected_snaptrade_account || accounts[0]?.id;
-          
-          if (accountId) {
-            const positions = await getPositions(user.snaptrade_user_id, user.snaptrade_user_secret, accountId);
-            positionSymbols = positions.map((p: any) => {
-              if (typeof p.symbol === 'string') return p.symbol;
-              return p.symbol?.symbol || p.symbol?.ticker || 'UNKNOWN';
-            }).filter((s: string) => s !== 'UNKNOWN');
+          try {
+            const accounts = await listAccounts(user.snaptrade_user_id, user.snaptrade_user_secret);
+            const accountId = user.selected_snaptrade_account || accounts[0]?.id;
+            
+            if (accountId) {
+              const positions = await getPositions(user.snaptrade_user_id, user.snaptrade_user_secret, accountId);
+              positionSymbols = positions.map((p: any) => {
+                if (typeof p.symbol === 'string') return p.symbol;
+                return p.symbol?.symbol || p.symbol?.ticker || 'UNKNOWN';
+              }).filter((s: string) => s !== 'UNKNOWN');
+            }
+          } catch (snapErr: any) {
+            console.warn(
+              `[Research Cron] SnapTrade positions unavailable for ${user.email}: ${snapErr?.message || snapErr}`
+            );
           }
         }
 
