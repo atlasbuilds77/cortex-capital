@@ -153,7 +153,7 @@ export async function saveAgentMemory(
   } catch (error: any) {
     console.error('Failed to save agent memory:', error.message);
     // Fallback to file-based
-    addAgentMemory(userId, agentName, { type: memoryType, content: JSON.stringify(content) });
+    await addAgentMemory(userId, agentName, { type: memoryType, content: JSON.stringify(content) });
   }
 }
 
@@ -249,7 +249,7 @@ function getDefaultMatrix() {
  */
 export async function getFullAgentContext(userId: string, agentId: string): Promise<string> {
   // File-based context
-  const fileContext = getUserAgentContext(userId, agentId);
+  const fileContext = await getUserAgentContext(userId, agentId);
   
   // DB-based memories
   const memories = await getAgentMemories(userId, agentId, 5);

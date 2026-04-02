@@ -44,6 +44,57 @@ interface SectorResearch {
   outlook: string;
 }
 
+interface ResearchContextOptions {
+  riskProfile?: string;
+  exclusions?: string[];
+  userTag?: string;
+}
+
+const EXCLUSION_TICKERS: Record<string, string[]> = {
+  Tobacco: ['MO', 'PM', 'BTI', 'IMBBY'],
+  Weapons: ['LMT', 'RTX', 'NOC', 'GD', 'BA'],
+  Gambling: ['MGM', 'WYNN', 'LVS', 'CZR', 'DKNG', 'PENN'],
+  'Fossil fuels': ['XOM', 'CVX', 'COP', 'OXY', 'SLB', 'HAL'],
+  'Private prisons': ['GEO', 'CXW'],
+};
+
+function normalizeSymbolList(symbols: string[] = []): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const raw of symbols) {
+    const symbol = String(raw || '').trim().toUpperCase();
+    if (!symbol || seen.has(symbol)) continue;
+    seen.add(symbol);
+    out.push(symbol);
+  }
+
+  return out;
+}
+
+function symbolsBlockedByExclusions(exclusions: string[] = []): Set<string> {
+  const blocked = new Set<string>();
+  for (const exclusion of exclusions) {
+    for (const ticker of EXCLUSION_TICKERS[exclusion] || []) {
+      blocked.add(ticker.toUpperCase());
+    }
+  }
+  return blocked;
+}
+
+function riskWatchlistLimit(riskProfile?: string): number {
+  switch ((riskProfile || '').toLowerCase()) {
+    case 'conservative':
+      return 3;
+    case 'aggressive':
+      return 7;
+    case 'ultra_aggressive':
+      return 9;
+    default:
+      return 5;
+  }
+}
+
 /**
  * Search Brave for financial news
  */
@@ -240,9 +291,22 @@ export async function getMarketResearch(): Promise<{
 export async function getFullResearchContext(
   userSectors: string[],
   userPositions: string[],
-  allowedSymbols: string[] = []
+  allowedSymbols: string[] = [],
+  options: ResearchContextOptions = {}
 ): Promise<string> {
   const sections: string[] = [];
+  const normalizedSectors = (userSectors || []).map((s) => String(s || '').trim()).filter(Boolean);
+  const excludedSet = symbolsBlockedByExclusions(options.exclusions || []);
+  const filteredAllowedSymbols = normalizeSymbolList(allowedSymbols).filter((s) => !excludedSet.has(s));
+  const filteredPositionSymbols = normalizeSymbolList(userPositions).filter((s) => !excludedSet.has(s));
+
+  sections.push(`CLIENT PROFILE:
+Risk: ${(options.riskProfile || 'moderate').toUpperCase()}
+Sectors: ${normalizedSectors.length > 0 ? normalizedSectors.join(', ') : 'Broad market'}
+Allowed Symbols: ${filteredAllowedSymbols.length > 0 ? filteredAllowedSymbols.join(', ') : 'Not restricted'}
+Exclusions: ${options.exclusions && options.exclusions.length > 0 ? options.exclusions.join(', ') : 'None'}
+Positions Considered: ${filteredPositionSymbols.length}
+Profile Tag: ${options.userTag || 'default'}`);
 
   // Market overview
   try {
@@ -259,9 +323,10 @@ ${market.topNews.slice(0, 3).map(n => `- ${n.title}`).join('\n')}`);
   }
 
   // If user has allowed symbols, research those specifically
-  if (allowedSymbols.length > 0) {
+  if (filteredAllowedSymbols.length > 0) {
+    const watchlist = filteredAllowedSymbols.slice(0, riskWatchlistLimit(options.riskProfile));
     sections.push(`\nFOCUSED WATCHLIST RESEARCH:`);
-    for (const symbol of allowedSymbols.slice(0, 5)) {
+    for (const symbol of watchlist) {
       try {
         const stockRes = await researchStock(symbol);
         sections.push(`\n${symbol}:
@@ -273,23 +338,25 @@ ${stockRes.news.slice(0, 1).map(n => `News: ${n.title}`).join('\n')}`);
         console.error(`[Research] Allowed symbol ${symbol} failed:`, err);
       }
     }
-  } else {
-    // User's sector research (fallback when no allowed symbols)
-    for (const sector of userSectors.slice(0, 2)) {
-      try {
-        const sectorRes = await researchSector(sector);
-        sections.push(`\n${sector.toUpperCase()} SECTOR:
+  }
+
+  // Always include at least some sector framing so users with identical
+  // watchlists still receive preference-specific research context.
+  const sectorsToCover = normalizedSectors.length > 0 ? normalizedSectors.slice(0, 2) : ['Technology', 'Healthcare'];
+  for (const sector of sectorsToCover) {
+    try {
+      const sectorRes = await researchSector(sector);
+      sections.push(`\n${sector.toUpperCase()} SECTOR:
 Performance: ${sectorRes.performance >= 0 ? '+' : ''}${sectorRes.performance.toFixed(2)}%
 Top Movers: ${sectorRes.topMovers.slice(0, 3).map(m => `${m.symbol} ${m.change >= 0 ? '+' : ''}${m.change.toFixed(1)}%`).join(', ')}
 Outlook: ${sectorRes.outlook}`);
-      } catch (err) {
-        console.error(`[Research] Sector ${sector} failed:`, err);
-      }
+    } catch (err) {
+      console.error(`[Research] Sector ${sector} failed:`, err);
     }
   }
 
   // Research user's positions
-  for (const symbol of userPositions.slice(0, 3)) {
+  for (const symbol of filteredPositionSymbols.slice(0, 3)) {
     try {
       const stockRes = await researchStock(symbol);
       if (stockRes.news.length > 0 || stockRes.catalysts.length > 0) {
@@ -307,4 +374,4 @@ ${stockRes.news.slice(0, 2).map(n => `- ${n.title}`).join('\n')}`);
 }
 
 export { searchBrave };
-export type { NewsItem, StockResearch, SectorResearch };
+export type { NewsItem, StockResearch, SectorResearch, ResearchContextOptions };

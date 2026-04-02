@@ -30,20 +30,26 @@ async function getCachedOrFreshResearch(
   userId: string,
   userSectors: string[],
   positionSymbols: string[],
-  allowedSymbols: string[]
+  allowedSymbols: string[],
+  options?: { riskProfile?: string; exclusions?: string[] }
 ): Promise<string> {
   try {
     // Check for today's cached research
-    const today = new Date().toISOString().split('T')[0];
+    const todayEt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
     const cached = await query(`
       SELECT content FROM agent_memories 
       WHERE user_id = $1 
         AND agent_name = 'RESEARCH' 
         AND memory_type = 'insight'
-        AND created_at::date = $2::date
+        AND (created_at AT TIME ZONE 'US/Eastern')::date = $2::date
       ORDER BY created_at DESC 
       LIMIT 1
-    `, [userId, today]);
+    `, [userId, todayEt]);
 
     if (cached.rows.length > 0 && cached.rows[0].content) {
       console.log(`[AutoTrade] Using cached research for user ${userId}`);
@@ -59,7 +65,11 @@ async function getCachedOrFreshResearch(
 
   // Fallback to fresh research
   console.log(`[AutoTrade] No cached research, running fresh for user ${userId}`);
-  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols);
+  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols, {
+    riskProfile: options?.riskProfile,
+    exclusions: options?.exclusions,
+    userTag: userId.slice(0, 8),
+  });
 }
 import * as fs from 'fs';
 
@@ -161,7 +171,11 @@ async function generateRecommendations(
     userId,
     prefs.sectorInterests || ['Technology'],
     portfolio.positions.map((p: any) => p.symbol),
-    prefs.allowedSymbols || []
+    prefs.allowedSymbols || [],
+    {
+      riskProfile: prefs.riskProfile,
+      exclusions: prefs.exclusions || [],
+    }
   );
   
   const sizing = getPositionSizeGuidance(prefs, portfolio.account.portfolioValue);
@@ -430,14 +444,16 @@ export async function runAutoTradingCycle(): Promise<{
  */
 function isMarketOpen(): boolean {
   const now = new Date();
-  const hour = now.getUTCHours();
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
   const day = now.getUTCDay();
   
   // Skip weekends
   if (day === 0 || day === 6) return false;
   
-  // Market hours: 9:30 AM - 4:00 PM ET = 13:30 - 20:00 UTC
-  return hour >= 14 && hour < 20;
+  // Market hours: 9:30 AM - 4:00 PM ET = 13:30 - 20:00 UTC (during ET DST).
+  const marketOpenUtcMinutes = 13 * 60 + 30;
+  const marketCloseUtcMinutes = 20 * 60;
+  return utcMinutes >= marketOpenUtcMinutes && utcMinutes < marketCloseUtcMinutes;
 }
 
 /**

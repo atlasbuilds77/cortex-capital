@@ -26,12 +26,44 @@ services:
     name: cortex-auto-trade
     runtime: node
     region: oregon
-    schedule: "*/15 13-20 * * 1-5"  # Every 15 min, 9am-4pm ET (13-20 UTC), Mon-Fri
+    schedule: "*/15 13-19 * * 1-5"  # Every 15 min during 9:30am-4:00pm ET window (UTC guarded in route)
     buildCommand: npm ci
-    startCommand: npx tsx lib/agents/run-cron.ts
+    startCommand: node -e "fetch('https://cortexcapitalgroup.com/api/cron/auto-trade/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
     nodeVersion: "20"
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+
+  # Daily premarket research snapshot
+  - type: cron
+    name: cortex-research
+    runtime: node
+    region: oregon
+    schedule: "35 13 * * 1-5" # 6:35 AM PT, Mon-Fri
+    buildCommand: npm ci
+    startCommand: node -e "fetch('https://cortexcapitalgroup.com/api/cron/research/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
+    nodeVersion: "20"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CRON_SECRET
+        sync: false
+
+  # End-of-day digest
+  - type: cron
+    name: cortex-daily-digest
+    runtime: node
+    region: oregon
+    schedule: "0 20 * * 1-5" # 4:00 PM ET, Mon-Fri
+    buildCommand: npm ci
+    startCommand: node -e "fetch('https://cortexcapitalgroup.com/api/cron/daily-digest/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
+    nodeVersion: "20"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CRON_SECRET
         sync: false

@@ -41,15 +41,16 @@ export async function runCronCycle(): Promise<{
  */
 function isMarketOpen(): boolean {
   const now = new Date();
-  const hour = now.getUTCHours();
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
   const day = now.getUTCDay();
   
   // Skip weekends
   if (day === 0 || day === 6) return false;
   
-  // Market hours: 9:30 AM - 4:00 PM ET = 13:30 - 20:00 UTC
-  // Simplified: 14:00 - 20:00 UTC
-  return hour >= 14 && hour < 20;
+  // Market hours: 9:30 AM - 4:00 PM ET = 13:30 - 20:00 UTC (during ET DST).
+  const marketOpenUtcMinutes = 13 * 60 + 30;
+  const marketCloseUtcMinutes = 20 * 60;
+  return utcMinutes >= marketOpenUtcMinutes && utcMinutes < marketCloseUtcMinutes;
 }
 
 /**

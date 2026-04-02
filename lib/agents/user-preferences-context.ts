@@ -18,6 +18,42 @@ export interface UserPreferences {
   allowedSymbols: string[];
 }
 
+function parseStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parseStringArray(parsed);
+      }
+    } catch {
+      return value.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+  }
+
+  return [];
+}
+
+function parseEnabledAgents(value: unknown): Record<string, boolean> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, boolean>;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, boolean>;
+      }
+    } catch {
+      // Ignore malformed legacy payload.
+    }
+  }
+  return {};
+}
+
 /**
  * Load user preferences from database
  */
@@ -43,12 +79,12 @@ export async function loadUserPreferences(userId: string): Promise<UserPreferenc
     return {
       userId: row.id,
       riskProfile: row.risk_profile || 'moderate',
-      tradingGoals: row.trading_goals || [],
-      sectorInterests: row.sector_interests || [],
-      exclusions: row.exclusions || [],
-      enabledAgents: row.enabled_agents || {},
+      tradingGoals: parseStringArray(row.trading_goals),
+      sectorInterests: parseStringArray(row.sector_interests),
+      exclusions: parseStringArray(row.exclusions),
+      enabledAgents: parseEnabledAgents(row.enabled_agents),
       tier: row.tier || 'free',
-      allowedSymbols: row.allowed_symbols || [],
+      allowedSymbols: parseStringArray(row.allowed_symbols),
     };
   } catch (error) {
     console.error('[UserPreferences] Failed to load:', error);

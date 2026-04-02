@@ -68,6 +68,25 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 /**
+ * Ensure a universe row exists for the user.
+ * Safe idempotent upsert to avoid runtime reference errors in context loading paths.
+ */
+async function ensureUserUniverse(userId: string): Promise<void> {
+  await query(
+    `INSERT INTO user_universes (user_id, agent_memories, trade_history, preferences, personality_overrides)
+     VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, $5::jsonb)
+     ON CONFLICT (user_id) DO NOTHING`,
+    [
+      userId,
+      JSON.stringify({}),
+      JSON.stringify([]),
+      JSON.stringify(DEFAULT_PREFERENCES),
+      JSON.stringify({}),
+    ]
+  );
+}
+
+/**
  * Get or create a user's universe
  * ISOLATED: Only returns data for the specified user_id
  */
@@ -335,6 +354,16 @@ export async function logUserTrade(
   } catch (error: any) {
     console.error('[UserUniverse] Failed to log trade:', error.message);
   }
+}
+
+/**
+ * Backward-compatible alias used by older broker abstraction paths.
+ */
+export async function addTradeToHistory(
+  userId: string,
+  trade: Omit<TradeRecord, 'timestamp'>
+): Promise<void> {
+  await logUserTrade(userId, trade);
 }
 
 /**

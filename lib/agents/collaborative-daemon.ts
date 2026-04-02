@@ -31,19 +31,25 @@ async function getCachedOrFreshResearch(
   userId: string,
   userSectors: string[],
   positionSymbols: string[],
-  allowedSymbols: string[]
+  allowedSymbols: string[],
+  options?: { riskProfile?: string; exclusions?: string[] }
 ): Promise<string> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const todayEt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
     const cached = await query(`
       SELECT content FROM agent_memories 
       WHERE user_id = $1 
         AND agent_name = 'RESEARCH' 
         AND memory_type = 'insight'
-        AND created_at::date = $2::date
+        AND (created_at AT TIME ZONE 'US/Eastern')::date = $2::date
       ORDER BY created_at DESC 
       LIMIT 1
-    `, [userId, today]);
+    `, [userId, todayEt]);
 
     if (cached.rows.length > 0 && cached.rows[0].content) {
       const content = cached.rows[0].content;
@@ -55,7 +61,11 @@ async function getCachedOrFreshResearch(
   } catch (error) {
     console.warn('[CollaborativeDaemon] Failed to fetch cached research:', error);
   }
-  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols);
+  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols, {
+    riskProfile: options?.riskProfile,
+    exclusions: options?.exclusions,
+    userTag: userId.slice(0, 8),
+  });
 }
 import { recallMemories, generateLearningSummary } from './learning/agent-memory';
 import { getPositionContextForAgents } from './position-context';
@@ -363,7 +373,11 @@ CRITICAL RULES:
               userId,
               prefs.sectorInterests || ['Technology', 'Healthcare'],
               positions,
-              prefs.allowedSymbols || []
+              prefs.allowedSymbols || [],
+              {
+                riskProfile: prefs.riskProfile,
+                exclusions: prefs.exclusions || [],
+              }
             );
             enrichedContext = `LIVE RESEARCH:\n${researchContext}\n\n${enrichedContext}`;
           } catch (researchErr) {
