@@ -74,8 +74,10 @@ export async function GET(request: NextRequest) {
             if (accountId) {
               const positions = await getPositions(user.snaptrade_user_id, user.snaptrade_user_secret, accountId);
               positionSymbols = positions.map((p: any) => {
-                if (typeof p.symbol === 'string') return p.symbol;
-                return p.symbol?.symbol || p.symbol?.ticker || 'UNKNOWN';
+                const raw = typeof p.symbol === 'string'
+                  ? p.symbol
+                  : (p.symbol?.symbol || p.symbol?.ticker || 'UNKNOWN');
+                return typeof raw === 'string' ? raw.toUpperCase() : 'UNKNOWN';
               }).filter((s: string) => s !== 'UNKNOWN');
             }
           } catch (snapErr: any) {
@@ -114,13 +116,13 @@ export async function GET(request: NextRequest) {
           DELETE FROM agent_memories
           WHERE user_id = $1
             AND agent_name = 'RESEARCH'
-            AND memory_type = 'daily_research'
+            AND memory_type = 'insight'
             AND created_at::date = $2::date
         `, [user.id, today]);
 
         await query(`
           INSERT INTO agent_memories (agent_name, user_id, memory_type, content, created_at)
-          VALUES ('RESEARCH', $1, 'daily_research', $2::jsonb, NOW())
+          VALUES ('RESEARCH', $1, 'insight', $2::jsonb, NOW())
         `, [
           user.id,
           JSON.stringify(researchPayload),

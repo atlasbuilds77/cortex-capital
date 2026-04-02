@@ -39,7 +39,7 @@ async function getCachedOrFreshResearch(
       SELECT content FROM agent_memories 
       WHERE user_id = $1 
         AND agent_name = 'RESEARCH' 
-        AND memory_type = 'daily_research'
+        AND memory_type = 'insight'
         AND created_at::date = $2::date
       ORDER BY created_at DESC 
       LIMIT 1
