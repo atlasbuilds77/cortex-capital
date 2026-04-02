@@ -2,15 +2,15 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
-import { pool } from '@/lib/db';
-import { listAccounts, listConnections } from '@/lib/integrations/snaptrade';
+import { query } from '@/lib/db';
+import { listAccounts } from '@/lib/integrations/snaptrade';
 
 export const GET = requireAuth(async (request: NextRequest, user) => {
   try {
     const brokers: any[] = [];
 
     // Check for SnapTrade connections first
-    const snapResult = await pool.query(
+    const snapResult = await query(
       'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
       [user.userId]
     );
@@ -49,26 +49,24 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
     }
 
     // Also check legacy broker tokens
-    const result = await pool.query(
+    const result = await query(
       `SELECT 
-        broker,
+        broker_type,
         account_id,
-        account_type,
-        created_at,
-        last_sync
-      FROM user_broker_tokens 
-      WHERE user_id = $1`,
+        updated_at
+      FROM broker_credentials 
+      WHERE user_id = $1 AND is_active = true`,
       [user.userId]
     );
 
     for (const row of result.rows) {
       brokers.push({
-        id: row.broker,
-        name: row.broker === 'alpaca' ? 'Alpaca' : row.broker === 'tradier' ? 'Tradier' : row.broker,
+        id: row.broker_type,
+        name: row.broker_type === 'alpaca' ? 'Alpaca' : row.broker_type === 'tradier' ? 'Tradier' : row.broker_type,
         icon: 'chart',
         status: 'connected' as const,
-        accountType: row.account_type || 'paper',
-        lastSync: row.last_sync ? formatTimeAgo(new Date(row.last_sync)) : 'Never',
+        accountType: 'live',
+        lastSync: row.updated_at ? formatTimeAgo(new Date(row.updated_at)) : 'Never',
         accountNumber: row.account_id ? `****${row.account_id.slice(-4)}` : undefined,
         via: 'direct',
       });

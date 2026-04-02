@@ -14,6 +14,8 @@ const CYCLE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
 export async function runCronCycle(): Promise<{
   totalUsers: number;
   processed: number;
+  tradesExecuted: number;
+  errors: string[];
   duration: number;
 }> {
   const startTime = Date.now();
@@ -24,6 +26,7 @@ export async function runCronCycle(): Promise<{
   console.log(`[Cron] Daemon processed ${cycleResult.usersProcessed} users, executed ${cycleResult.tradesExecuted} trades`);
   if (cycleResult.errors.length > 0) {
     console.warn(`[Cron] ${cycleResult.errors.length} user-level errors detected`);
+    console.warn('[Cron] Error details:', cycleResult.errors);
   }
   
   const duration = Date.now() - startTime;
@@ -32,6 +35,8 @@ export async function runCronCycle(): Promise<{
   return {
     totalUsers: cycleResult.usersProcessed,
     processed: cycleResult.usersProcessed,
+    tradesExecuted: cycleResult.tradesExecuted,
+    errors: cycleResult.errors,
     duration,
   };
 }

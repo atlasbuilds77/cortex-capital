@@ -621,11 +621,34 @@ async function executeTrade(
         reason: trade.reason,
       });
       
-      // Log to database
+      // Persist to the live trade log schema used by digests and broker dashboards.
       await query(`
-        INSERT INTO trade_logs (user_id, symbol, action, quantity, price, reason, executed_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      `, [userId, trade.symbol, trade.action, trade.quantity, result.avgPrice, trade.reason]);
+        INSERT INTO trade_logs (
+          user_id,
+          broker,
+          symbol,
+          side,
+          quantity,
+          order_type,
+          status,
+          order_id,
+          filled_price,
+          filled_quantity,
+          created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      `, [
+        userId,
+        trade.isOption ? 'snaptrade_options' : 'auto_trading',
+        trade.symbol,
+        trade.action,
+        trade.quantity,
+        'market',
+        'filled',
+        result.orderId || null,
+        result.avgPrice || null,
+        trade.quantity,
+      ]);
 
       // Mirror execution into per-user universe memory/trade history.
       await logUserTrade(userId, {

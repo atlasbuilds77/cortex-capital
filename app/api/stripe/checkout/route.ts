@@ -2,11 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-middleware';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
+import { getStripe } from '@/lib/stripe';
 
 const VALID_PRICES = [
   'price_1TDqOlQVfeouH9H6DJv5CtWl', // recovery
@@ -16,6 +12,7 @@ const VALID_PRICES = [
 
 export const POST = requireAuth(async (request: NextRequest, user) => {
   try {
+    const stripe = getStripe();
     const body = await request.json();
     const { priceId, planId } = body;
 

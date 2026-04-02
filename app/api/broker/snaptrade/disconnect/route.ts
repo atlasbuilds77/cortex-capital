@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth-middleware'
-import { snaptrade } from '@/lib/integrations/snaptrade'
+import { listAccounts, snaptrade } from '@/lib/integrations/snaptrade'
 import { query } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
@@ -18,26 +18,45 @@ export async function POST(request: NextRequest) {
 
     // Get user's SnapTrade credentials
     const result = await query(
-      'SELECT snaptrade_user_id, snaptrade_user_secret FROM users WHERE id = $1',
-      [user.id]
+      'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
+      [user.userId]
     )
 
-    const { snaptrade_user_id, snaptrade_user_secret } = result.rows[0] || {}
+    const { snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account } = result.rows[0] || {}
 
     if (!snaptrade_user_id || !snaptrade_user_secret) {
       return NextResponse.json({ error: 'No SnapTrade connection found' }, { status: 400 })
     }
 
-    // Delete the account connection via SnapTrade
-    await snaptrade.accountInformation.deleteUserAccount({
+    const accounts = await listAccounts(snaptrade_user_id, snaptrade_user_secret)
+    const matchedAccount = (accounts as any[]).find((account) => account.id === accountId)
+    const authorizationId = matchedAccount?.brokerage_authorization?.id
+
+    if (!authorizationId) {
+      return NextResponse.json({ error: 'Account not found for this user' }, { status: 404 })
+    }
+
+    await snaptrade.connections.removeBrokerageAuthorization({
+      authorizationId,
       userId: snaptrade_user_id,
       userSecret: snaptrade_user_secret,
-      accountId: accountId,
     })
+
+    const remainingAccounts = (accounts as any[]).filter((account) => account.id !== accountId)
+    const nextSelectedAccount =
+      selected_snaptrade_account === accountId
+        ? remainingAccounts[0]?.id || null
+        : selected_snaptrade_account || null
+
+    await query(
+      'UPDATE users SET selected_snaptrade_account = $1, updated_at = NOW() WHERE id = $2',
+      [nextSelectedAccount, user.userId]
+    )
 
     return NextResponse.json({ 
       success: true,
-      message: 'Account disconnected successfully'
+      message: 'Account disconnected successfully',
+      selectedAccount: nextSelectedAccount,
     })
   } catch (error: any) {
     console.error('[SnapTrade Disconnect] Error:', error)

@@ -70,6 +70,8 @@ async function getCachedOrFreshResearch(
 import { recallMemories, generateLearningSummary } from './learning/agent-memory';
 import { getPositionContextForAgents } from './position-context';
 import { AGENTS as AGENT_CONFIG, getAgent } from './agent-config';
+import { getAgentRiskAdjustment, getQuickRiskContext, type RiskProfile } from './risk-profile-modifier';
+import { loadAgentSoul as loadAgentSoulMarkdown } from './soul-loader';
 
 // Agent definitions - now uses centralized config with real avatars
 const AGENTS = {
@@ -215,7 +217,8 @@ class CollaborativeDaemon {
   private async agentSpeak(
     agent: keyof typeof AGENTS,
     context: string,
-    replyTo?: AgentMessage
+    replyTo?: AgentMessage,
+    riskProfile: RiskProfile = 'moderate'
   ): Promise<string> {
     const agentInfo = AGENTS[agent];
     const soul = this.loadAgentSoul(agent);
@@ -243,6 +246,10 @@ class CollaborativeDaemon {
 Personality: ${agentInfo.personality}
 
 ${soul ? `Your detailed personality and approach:\n${soul}\n` : ''}${relationshipContext}
+
+USER RISK GUIDANCE:
+${getQuickRiskContext(riskProfile)}
+${getAgentRiskAdjustment(agent, riskProfile)}
 
 CRITICAL RULES:
 - Keep responses concise (2-4 sentences max)
@@ -282,14 +289,8 @@ CRITICAL RULES:
   }
 
   private loadAgentSoul(agent: string): string | null {
-    try {
-      const agentName = agent.toLowerCase().replace(/ /g, '_');
-      const soulPath = path.join(__dirname, 'souls', `${agentName}.md`);
-      if (fs.existsSync(soulPath)) {
-        return fs.readFileSync(soulPath, 'utf-8').slice(0, 2000); // First 2000 chars for full personality
-      }
-    } catch {}
-    return null;
+    const soul = loadAgentSoulMarkdown(agent, 2000);
+    return soul || null;
   }
 
   /**
@@ -343,10 +344,12 @@ CRITICAL RULES:
     participants: (keyof typeof AGENTS)[],
     context: string,
     rounds: number = 2,
-    userId?: string
+    userId?: string,
+    riskProfile: RiskProfile = 'moderate'
   ): Promise<Discussion> {
     // Inject real market data and user preferences
     let enrichedContext = context;
+    let resolvedRiskProfile = riskProfile;
     
     try {
       const marketContext = await getMarketContextForAgents();
@@ -360,8 +363,9 @@ CRITICAL RULES:
         // Load user preferences (trading settings)
         const prefs = await loadUserPreferences(userId);
         if (prefs) {
+          resolvedRiskProfile = prefs.riskProfile as RiskProfile;
           const prefsContext = generatePreferencesContext(prefs);
-          enrichedContext = `USER PREFERENCES:\n${prefsContext}\n\n${enrichedContext}`;
+          enrichedContext = `USER PREFERENCES:\n${prefsContext}\n\nRISK PROFILE STEERING:\n${getQuickRiskContext(resolvedRiskProfile)}\n\n${enrichedContext}`;
           
           // Add research for user's sectors and positions
           try {
@@ -428,7 +432,7 @@ CRITICAL RULES:
 
     // First agent kicks off with enriched context
     const firstAgent = participants[0];
-    const firstContent = await this.agentSpeak(firstAgent, enrichedContext);
+    const firstContent = await this.agentSpeak(firstAgent, enrichedContext, undefined, resolvedRiskProfile);
     let lastMessage = this.createMessage(firstAgent, firstContent, discussion);
 
     // Others respond in rounds
@@ -443,7 +447,7 @@ CRITICAL RULES:
         
         const responseContext = `Topic: ${topic}\n\nRecent discussion:\n${recentMessages}\n\nAdd your perspective.`;
         
-        const content = await this.agentSpeak(agent, responseContext, lastMessage);
+        const content = await this.agentSpeak(agent, responseContext, lastMessage, resolvedRiskProfile);
         lastMessage = this.createMessage(agent, content, discussion, lastMessage);
         
         // Small delay for readability
@@ -551,7 +555,10 @@ Symbol: ${symbol}
 Direction: ${direction.toUpperCase()}
 Thesis: ${thesis}
 
-Consider current positions before adding new exposure. Discuss entry, targets, stop loss, and position sizing.`;
+Consider current positions before adding new exposure. Discuss entry, targets, stop loss, and position sizing.
+
+USER RISK PROFILE:
+${getQuickRiskContext((riskProfile || 'moderate') as RiskProfile)}`;
 
     // Base agents for all profiles
     let agents = ['ANALYST', 'STRATEGIST', 'OPTIONS_STRATEGIST', 'RISK', 'EXECUTOR'];
@@ -563,9 +570,11 @@ Consider current positions before adding new exposure. Discuss entry, targets, s
 
     return this.runDiscussion(
       `Trade Idea: ${symbol} ${direction.toUpperCase()}`,
-      agents,
+      agents as (keyof typeof AGENTS)[],
       context,
-      2
+      2,
+      userId,
+      (riskProfile || 'moderate') as RiskProfile
     );
   }
 

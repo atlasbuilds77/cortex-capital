@@ -13,6 +13,8 @@ import { loadUserPreferences, generatePreferencesContext } from './user-preferen
 import { getMarketContextForAgents } from './data/market-data';
 import { researchStock } from './data/research-engine';
 import * as brokerService from '../services/broker-service';
+import { getAgentRiskAdjustment, getQuickRiskContext, type RiskProfile } from './risk-profile-modifier';
+import { loadAgentSoul as loadAgentSoulMarkdown } from './soul-loader';
 
 const AGENTS: Record<string, { name: string; role: string; avatar: string; color: string }> = {
   ANALYST: { name: 'Analyst', role: 'Market Analyst', avatar: '📊', color: '#3B82F6' },
@@ -54,14 +56,7 @@ function getDeepSeekClient(): OpenAI {
 }
 
 function loadSoul(agentId: string): string {
-  const agentName = agentId.toLowerCase().replace(/ /g, '_');
-  const soulPath = path.join(__dirname, 'souls', `${agentName}.md`);
-  try {
-    if (fs.existsSync(soulPath)) {
-      return fs.readFileSync(soulPath, 'utf-8');
-    }
-  } catch {}
-  return '';
+  return loadAgentSoulMarkdown(agentId);
 }
 
 /**
@@ -101,6 +96,8 @@ export async function phoneBoothChat(
   let portfolioContext = '';
   let prefsContext = '';
   let marketContext = '';
+  let riskProfile: RiskProfile = 'moderate';
+  let agentRiskAdjustment = '';
   
   try {
     const portfolio = await brokerService.fetchUserPortfolio(userId);
@@ -115,6 +112,8 @@ export async function phoneBoothChat(
   try {
     const prefs = await loadUserPreferences(userId);
     if (prefs) {
+      riskProfile = prefs.riskProfile as RiskProfile;
+      agentRiskAdjustment = getAgentRiskAdjustment(agentId, riskProfile);
       prefsContext = `\nUSER PROFILE: ${prefs.riskProfile} risk, goals: ${prefs.tradingGoals.join(', ') || 'growth'}`;
     }
   } catch (e) {}
@@ -143,6 +142,10 @@ ${marketContext}
 ${portfolioContext}
 ${prefsContext}
 ${stockContext}
+
+RISK PROFILE GUIDANCE:
+${getQuickRiskContext(riskProfile)}
+${agentRiskAdjustment}
 
 You are having a private phone booth conversation with a client.
 Be helpful, stay in character, and give specific actionable advice.
