@@ -696,6 +696,10 @@ export async function runAutoTradingCycle(): Promise<{
         // Fetch portfolio
         const portfolio = await brokerService.fetchUserPortfolio(user.id);
         if (!portfolio) {
+          if (!user.auto_execute_enabled) {
+            console.log(`[AutoTrading] ${user.email}: no portfolio data, skipping recommendation-only cycle`);
+            continue;
+          }
           results.errors.push(`${user.email}: No portfolio data`);
           continue;
         }
