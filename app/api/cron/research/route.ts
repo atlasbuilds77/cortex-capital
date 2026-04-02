@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const url = new URL(request.url);
   const querySecret = url.searchParams.get('secret');
+  const forceRefresh = ['1', 'true', 'yes'].includes((url.searchParams.get('force') || '').toLowerCase());
   const cronSecret = process.env.CRON_SECRET;
 
   const isAuthorized = cronSecret && (
@@ -138,7 +139,7 @@ export async function GET(request: NextRequest) {
   }
 
   const startTime = Date.now();
-  const results: { userId: string; success: boolean; error?: string }[] = [];
+  const results: { userId: string; success: boolean; skipped?: boolean; error?: string }[] = [];
 
   try {
     const usersResult = await query(`
@@ -171,6 +172,25 @@ export async function GET(request: NextRequest) {
 
     for (const user of usersResult.rows) {
       try {
+        const todayEt = toEtDateString(new Date());
+        if (!forceRefresh) {
+          const existingResearch = await query(
+            `SELECT id
+             FROM agent_memories
+             WHERE user_id = $1
+               AND agent_name = 'RESEARCH'
+               AND memory_type = 'insight'
+               AND (created_at AT TIME ZONE 'US/Eastern')::date = $2::date
+             LIMIT 1`,
+            [user.id, todayEt]
+          );
+          if (existingResearch.rows.length > 0) {
+            console.log(`[Research Cron] ↪️  ${user.email} - already cached today, skipping`);
+            results.push({ userId: user.id, success: true, skipped: true });
+            continue;
+          }
+        }
+
         let positionSymbols: string[] = [];
 
         if (user.snaptrade_user_id && user.snaptrade_user_secret) {
@@ -214,7 +234,6 @@ export async function GET(request: NextRequest) {
           }
         );
 
-        const todayEt = toEtDateString(new Date());
         const researchPayload = {
           text: researchContext,
           date: todayEt,
@@ -257,12 +276,15 @@ export async function GET(request: NextRequest) {
     const duration = Date.now() - startTime;
     const succeeded = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
+    const skipped = results.filter((r) => r.skipped).length;
 
     return NextResponse.json({
       success: true,
       totalUsers: usersResult.rows.length,
       succeeded,
       failed,
+      skipped,
+      forceRefresh,
       durationMs: duration,
     });
   } catch (error: any) {

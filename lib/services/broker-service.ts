@@ -566,6 +566,15 @@ export async function executeUserTrade(
   }
 ): Promise<{ success: boolean; orderId?: string; avgPrice?: number; error?: string }> {
   try {
+    const parsedQty = Number(order.qty);
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+      return { success: false, error: `Invalid quantity: ${order.qty}` };
+    }
+    const requestedQty = order.isOption ? Math.floor(parsedQty) : parsedQty;
+    if (requestedQty <= 0) {
+      return { success: false, error: 'Quantity rounded to zero after normalization' };
+    }
+
     // First check for SnapTrade connection (primary method)
     const snapResult = await query(
       'SELECT snaptrade_user_id, snaptrade_user_secret, selected_snaptrade_account FROM users WHERE id = $1',
@@ -606,7 +615,7 @@ export async function executeUserTrade(
               {
                 symbol: order.optionSymbol,
                 action: order.side === 'buy' ? 'BUY_TO_OPEN' : 'SELL_TO_CLOSE',
-                quantity: order.qty,
+                quantity: requestedQty,
               },
             ],
           },
@@ -645,7 +654,7 @@ export async function executeUserTrade(
         order_type: order.type === 'limit' ? 'Limit' : 'Market',
         time_in_force: 'Day',
         universal_symbol_id: universalSymbolId,
-        units: order.qty,
+        units: Math.round(requestedQty * 1000) / 1000,
         ...(order.limitPrice && { price: order.limitPrice }),
       });
 
@@ -672,7 +681,7 @@ export async function executeUserTrade(
         const alpaca = (await import('../integrations/alpaca')).default;
         const result = await alpaca.placeOrder({
           symbol: order.symbol,
-          qty: order.qty,
+          qty: requestedQty,
           side: order.side,
           type: order.type,
           time_in_force: 'day',
@@ -689,13 +698,17 @@ export async function executeUserTrade(
         if (!connection.accountId) {
           return { success: false, error: 'Tradier account ID missing' };
         }
+        const tradierQty = Math.floor(requestedQty);
+        if (tradierQty < 1) {
+          return { success: false, error: 'Tradier requires whole-share quantity >= 1' };
+        }
         const tradier = await import('../integrations/tradier');
         const result = await tradier.placeOrder({
           account_id: connection.accountId,
           class: 'equity',
           symbol: order.symbol,
           side: order.side,
-          quantity: order.qty,
+          quantity: tradierQty,
           type: order.type,
           duration: 'day',
           ...(order.limitPrice ? { price: order.limitPrice } : {}),

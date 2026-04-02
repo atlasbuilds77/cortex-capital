@@ -13,6 +13,8 @@ import { getQuote } from '../../polygon-data';
 
 // Brave API key from environment
 const BRAVE_API_KEY = process.env.BRAVE_API_KEY || '';
+const BRAVE_CACHE_TTL_MS = Number(process.env.RESEARCH_BRAVE_CACHE_TTL_MS || 5 * 60 * 1000);
+const BRAVE_MAX_CALLS_PER_PROCESS = Number(process.env.RESEARCH_BRAVE_MAX_CALLS || 60);
 
 interface NewsItem {
   title: string;
@@ -49,6 +51,10 @@ interface ResearchContextOptions {
   exclusions?: string[];
   userTag?: string;
 }
+
+const braveCache = new Map<string, { expiresAt: number; items: NewsItem[] }>();
+const braveInFlight = new Map<string, Promise<NewsItem[]>>();
+let braveCallsThisProcess = 0;
 
 const EXCLUSION_TICKERS: Record<string, string[]> = {
   Tobacco: ['MO', 'PM', 'BTI', 'IMBBY'],
@@ -104,32 +110,63 @@ async function searchBrave(query: string, count: number = 5): Promise<NewsItem[]
     return [];
   }
 
-  try {
-    const url = `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(query)}&count=${count}`;
-    const res = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'X-Subscription-Token': BRAVE_API_KEY,
-      },
-    });
+  const cacheKey = `${query.toLowerCase()}::${count}`;
+  const cached = braveCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.items;
+  }
 
-    if (!res.ok) {
-      console.error('[Research] Brave API error:', res.status);
-      return [];
-    }
+  const pending = braveInFlight.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
 
-    const data = await res.json();
-    return (data.results || []).map((r: any) => ({
-      title: r.title,
-      description: r.description,
-      url: r.url,
-      source: r.meta_url?.hostname || 'Unknown',
-      date: r.age || 'Recent',
-    }));
-  } catch (error) {
-    console.error('[Research] Brave search failed:', error);
+  if (braveCallsThisProcess >= BRAVE_MAX_CALLS_PER_PROCESS) {
+    console.warn(`[Research] Brave call budget reached (${BRAVE_MAX_CALLS_PER_PROCESS}) - skipping query: ${query}`);
     return [];
   }
+
+  const requestPromise = (async () => {
+    braveCallsThisProcess += 1;
+    try {
+      const url = `https://api.search.brave.com/res/v1/news/search?q=${encodeURIComponent(query)}&count=${count}`;
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': BRAVE_API_KEY,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('[Research] Brave API error:', res.status);
+        return [];
+      }
+
+      const data = await res.json();
+      const items = (data.results || []).map((r: any) => ({
+        title: r.title,
+        description: r.description,
+        url: r.url,
+        source: r.meta_url?.hostname || 'Unknown',
+        date: r.age || 'Recent',
+      }));
+
+      braveCache.set(cacheKey, {
+        expiresAt: Date.now() + BRAVE_CACHE_TTL_MS,
+        items,
+      });
+      return items;
+    } catch (error) {
+      console.error('[Research] Brave search failed:', error);
+      return [];
+    } finally {
+      braveInFlight.delete(cacheKey);
+    }
+  })();
+
+  braveInFlight.set(cacheKey, requestPromise);
+
+  return requestPromise;
 }
 
 /**

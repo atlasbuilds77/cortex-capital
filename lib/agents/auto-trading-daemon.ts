@@ -16,12 +16,24 @@
 
 import { query } from '../db';
 import * as brokerService from '../services/broker-service';
-import { loadUserPreferences, generatePreferencesContext, getPositionSizeGuidance, isSymbolExcluded } from './user-preferences-context';
+import * as fs from 'fs';
+import {
+  loadUserPreferences,
+  generatePreferencesContext,
+  getPositionSizeGuidance,
+  isSymbolExcluded,
+  UserPreferences,
+} from './user-preferences-context';
 import { getMarketContextForAgents } from './data/market-data';
 import { getFullResearchContext } from './data/research-engine';
 import { notifyTradeExecution, notifyTradeSignal } from '../notifications/trade-notifier';
 import { collaborativeDaemon } from './collaborative-daemon';
 import OpenAI from 'openai';
+import { getQuote } from '../polygon-data';
+import {
+  logUserTrade,
+  updateUserPreferences as updateUniversePreferences,
+} from './user-universe-db';
 
 /**
  * Get cached research from 8 AM cron, fallback to fresh if not available
@@ -65,13 +77,39 @@ async function getCachedOrFreshResearch(
 
   // Fallback to fresh research
   console.log(`[AutoTrade] No cached research, running fresh for user ${userId}`);
-  return getFullResearchContext(userSectors, positionSymbols, allowedSymbols, {
+  const fresh = await getFullResearchContext(userSectors, positionSymbols, allowedSymbols, {
     riskProfile: options?.riskProfile,
     exclusions: options?.exclusions,
     userTag: userId.slice(0, 8),
   });
+
+  // Persist fallback so repeated cron cycles don't regenerate expensive research.
+  try {
+    const todayEt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+    await query(`
+      DELETE FROM agent_memories
+      WHERE user_id = $1
+        AND agent_name = 'RESEARCH'
+        AND memory_type = 'insight'
+        AND (created_at AT TIME ZONE 'US/Eastern')::date = $2::date
+    `, [userId, todayEt]);
+
+    await query(`
+      INSERT INTO agent_memories (agent_name, user_id, memory_type, content, created_at)
+      VALUES ('RESEARCH', $1, 'insight', $2::jsonb, NOW())
+    `, [userId, JSON.stringify({ text: fresh, date: todayEt })]);
+  } catch (persistErr) {
+    console.warn('[AutoTrade] Failed to persist fallback research cache:', persistErr);
+  }
+
+  return fresh;
 }
-import * as fs from 'fs';
 
 const TIER_CAN_EXECUTE: Record<string, boolean> = {
   free: false,
@@ -101,6 +139,285 @@ interface User {
   tier: string;
   auto_execute_enabled: boolean;
   risk_profile: string;
+}
+
+interface QuantityDecision {
+  quantity: number;
+  skippedReason?: string;
+  sizingNote?: string;
+}
+
+const SECTOR_SYMBOLS: Record<string, string[]> = {
+  Technology: ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AMD', 'INTC', 'SOFI', 'PLTR'],
+  Healthcare: ['UNH', 'JNJ', 'LLY', 'ABBV', 'MRK', 'PFE', 'BMY'],
+  Financials: ['JPM', 'BAC', 'GS', 'MS', 'WFC', 'C', 'SCHW', 'SOFI'],
+  Energy: ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'HAL', 'XLE'],
+  Consumer: ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'F'],
+  Utilities: ['NEE', 'DUK', 'SO', 'AEP', 'EXC', 'XLU', 'PPL'],
+  Communications: ['GOOGL', 'META', 'NFLX', 'DIS', 'T', 'VZ', 'PARA'],
+  Industrials: ['CAT', 'GE', 'DE', 'BA', 'HON', 'XLI'],
+  'Real Estate': ['PLD', 'AMT', 'EQIX', 'PSA', 'SPG', 'O'],
+  Materials: ['LIN', 'APD', 'SHW', 'ECL', 'NEM', 'FCX', 'XLB'],
+};
+
+const EXCLUSION_SYMBOLS: Record<string, string[]> = {
+  Tobacco: ['MO', 'PM', 'BTI', 'IMBBY'],
+  Weapons: ['LMT', 'RTX', 'NOC', 'GD', 'BA'],
+  Gambling: ['MGM', 'WYNN', 'LVS', 'CZR', 'DKNG', 'PENN'],
+  'Fossil fuels': ['XOM', 'CVX', 'COP', 'OXY', 'SLB', 'HAL'],
+  'Private prisons': ['GEO', 'CXW'],
+};
+
+const MICRO_ACCOUNT_THRESHOLD = 500;
+const SMALL_ACCOUNT_THRESHOLD = 2000;
+const MICRO_ACCOUNT_MIN_NOTIONAL = 25;
+const SMALL_ACCOUNT_MIN_NOTIONAL = 40;
+const MIN_EXECUTABLE_NOTIONAL = 5;
+const MIN_AUTO_EXECUTION_PORTFOLIO_VALUE = 1000;
+
+function normalizeSymbols(symbols: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const symbol of symbols) {
+    const normalized = String(symbol || '').trim().toUpperCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function defaultSectorsForRisk(riskProfile: string): string[] {
+  switch ((riskProfile || '').toLowerCase()) {
+    case 'conservative':
+      return ['Healthcare', 'Utilities', 'Financials'];
+    case 'aggressive':
+      return ['Technology', 'Communications', 'Consumer'];
+    case 'ultra_aggressive':
+      return ['Technology', 'Consumer', 'Energy', 'Communications'];
+    default:
+      return ['Technology', 'Healthcare', 'Financials'];
+  }
+}
+
+function deriveAllowedSymbolsFromPreferences(prefs: UserPreferences): string[] {
+  const sectors = (prefs.sectorInterests || []).length > 0
+    ? prefs.sectorInterests
+    : defaultSectorsForRisk(prefs.riskProfile);
+
+  const blocked = new Set<string>();
+  for (const exclusion of prefs.exclusions || []) {
+    for (const symbol of EXCLUSION_SYMBOLS[exclusion] || []) {
+      blocked.add(symbol.toUpperCase());
+    }
+  }
+
+  const sectorSymbols = sectors.flatMap((sector) => SECTOR_SYMBOLS[sector] || []);
+  const requested = normalizeSymbols(prefs.allowedSymbols || []);
+  const merged = normalizeSymbols([...requested, ...sectorSymbols]).filter((symbol) => !blocked.has(symbol));
+
+  const cap =
+    prefs.riskProfile === 'conservative' ? 4 :
+    prefs.riskProfile === 'ultra_aggressive' ? 10 :
+    prefs.riskProfile === 'aggressive' ? 8 : 6;
+
+  if (merged.length === 0) {
+    return ['SPLG', 'QQQM', 'SOFI', 'F'].slice(0, cap);
+  }
+  return merged.slice(0, cap);
+}
+
+function supportsFractionalShares(broker: string, isOption: boolean): boolean {
+  if (isOption) return false;
+  const name = String(broker || '').toLowerCase();
+  if (!name) return false;
+  if (name.includes('tradier')) return false;
+  // Fractionals are explicitly enabled only for known-capable broker APIs.
+  if (
+    name.includes('alpaca') ||
+    name.includes('robinhood') ||
+    name.includes('webull') ||
+    name.includes('public')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function roundFractional(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function findPortfolioPositionQty(portfolio: any, symbol: string): number {
+  const match = (portfolio?.positions || []).find(
+    (p: any) => String(p?.symbol || '').toUpperCase() === symbol.toUpperCase(),
+  );
+  return Number(match?.qty || 0);
+}
+
+function mapRiskProfileToUniverseTolerance(
+  riskProfile: string
+): 'conservative' | 'moderate' | 'aggressive' {
+  const normalized = String(riskProfile || '').toLowerCase();
+  if (normalized === 'conservative') return 'conservative';
+  if (normalized === 'aggressive' || normalized === 'ultra_aggressive') return 'aggressive';
+  return 'moderate';
+}
+
+async function syncUniversePreferenceMirror(userId: string, prefs: UserPreferences): Promise<void> {
+  try {
+    await updateUniversePreferences(userId, {
+      riskTolerance: mapRiskProfileToUniverseTolerance(prefs.riskProfile),
+      sectors: prefs.sectorInterests || [],
+      tradingStyle: (prefs.tradingGoals && prefs.tradingGoals[0]) || prefs.riskProfile || 'balanced',
+    });
+  } catch (error) {
+    console.warn(`[AutoTrade] Failed to sync universe preference mirror for ${userId}:`, error);
+  }
+}
+
+function getRiskAdjustedSmallAccountPct(
+  riskProfile: string,
+  accountValue: number
+): number {
+  const normalizedRisk = String(riskProfile || '').toLowerCase();
+  if (accountValue <= MICRO_ACCOUNT_THRESHOLD) {
+    if (normalizedRisk === 'conservative') return 0.30;
+    if (normalizedRisk === 'aggressive') return 0.55;
+    if (normalizedRisk === 'ultra_aggressive') return 0.65;
+    return 0.45; // moderate
+  }
+
+  if (accountValue <= SMALL_ACCOUNT_THRESHOLD) {
+    if (normalizedRisk === 'conservative') return 0.20;
+    if (normalizedRisk === 'aggressive') return 0.35;
+    if (normalizedRisk === 'ultra_aggressive') return 0.45;
+    return 0.28; // moderate
+  }
+
+  return 0;
+}
+
+function getRiskAdjustedSmallAccountFloor(
+  riskProfile: string,
+  accountValue: number
+): number {
+  const normalizedRisk = String(riskProfile || '').toLowerCase();
+  if (accountValue <= MICRO_ACCOUNT_THRESHOLD) {
+    if (normalizedRisk === 'conservative') return MICRO_ACCOUNT_MIN_NOTIONAL;
+    if (normalizedRisk === 'aggressive') return 45;
+    if (normalizedRisk === 'ultra_aggressive') return 55;
+    return 35; // moderate
+  }
+  if (accountValue <= SMALL_ACCOUNT_THRESHOLD) {
+    if (normalizedRisk === 'conservative') return SMALL_ACCOUNT_MIN_NOTIONAL;
+    if (normalizedRisk === 'aggressive') return 65;
+    if (normalizedRisk === 'ultra_aggressive') return 85;
+    return 50; // moderate
+  }
+  return MIN_EXECUTABLE_NOTIONAL;
+}
+
+function computePositionCapDollars(
+  accountValue: number,
+  cash: number,
+  baseMaxPositionDollars: number,
+  riskProfile: string
+): number {
+  let cap = Number(baseMaxPositionDollars || 0);
+  if (accountValue > 0 && accountValue <= SMALL_ACCOUNT_THRESHOLD) {
+    const pctCap = cash * getRiskAdjustedSmallAccountPct(riskProfile, accountValue);
+    const floorCap = getRiskAdjustedSmallAccountFloor(riskProfile, accountValue);
+    const boost = accountValue <= MICRO_ACCOUNT_THRESHOLD ? 1.25 : 1.15;
+    cap = Math.max(cap * boost, pctCap, floorCap);
+  }
+
+  // Keep some cash reserve to avoid all-in behavior.
+  return Math.min(cap, Math.max(0, cash * 0.9));
+}
+
+async function normalizeTradeQuantity(
+  trade: TradeRecommendation,
+  portfolio: any,
+  prefs: UserPreferences
+): Promise<QuantityDecision> {
+  const symbol = String(trade.symbol || '').toUpperCase();
+  if (!symbol) {
+    return { quantity: 0, skippedReason: 'Missing symbol' };
+  }
+
+  const accountValue = Number(portfolio?.account?.portfolioValue || 0);
+  const cash = Number(portfolio?.account?.cash || 0);
+  const brokerName = String(portfolio?.broker || '');
+  const fractionalEnabled = supportsFractionalShares(brokerName, !!trade.isOption);
+  const sizing = getPositionSizeGuidance(prefs, accountValue);
+
+  const maxPositionDollars = computePositionCapDollars(
+    accountValue,
+    cash,
+    Number(sizing.maxPositionDollars || 0),
+    prefs.riskProfile
+  );
+  if (trade.action === 'buy' && maxPositionDollars < MIN_EXECUTABLE_NOTIONAL) {
+    return {
+      quantity: 0,
+      skippedReason: `Buying power too small after limits ($${maxPositionDollars.toFixed(2)})`,
+    };
+  }
+
+  if (trade.isOption && accountValue > 0 && accountValue < SMALL_ACCOUNT_THRESHOLD) {
+    return {
+      quantity: 0,
+      skippedReason: 'Options disabled for accounts under $2k to avoid over-concentration',
+    };
+  }
+
+  let price = 0;
+  const portfolioMatch = (portfolio?.positions || []).find(
+    (p: any) => String(p?.symbol || '').toUpperCase() === symbol,
+  );
+  if (portfolioMatch && Number(portfolioMatch.currentPrice) > 0) {
+    price = Number(portfolioMatch.currentPrice);
+  } else {
+    const quote = await getQuote(symbol).catch(() => null);
+    price = Number(quote?.price || 0);
+  }
+
+  if (price <= 0) {
+    return { quantity: 0, skippedReason: `No valid quote available for ${symbol}` };
+  }
+
+  const requestedQty = Number(trade.quantity || 0);
+  const maxAffordableQty = maxPositionDollars > 0 ? (maxPositionDollars / price) : 0;
+
+  if (trade.action === 'sell') {
+    const heldQty = findPortfolioPositionQty(portfolio, symbol);
+    if (heldQty <= 0) {
+      return { quantity: 0, skippedReason: `No open ${symbol} position to sell` };
+    }
+    const targetQty = requestedQty > 0 ? Math.min(requestedQty, heldQty) : heldQty;
+    const sellQty = fractionalEnabled ? roundFractional(targetQty) : Math.floor(targetQty);
+    if (sellQty <= 0) {
+      return { quantity: 0, skippedReason: `Sell size rounded to zero for ${symbol}` };
+    }
+    return { quantity: sellQty };
+  }
+
+  const targetQty = requestedQty > 0 ? Math.min(requestedQty, maxAffordableQty) : maxAffordableQty;
+  const qty = fractionalEnabled ? roundFractional(targetQty) : Math.floor(targetQty);
+  if (qty <= 0) {
+    return {
+      quantity: 0,
+      skippedReason: fractionalEnabled
+        ? `Insufficient buying power for fractional ${symbol}`
+        : `Insufficient buying power for 1 share of ${symbol} at $${price.toFixed(2)}`,
+    };
+  }
+
+  return {
+    quantity: qty,
+    sizingNote: `position cap $${maxPositionDollars.toFixed(0)} (${fractionalEnabled ? 'fractional enabled' : 'whole shares only'})`,
+  };
 }
 
 function getDeepSeekClient(): OpenAI {
@@ -155,22 +472,22 @@ async function getEligibleUsers(): Promise<User[]> {
 async function generateRecommendations(
   userId: string,
   portfolio: any,
-  prefs: any
+  prefs: UserPreferences
 ): Promise<TradeRecommendation[]> {
   const client = getDeepSeekClient();
   
   // Build context
   const marketContext = await getMarketContextForAgents();
   const prefsContext = generatePreferencesContext(prefs);
-  const positions = portfolio.positions.map((p: any) => 
-    `${p.symbol}: ${p.qty} shares @ $${p.currentPrice.toFixed(2)} (${p.unrealizedPnlPct >= 0 ? '+' : ''}${p.unrealizedPnlPct.toFixed(1)}%)`
+  const positions = (portfolio.positions || []).map((p: any) =>
+    `${p.symbol}: ${p.qty} shares @ $${Number(p.currentPrice || 0).toFixed(2)} (${Number(p.unrealizedPnlPct || 0) >= 0 ? '+' : ''}${Number(p.unrealizedPnlPct || 0).toFixed(1)}%)`
   ).join('\n');
   
   // Use cached research from 8 AM cron, fallback to fresh if needed
   const researchContext = await getCachedOrFreshResearch(
     userId,
     prefs.sectorInterests || ['Technology'],
-    portfolio.positions.map((p: any) => p.symbol),
+    (portfolio.positions || []).map((p: any) => p.symbol),
     prefs.allowedSymbols || [],
     {
       riskProfile: prefs.riskProfile,
@@ -179,9 +496,25 @@ async function generateRecommendations(
   );
   
   const sizing = getPositionSizeGuidance(prefs, portfolio.account.portfolioValue);
+  const accountValue = Number(portfolio?.account?.portfolioValue || 0);
+  const cash = Number(portfolio?.account?.cash || 0);
+  const fractionalEnabled = supportsFractionalShares(String(portfolio?.broker || ''), false);
+  const adjustedPositionCap = computePositionCapDollars(
+    accountValue,
+    cash,
+    Number(sizing.maxPositionDollars || 0),
+    prefs.riskProfile
+  );
+  const maxWholeSharePrice = Math.max(1, Math.floor(adjustedPositionCap));
+  const smallAccountConstraint = !fractionalEnabled && accountValue > 0 && accountValue <= SMALL_ACCOUNT_THRESHOLD
+    ? `\nSMALL ACCOUNT MODE:
+- This broker uses WHOLE SHARES only
+- Favor symbols with current price <= $${maxWholeSharePrice}
+- Avoid recommending symbols that cannot buy at least 1 share within cap`
+    : '';
   
   // Build allowed symbols constraint for prompt
-  const allowedSymbols = prefs.allowedSymbols || [];
+  const allowedSymbols = normalizeSymbols(prefs.allowedSymbols || []);
   const symbolConstraint = allowedSymbols.length > 0 
     ? `\nALLOWED SYMBOLS (ONLY recommend from this list): ${allowedSymbols.join(', ')}`
     : '';
@@ -199,16 +532,17 @@ CURRENT PORTFOLIO:
 Cash: $${portfolio.account.cash.toLocaleString()}
 Portfolio Value: $${portfolio.account.portfolioValue.toLocaleString()}
 Positions:
-${positions}
+${positions || 'None'}
 
 POSITION SIZING RULES:
 - Max position: ${sizing.maxPositionPct}% ($${sizing.maxPositionDollars.toFixed(0)})
 - Stop loss at: -${sizing.stopLossPct}%
+${smallAccountConstraint}
 
 Respond with a JSON array of trade recommendations. Each should have:
 - symbol: string
 - action: "buy" | "sell"
-- quantity: number (whole shares OR contracts if option)
+- quantity: number (supports fractional shares for brokers that allow it)
 - reason: string (1 sentence)
 - confidence: number (0-100)
 - isOption: boolean (true if LEAP/option, false if shares)
@@ -292,6 +626,15 @@ async function executeTrade(
         INSERT INTO trade_logs (user_id, symbol, action, quantity, price, reason, executed_at)
         VALUES ($1, $2, $3, $4, $5, $6, NOW())
       `, [userId, trade.symbol, trade.action, trade.quantity, result.avgPrice, trade.reason]);
+
+      // Mirror execution into per-user universe memory/trade history.
+      await logUserTrade(userId, {
+        symbol: trade.symbol,
+        direction: trade.action === 'buy' ? 'long' : 'short',
+        entry: Number(result.avgPrice || 0),
+        outcome: 'pending',
+        pnl: 0,
+      });
       
       return true;
     }
@@ -333,6 +676,8 @@ export async function runAutoTradingCycle(): Promise<{
           results.errors.push(`${user.email}: No portfolio data`);
           continue;
         }
+        const portfolioValue = Number(portfolio?.account?.portfolioValue || 0);
+        const meetsExecutionMinimum = portfolioValue >= MIN_AUTO_EXECUTION_PORTFOLIO_VALUE;
 
         // Load preferences
         const prefs = await loadUserPreferences(user.id);
@@ -340,6 +685,13 @@ export async function runAutoTradingCycle(): Promise<{
           results.errors.push(`${user.email}: No preferences`);
           continue;
         }
+
+        // Universe is derived from user preferences (risk + sectors + exclusions).
+        prefs.sectorInterests = (prefs.sectorInterests || []).length > 0
+          ? prefs.sectorInterests
+          : defaultSectorsForRisk(prefs.riskProfile);
+        prefs.allowedSymbols = deriveAllowedSymbolsFromPreferences(prefs);
+        await syncUniversePreferenceMirror(user.id, prefs);
 
         // Generate recommendations
         let recommendations = await generateRecommendations(user.id, portfolio, prefs);
@@ -366,6 +718,16 @@ export async function runAutoTradingCycle(): Promise<{
         // AGENTS DISCUSS THE TRADE FIRST
         // This streams to the office so user can see the discussion
         for (const trade of recommendations) {
+          const quantityDecision = await normalizeTradeQuantity(trade, portfolio, prefs);
+          if (quantityDecision.skippedReason) {
+            console.log(`[AutoTrading] Skipping ${trade.symbol} for ${user.email}: ${quantityDecision.skippedReason}`);
+            continue;
+          }
+          trade.quantity = quantityDecision.quantity;
+          if (quantityDecision.sizingNote) {
+            trade.reason = `${trade.reason} | ${quantityDecision.sizingNote}`;
+          }
+
           // Skip options for scout tier
           if (trade.isOption && !TIER_OPTIONS_ALLOWED[user.tier]) {
             console.log(`[AutoTrading] Skipping option trade for ${user.email} (tier: ${user.tier})`);
@@ -408,6 +770,18 @@ export async function runAutoTradingCycle(): Promise<{
 
           // Agents approved - now check if user has auto_execute enabled
           if (user.auto_execute_enabled) {
+            if (!meetsExecutionMinimum) {
+              console.log(
+                `[AutoTrading] ${user.email} below auto-execution minimum ($${portfolioValue.toFixed(2)} < $${MIN_AUTO_EXECUTION_PORTFOLIO_VALUE})`
+              );
+              await notifyTradeSignal(
+                user.id,
+                trade.symbol,
+                trade.action,
+                `Auto-execution paused: account value $${portfolioValue.toFixed(2)} is below $${MIN_AUTO_EXECUTION_PORTFOLIO_VALUE.toLocaleString()} minimum. Recommendation only: ${trade.reason}`
+              );
+              continue;
+            }
             // Execute the trade
             const success = await executeTrade(user.id, trade);
             if (success) {

@@ -35,15 +35,20 @@ export default function PortfolioPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [error, setError] = useState<string | null>(null)
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
+  const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null)
 
   useEffect(() => {
     // Don't fetch until auth is fully loaded (prevents fetching with no token during hydration)
     if (authLoading) return;
-    
+
+    let isActive = true
+    let isFirstLoad = true
+
     const fetchPortfolio = async () => {
       try {
         const res = await fetch('/api/user/portfolio', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
+          cache: 'no-store',
         })
         if (!res.ok) throw new Error('Failed to fetch portfolio')
         const data = await res.json()
@@ -55,14 +60,28 @@ export default function PortfolioPage() {
             symbol: typeof p.symbol === 'object' ? (p.symbol?.symbol || p.symbol?.raw_symbol || 'UNKNOWN') : (p.symbol || 'UNKNOWN'),
           }))
         }
+        if (!isActive) return
         setPortfolio(data)
+        setError(null)
+        setLastSyncAt(new Date())
       } catch (err: any) {
+        if (!isActive) return
         setError(err.message)
       } finally {
-        setLoading(false)
+        if (!isActive) return
+        if (isFirstLoad) {
+          setLoading(false)
+          isFirstLoad = false
+        }
       }
     }
+
     fetchPortfolio()
+    const intervalId = window.setInterval(fetchPortfolio, 30_000)
+    return () => {
+      isActive = false
+      window.clearInterval(intervalId)
+    }
   }, [token, authLoading])
 
   // Sorting logic
@@ -193,6 +212,9 @@ export default function PortfolioPage() {
                 : 'bg-green-500/20 text-green-400 border border-green-500/30'
             }`}>
               {portfolio.source === 'demo' ? 'DEMO' : 'LIVE'}
+            </span>
+            <span className="text-xs text-text-secondary">
+              Updated {lastSyncAt ? lastSyncAt.toLocaleTimeString() : 'pending'}
             </span>
           </div>
         </div>

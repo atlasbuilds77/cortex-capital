@@ -11,14 +11,13 @@ const API_URL = ""; // API is same-origin
 
 interface PortfolioData {
   source: string
-  tier: string
-  tierConfig: any
-  portfolio: {
-    accountValue: number
-    cash: number
-    todayPnL: number
-    positions: any[]
-  }
+  accountValue?: number | null
+  buyingPower?: number | null
+  todayPnL?: number | null
+  positions?: any[]
+  openPositions?: number
+  tier?: string
+  tierConfig?: any
   tradesThisWeek?: number
   canTradeMore?: boolean
   message?: string
@@ -37,6 +36,7 @@ export default function DashboardPage() {
   const { user, loading, isAuthenticated, token } = useAuth()
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null)
   const [autoTradeEnabled, setAutoTradeEnabled] = useState<boolean | null>(null)
+  const [lastPortfolioSyncAt, setLastPortfolioSyncAt] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -49,27 +49,53 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, loading, router, user])
 
-  // Fetch auto-trade status
+  // Fetch auto-trade status (poll so status changes show without reload)
   useEffect(() => {
-    if (token) {
-      fetch(`${API_URL}/api/user/trading-settings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setAutoTradeEnabled(data.auto_execute_enabled || false) })
-        .catch(() => {})
+    if (!token) return
+
+    const fetchTradingSettings = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/user/trading-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const data = response.ok ? await response.json() : null
+        if (data) {
+          setAutoTradeEnabled(Boolean(data.auto_execute_enabled))
+        }
+      } catch {
+        // Ignore transient errors and retry on next poll.
+      }
     }
+
+    fetchTradingSettings()
+    const intervalId = window.setInterval(fetchTradingSettings, 30_000)
+    return () => window.clearInterval(intervalId)
   }, [token])
 
+  // Fetch portfolio (poll every 30s to avoid stale dashboard data)
   useEffect(() => {
-    if (token) {
-      fetch(`${API_URL}/api/user/portfolio`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setPortfolio(data) })
-        .catch(() => {})
+    if (!token) return
+
+    const fetchPortfolio = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/user/portfolio`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        })
+        const data = response.ok ? await response.json() : null
+        if (data) {
+          setPortfolio(data)
+          setLastPortfolioSyncAt(new Date())
+        }
+      } catch {
+        // Keep last good snapshot if a refresh fails.
+      }
     }
+
+    fetchPortfolio()
+    const intervalId = window.setInterval(fetchPortfolio, 30_000)
+    return () => window.clearInterval(intervalId)
   }, [token])
 
   if (loading || !isAuthenticated) {
@@ -159,6 +185,12 @@ export default function DashboardPage() {
                   Connect a broker in <Link href="/settings/brokers" className="underline">Settings</Link> to see your real portfolio
                 </p>
               )}
+              <p className="mt-2 text-xs text-text-secondary">
+                Portfolio sync:{' '}
+                <span className="text-white/80">
+                  {lastPortfolioSyncAt ? lastPortfolioSyncAt.toLocaleTimeString() : 'pending'}
+                </span>
+              </p>
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
