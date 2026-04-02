@@ -28,7 +28,7 @@ services:
     region: oregon
     schedule: "*/15 13-19 * * 1-5"  # Every 15 min during 9:30am-4:00pm ET window (UTC guarded in route)
     buildCommand: npm ci
-    startCommand: node -e "fetch('https://cortexcapitalgroup.com/api/cron/auto-trade/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
+    startCommand: node -e "fetch('https://cortex-capital.onrender.com/api/cron/auto-trade/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
     nodeVersion: "20"
     envVars:
       - key: NODE_ENV
@@ -45,7 +45,7 @@ services:
     region: oregon
     schedule: "35 13 * * 1-5" # 6:35 AM PT, Mon-Fri
     buildCommand: npm ci
-    startCommand: node -e "fetch('https://cortexcapitalgroup.com/api/cron/research/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
+    startCommand: node -e "fetch('https://cortex-capital.onrender.com/api/cron/research/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
     nodeVersion: "20"
     envVars:
       - key: NODE_ENV
@@ -60,7 +60,7 @@ services:
     region: oregon
     schedule: "0 20 * * 1-5" # 4:00 PM ET, Mon-Fri
     buildCommand: npm ci
-    startCommand: node -e "fetch('https://cortexcapitalgroup.com/api/cron/daily-digest/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
+    startCommand: node -e "fetch('https://cortex-capital.onrender.com/api/cron/daily-digest/?secret=' + process.env.CRON_SECRET).then(r => r.json()).then(console.log).catch(console.error)"
     nodeVersion: "20"
     envVars:
       - key: NODE_ENV
