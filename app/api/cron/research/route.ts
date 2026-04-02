@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const results: { userId: string; success: boolean; error?: string }[] = [];
 
   try {
-    // Get all users with SnapTrade connected
+    // Get all users with a connected broker (SnapTrade or legacy)
     const usersResult = await query(`
       SELECT 
         u.id, 
@@ -42,11 +42,21 @@ export async function GET(request: NextRequest) {
         u.snaptrade_user_id,
         u.snaptrade_user_secret,
         u.selected_snaptrade_account,
-        up.preferred_sectors,
-        up.allowed_symbols
+        u.sector_interests,
+        u.allowed_symbols
       FROM users u
-      LEFT JOIN user_preferences up ON u.id = up.user_id
       WHERE u.snaptrade_user_id IS NOT NULL
+         OR EXISTS (
+           SELECT 1
+           FROM broker_credentials bc
+           WHERE bc.user_id = u.id
+             AND bc.is_active = true
+         )
+         OR EXISTS (
+           SELECT 1
+           FROM brokerage_connections bcx
+           WHERE bcx.user_id = u.id
+         )
     `);
 
     console.log(`[Research Cron] Processing ${usersResult.rows.length} users`);
@@ -70,8 +80,10 @@ export async function GET(request: NextRequest) {
         }
 
         // Parse user preferences
-        const userSectors = user.preferred_sectors || ['Technology', 'Healthcare'];
-        const allowedSymbols = user.allowed_symbols || [];
+        const userSectors = Array.isArray(user.sector_interests)
+          ? user.sector_interests
+          : ['Technology', 'Healthcare'];
+        const allowedSymbols = Array.isArray(user.allowed_symbols) ? user.allowed_symbols : [];
 
         // Run full research
         const researchContext = await getFullResearchContext(

@@ -13,6 +13,7 @@
 import * as crypto from 'crypto';
 import axios from 'axios';
 import { query } from '../integrations/database';
+import { decryptToken } from '../broker-credentials';
 
 function deriveBrokerServiceKey(): Buffer {
   const encryptionSecret = process.env.CREDENTIAL_ENCRYPTION_KEY || process.env.BROKER_ENCRYPTION_KEY;
@@ -51,9 +52,10 @@ export interface UnifiedPosition {
 interface BrokerConnection {
   userId: string;
   brokerType: 'alpaca' | 'tradier' | 'robinhood';
-  accountId: string;
-  credentialsEncrypted: string;
-  status: 'active' | 'expired' | 'error';
+  accountId?: string;
+  credentialsEncrypted?: string;
+  decryptedCredentials?: DecryptedCredentials;
+  status?: 'active' | 'expired' | 'error';
 }
 
 interface DecryptedCredentials {
@@ -112,26 +114,77 @@ export function encryptCredentials(credentials: DecryptedCredentials): string {
  */
 async function getBrokerConnection(userId: string): Promise<BrokerConnection | null> {
   try {
-    const result = await query(
-      `SELECT user_id, broker_type, account_id, credentials_encrypted, status
-       FROM brokerage_connections
-       WHERE user_id = $1 AND status = 'active'
-       ORDER BY created_at DESC
+    // Primary legacy source used by current broker callback flow.
+    const legacyResult = await query(
+      `SELECT user_id, broker_type, encrypted_api_key, encrypted_api_secret, encryption_iv, account_id
+       FROM broker_credentials
+       WHERE user_id = $1 AND is_active = true
+       ORDER BY updated_at DESC
        LIMIT 1`,
       [userId]
     );
-    
-    if (result.rows.length === 0) {
-      return null;
+    if (legacyResult.rows.length > 0) {
+      const row = legacyResult.rows[0];
+      const iv = row.encryption_iv as string;
+      const [accessEncrypted, accessAuthTag] = String(row.encrypted_api_key || '').split(':');
+      if (!accessEncrypted || !accessAuthTag || !iv) {
+        throw new Error('Invalid broker_credentials encryption format');
+      }
+      const accessToken = decryptToken(accessEncrypted, iv, accessAuthTag);
+
+      let decryptedCredentials: DecryptedCredentials;
+      if (row.broker_type === 'tradier') {
+        decryptedCredentials = { tradier: { accessToken } };
+      } else if (row.broker_type === 'alpaca') {
+        // Best-effort mapping for OAuth-style callback records.
+        decryptedCredentials = {
+          alpaca: {
+            apiKey: process.env.ALPACA_CLIENT_ID || '',
+            apiSecret: accessToken,
+            paper: true,
+          },
+        };
+      } else {
+        const [deviceEncrypted, deviceAuthTag] = String(row.encrypted_api_secret || '').split(':');
+        const deviceToken = deviceEncrypted && deviceAuthTag
+          ? decryptToken(deviceEncrypted, iv, deviceAuthTag)
+          : '';
+        decryptedCredentials = {
+          robinhood: {
+            accessToken,
+            deviceToken,
+          },
+        };
+      }
+
+      return {
+        userId: row.user_id,
+        brokerType: row.broker_type,
+        accountId: row.account_id || '',
+        decryptedCredentials,
+        status: 'active',
+      };
     }
-    
+
+    // New schema fallback.
+    const result = await query(
+      `SELECT user_id, broker, credentials_encrypted
+       FROM brokerage_connections
+       WHERE user_id = $1
+       ORDER BY connected_at DESC
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) return null;
+
     const row = result.rows[0];
     return {
       userId: row.user_id,
-      brokerType: row.broker_type,
-      accountId: row.account_id,
+      brokerType: row.broker,
+      accountId: '',
       credentialsEncrypted: row.credentials_encrypted,
-      status: row.status
+      status: 'active',
     };
   } catch (error: any) {
     console.error('[BrokerService] Failed to get broker connection:', error.message);
@@ -409,21 +462,23 @@ export async function fetchUserPortfolio(userId: string): Promise<UnifiedPortfol
   }
   
   // Decrypt credentials
-  const credentials = decryptCredentials(connection.credentialsEncrypted);
+  const credentials = connection.decryptedCredentials
+    ? connection.decryptedCredentials
+    : decryptCredentials(connection.credentialsEncrypted || '');
   
   // Route to appropriate broker
   switch (connection.brokerType) {
     case 'alpaca':
       if (!credentials.alpaca) throw new Error('Missing Alpaca credentials');
-      return await fetchAlpacaPortfolio(credentials.alpaca, connection.accountId);
+      return await fetchAlpacaPortfolio(credentials.alpaca, connection.accountId || '');
     
     case 'tradier':
       if (!credentials.tradier) throw new Error('Missing Tradier credentials');
-      return await fetchTradierPortfolio(credentials.tradier, connection.accountId);
+      return await fetchTradierPortfolio(credentials.tradier, connection.accountId || '');
     
     case 'robinhood':
       if (!credentials.robinhood) throw new Error('Missing Robinhood credentials');
-      return await fetchRobinhoodPortfolio(credentials.robinhood, connection.accountId);
+      return await fetchRobinhoodPortfolio(credentials.robinhood, connection.accountId || '');
     
     default:
       console.error(`[BrokerService] Unknown broker type: ${connection.brokerType}`);
@@ -480,11 +535,11 @@ export async function saveBrokerConnection(
     const encrypted = encryptCredentials(credentials);
     
     await query(
-      `INSERT INTO brokerage_connections (user_id, broker_type, account_id, credentials_encrypted, status)
-       VALUES ($1, $2, $3, $4, 'active')
-       ON CONFLICT (user_id, broker_type) 
-       DO UPDATE SET account_id = $3, credentials_encrypted = $4, status = 'active', updated_at = NOW()`,
-      [userId, brokerType, accountId, encrypted]
+      `INSERT INTO brokerage_connections (user_id, broker, credentials_encrypted, connected_at, last_sync)
+       VALUES ($1, $2, $3, NOW(), NOW())
+       ON CONFLICT (user_id, broker)
+       DO UPDATE SET credentials_encrypted = $3, last_sync = NOW()`,
+      [userId, brokerType, encrypted]
     );
     
     return true;
@@ -577,7 +632,7 @@ export async function executeUserTrade(
       const result = await snap.snaptrade.trading.placeForceOrder({
         userId: snapUserId,
         userSecret: snapUserSecret,
-        accountId: selectedAccount,
+        account_id: selectedAccount,
         action: order.side === 'buy' ? 'BUY' : 'SELL',
         order_type: order.type === 'limit' ? 'Limit' : 'Market',
         time_in_force: 'Day',
@@ -599,14 +654,15 @@ export async function executeUserTrade(
       return { success: false, error: 'No broker connection' };
     }
 
-    const credentials = decryptCredentials(connection.credentialsEncrypted);
+    const credentials = connection.decryptedCredentials
+      ? connection.decryptedCredentials
+      : decryptCredentials(connection.credentialsEncrypted || '');
 
     switch (connection.brokerType) {
       case 'alpaca': {
         if (!credentials.alpaca) throw new Error('Missing Alpaca credentials');
         const alpaca = (await import('../integrations/alpaca')).default;
-        // Use Alpaca's submit order
-        const result = await alpaca.submitOrder({
+        const result = await alpaca.placeOrder({
           symbol: order.symbol,
           qty: order.qty,
           side: order.side,
@@ -622,19 +678,24 @@ export async function executeUserTrade(
 
       case 'tradier': {
         if (!credentials.tradier) throw new Error('Missing Tradier credentials');
-        const tradier = (await import('../integrations/tradier')).default;
-        const result = await tradier.placeOrder(
-          connection.accountId,
-          order.symbol,
-          order.qty,
-          order.side,
-          order.type,
-          order.limitPrice
-        );
+        if (!connection.accountId) {
+          return { success: false, error: 'Tradier account ID missing' };
+        }
+        const tradier = await import('../integrations/tradier');
+        const result = await tradier.placeOrder({
+          account_id: connection.accountId,
+          class: 'equity',
+          symbol: order.symbol,
+          side: order.side,
+          quantity: order.qty,
+          type: order.type,
+          duration: 'day',
+          ...(order.limitPrice ? { price: order.limitPrice } : {}),
+        });
         return {
           success: true,
-          orderId: result.order?.id,
-          avgPrice: result.order?.avg_fill_price || 0,
+          orderId: result.id?.toString(),
+          avgPrice: result.avg_fill_price || 0,
         };
       }
 

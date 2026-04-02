@@ -1,75 +1,12 @@
 /**
- * AUTO-TRADING CRON - Scalable Version
+ * AUTO-TRADING CRON
  * 
- * Uses a job queue pattern:
- * 1. Main cron triggers every 15 min
- * 2. Fetches all eligible users
- * 3. Processes in parallel batches (10 users at a time)
- * 4. Each user processed independently
- * 
- * For massive scale (1000+ users), migrate to:
- * - Redis queue (BullMQ)
- * - Separate worker processes
- * - Vercel Cron + Edge Functions
+ * Main cron triggers every 15 minutes and delegates one full cycle to
+ * auto-trading-daemon, which already handles user eligibility + iteration.
  */
 
-import { query } from '../db';
 import { runAutoTradingCycle } from './auto-trading-daemon';
-
-const BATCH_SIZE = 10; // Process 10 users in parallel
 const CYCLE_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
-
-interface EligibleUser {
-  id: string;
-  email: string;
-  tier: string;
-}
-
-/**
- * Get all users eligible for auto-trading
- * Supports SnapTrade (primary) and legacy broker connections
- * 
- * CHANGED: Now returns ALL operator users with brokers connected,
- * regardless of auto_execute_enabled. The daemon will:
- * - Always fetch data + run agent discussions
- * - Only EXECUTE trades if auto_execute_enabled = true
- * - Show recommendations to users who have auto_execute = false
- */
-async function getEligibleUsers(): Promise<EligibleUser[]> {
-  const result = await query(`
-    SELECT u.id, u.email, u.tier
-    FROM users u
-    WHERE u.tier = 'operator'
-      AND (
-        u.snaptrade_user_id IS NOT NULL
-        OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id)
-      )
-  `);
-  return result.rows;
-}
-
-/**
- * Process users in parallel batches
- */
-async function processBatch(users: EligibleUser[]): Promise<void> {
-  const results = await Promise.allSettled(
-    users.map(async (user) => {
-      try {
-        // Import dynamically to avoid circular deps
-        const daemon = await import('./auto-trading-daemon');
-        await daemon.runAutoTradingCycle();
-        return { userId: user.id, success: true };
-      } catch (error: any) {
-        console.error(`[Cron] Failed for ${user.email}:`, error.message);
-        return { userId: user.id, success: false, error: error.message };
-      }
-    })
-  );
-  
-  const succeeded = results.filter(r => r.status === 'fulfilled').length;
-  const failed = results.filter(r => r.status === 'rejected').length;
-  console.log(`[Cron] Batch complete: ${succeeded} success, ${failed} failed`);
-}
 
 /**
  * Run the full cron cycle
@@ -81,23 +18,20 @@ export async function runCronCycle(): Promise<{
 }> {
   const startTime = Date.now();
   console.log('[Cron] Starting auto-trading cycle');
-  
-  const users = await getEligibleUsers();
-  console.log(`[Cron] Found ${users.length} eligible users`);
-  
-  // Process in batches
-  for (let i = 0; i < users.length; i += BATCH_SIZE) {
-    const batch = users.slice(i, i + BATCH_SIZE);
-    console.log(`[Cron] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(users.length / BATCH_SIZE)}`);
-    await processBatch(batch);
+
+  // runAutoTradingCycle already handles all eligible users.
+  const cycleResult = await runAutoTradingCycle();
+  console.log(`[Cron] Daemon processed ${cycleResult.usersProcessed} users, executed ${cycleResult.tradesExecuted} trades`);
+  if (cycleResult.errors.length > 0) {
+    console.warn(`[Cron] ${cycleResult.errors.length} user-level errors detected`);
   }
   
   const duration = Date.now() - startTime;
   console.log(`[Cron] Cycle complete in ${duration}ms`);
   
   return {
-    totalUsers: users.length,
-    processed: users.length,
+    totalUsers: cycleResult.usersProcessed,
+    processed: cycleResult.usersProcessed,
     duration,
   };
 }

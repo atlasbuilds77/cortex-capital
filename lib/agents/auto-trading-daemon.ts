@@ -116,7 +116,19 @@ async function getEligibleUsers(): Promise<User[]> {
     WHERE u.tier = 'operator'
       AND (
         u.snaptrade_user_id IS NOT NULL 
-        OR EXISTS (SELECT 1 FROM broker_credentials bc WHERE bc.user_id = u.id AND bc.credentials_encrypted IS NOT NULL)
+        OR EXISTS (
+          SELECT 1
+          FROM broker_credentials bc
+          WHERE bc.user_id = u.id
+            AND bc.is_active = true
+            AND bc.encrypted_api_key IS NOT NULL
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM brokerage_connections bcx
+          WHERE bcx.user_id = u.id
+            AND bcx.credentials_encrypted IS NOT NULL
+        )
       )
   `);
   
@@ -351,13 +363,21 @@ export async function runAutoTradingCycle(): Promise<{
             trade.symbol,
             trade.action === 'buy' ? 'long' : 'short',
             trade.reason,
-            user.risk_profile || 'moderate'
+            user.risk_profile || 'moderate',
+            user.id
           );
           
-          // Check if agents reached consensus (all approved)
-          const agentsApproved = discussionResult?.consensus === true || 
-                                  discussionResult?.approved === true ||
-                                  trade.confidence >= 80; // High confidence = auto-approve
+          // collaborative-daemon returns a Discussion thread (messages + optional outcome),
+          // not explicit boolean consensus fields.
+          const discussionText = [
+            discussionResult?.outcome || '',
+            ...(discussionResult?.messages || []).map((m: any) => m?.content || ''),
+          ]
+            .join(' ')
+            .toLowerCase();
+          const positiveSignals = (discussionText.match(/\b(approve|approved|buy|bullish|take trade|greenlight)\b/g) || []).length;
+          const negativeSignals = (discussionText.match(/\b(reject|rejected|avoid|skip|no trade|pass)\b/g) || []).length;
+          const agentsApproved = positiveSignals > negativeSignals || trade.confidence >= 80; // High confidence = auto-approve
           
           if (!agentsApproved) {
             console.log(`[AutoTrading] Agents did NOT approve ${trade.symbol} for ${user.email}`);

@@ -9,9 +9,12 @@ export const GET = requireAuth(async (request: NextRequest, user) => {
     const result = await query(
       `SELECT u.id, u.email, u.tier, u.risk_profile, u.email_verified, u.created_at, u.updated_at,
               u.name, u.phone, u.avatar_url,
-              up.investment_horizon, up.constraints, up.day_trading_allocation, up.options_allocation
+              u.trading_goals, u.sector_interests, u.exclusions, u.enabled_agents,
+              NULL::text AS investment_horizon,
+              '[]'::jsonb AS constraints,
+              NULL::numeric AS day_trading_allocation,
+              NULL::numeric AS options_allocation
        FROM users u
-       LEFT JOIN user_preferences up ON u.id = up.user_id
        WHERE u.id = $1`,
       [user.userId]
     );

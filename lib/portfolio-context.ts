@@ -65,7 +65,8 @@ export async function getPortfolioContext(
     // 1. Get user profile
     const userResult = await db.query(
       `SELECT 
-        id, email, tier, risk_profile
+        id, name, email, tier, risk_profile,
+        trading_goals, sector_interests, exclusions
        FROM users 
        WHERE id = $1`,
       [userId]
@@ -77,54 +78,48 @@ export async function getPortfolioContext(
 
     const userRow = userResult.rows[0];
 
-    // 2. Get user's connected broker credentials
-    const credsResult = await db.query(
-      `SELECT broker_type, account_id 
-       FROM broker_credentials 
-       WHERE user_id = $1 AND is_active = true
-       LIMIT 1`,
-      [userId]
-    );
-
-    if (credsResult.rows.length === 0) {
-      // User hasn't connected a broker yet
-      return {
-        user: {
-          id: userRow.id,
-          name: userRow.name,
-          email: userRow.email,
-          tier: userRow.tier,
-          riskProfile: userRow.risk_profile,
-          goals: userRow.goals || [],
-          preferredSectors: userRow.preferred_sectors || [],
-          excludedSectors: userRow.excluded_sectors || [],
-        },
-        totalValue: 0,
-        cash: 0,
-        positions: [],
-        sectorExposure: {},
-        pnlYTD: 0,
-        pnlYTDPct: 0,
-      };
-    }
-
-    // 3. Fetch positions from broker
+    // 2. Fetch positions from broker
     const { fetchUserPositions, calculateSectorExposure, calculateYTDPnL } = await import(
       './services/position-fetcher'
     );
 
-    const brokerData = await fetchUserPositions(userId, db);
+    let brokerData = await fetchUserPositions(userId, db);
 
     const user: UserProfile = {
       id: userRow.id,
-      name: userRow.email.split('@')[0], // Use email prefix as name
+      name: userRow.name || userRow.email?.split('@')?.[0] || 'User',
       email: userRow.email,
       tier: userRow.tier,
       riskProfile: userRow.risk_profile,
-      goals: [],
-      preferredSectors: [],
-      excludedSectors: [],
+      goals: userRow.trading_goals || [],
+      preferredSectors: userRow.sector_interests || [],
+      excludedSectors: userRow.exclusions || [],
     };
+
+    // Fallback to unified broker service so SnapTrade users still get context.
+    if (!brokerData) {
+      const { fetchUserPortfolio } = await import('./services/broker-service');
+      const unified = await fetchUserPortfolio(userId);
+      if (unified) {
+        brokerData = {
+          positions: unified.positions.map((p) => ({
+            symbol: p.symbol,
+            quantity: p.qty,
+            avgPrice: p.avgEntryPrice,
+            currentPrice: p.currentPrice,
+            marketValue: p.marketValue,
+            unrealizedPnL: p.unrealizedPnl,
+            unrealizedPnLPct: p.unrealizedPnlPct,
+            assetType: 'stock',
+          })),
+          balance: {
+            cash: unified.account.cash,
+            portfolioValue: unified.account.portfolioValue,
+            buyingPower: unified.account.buyingPower,
+          },
+        };
+      }
+    }
 
     if (!brokerData) {
       // No broker connected or fetch failed
