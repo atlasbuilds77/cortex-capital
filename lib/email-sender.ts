@@ -9,16 +9,21 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-// Resend API key
-const RESEND_API_KEY = 're_Jg7Dp4iV_38FvagfWzy2WLY1AiAuAkZcG';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const DATABASE_URL = process.env.DATABASE_URL || '';
 
-// Database connection
-const DATABASE_URL = 'postgresql://cortex_capital_user:0IuRjWY7G7JwMmqak0x1m3VC5xqssYe1@dpg-d6vcdsqa214c7387nuu0-a.oregon-postgres.render.com/cortex_capital';
+if (!RESEND_API_KEY) {
+  throw new Error('RESEND_API_KEY is required');
+}
+
+if (!DATABASE_URL) {
+  throw new Error('DATABASE_URL is required');
+}
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false'
   }
 });
 

@@ -1,7 +1,7 @@
 // Polygon.io Market Data for Health Score
 // Fetches real historical data to calculate actual portfolio metrics
 
-const POLYGON_API_KEY = process.env.POLYGON_API_KEY || 'h7J74V1cd8_4NQpTxwQpudpqXWaIHMhv'
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY || ''
 const BASE_URL = 'https://api.polygon.io'
 
 interface DailyBar {

@@ -7,7 +7,7 @@
  * Updated 2026-03-31: Switched from Alpaca to Polygon
  */
 
-const POLYGON_API_KEY = process.env.POLYGON_API_KEY || 'h7J74V1cd8_4NQpTxwQpudpqXWaIHMhv';
+const POLYGON_API_KEY = process.env.POLYGON_API_KEY || '';
 const POLYGON_BASE = 'https://api.polygon.io';
 
 interface Quote {

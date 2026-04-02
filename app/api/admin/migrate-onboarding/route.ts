@@ -7,9 +7,18 @@ import { query } from '@/lib/db';
 // DELETE THIS FILE AFTER RUNNING ONCE
 export async function POST(request: NextRequest) {
   try {
-    // Check for admin secret
+    if (process.env.ENABLE_ONBOARDING_MIGRATION_ENDPOINT !== 'true') {
+      return NextResponse.json({ error: 'Endpoint disabled' }, { status: 403 });
+    }
+
+    const expectedSecret = process.env.ONBOARDING_MIGRATION_SECRET;
+    if (!expectedSecret) {
+      return NextResponse.json({ error: 'Endpoint unavailable' }, { status: 503 });
+    }
+
+    // Check migration secret
     const { secret } = await request.json();
-    if (secret !== 'cortex_migrate_2026') {
+    if (typeof secret !== 'string' || secret !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -11,8 +11,8 @@
 
 import { getQuote } from '../../polygon-data';
 
-// Brave API key - get from environment or hardcoded fallback
-const BRAVE_API_KEY = process.env.BRAVE_API_KEY || 'BSAGCUFwmAYKm6tdjsO5FTnq_QR6ewc';
+// Brave API key from environment
+const BRAVE_API_KEY = process.env.BRAVE_API_KEY || '';
 
 interface NewsItem {
   title: string;

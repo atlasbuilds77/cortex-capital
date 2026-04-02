@@ -46,9 +46,10 @@ function getSector(symbol: string): string {
   return SECTOR_MAP[symbol.toUpperCase()] || 'Other'
 }
 
-export async function POST(req: NextRequest) {
+export const POST = requireAuth(async (req: NextRequest, user) => {
   try {
-    const { token, broker, userId } = await req.json()
+    const { token, broker } = await req.json()
+    const userId = user.userId
     
     // If userId provided, try SnapTrade first
     if (userId) {
@@ -159,4 +160,4 @@ export async function POST(req: NextRequest) {
     console.error('Broker positions error:', error)
     return NextResponse.json({ error: 'Failed to fetch positions' }, { status: 500 })
   }
-}
+})

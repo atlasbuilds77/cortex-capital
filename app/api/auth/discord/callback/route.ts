@@ -5,11 +5,11 @@ import { query } from '@/lib/db';
 import jwt from 'jsonwebtoken';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1429327930005262337';
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || 'vkeHWOe60F9Ceycj97OJjSJNEpIWU8Rm';
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
 const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'https://cortexcapitalgroup.com/api/auth/discord/callback';
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || '1354693841978134598';
 const SINGULARITY_ROLE_ID = process.env.SINGULARITY_ROLE_ID || '1454737556062208073';
-const JWT_SECRET = process.env.JWT_SECRET || 'cortex-capital-secret-key-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || '';
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || '';
 
 interface DiscordUser {
@@ -20,6 +20,10 @@ interface DiscordUser {
 }
 
 export async function GET(request: NextRequest) {
+  if (!DISCORD_CLIENT_SECRET || !JWT_SECRET) {
+    return NextResponse.redirect(new URL('/login?error=oauth_not_configured', request.url));
+  }
+
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
