@@ -195,39 +195,46 @@ export async function addAgentMemory(
   agentId: string,
   memory: { type: string; content: string }
 ): Promise<void> {
-  try {
-    const newMemory: AgentMemory = {
-      ...memory,
-      timestamp: new Date().toISOString(),
-    };
+  const newMemory: AgentMemory = {
+    ...memory,
+    timestamp: new Date().toISOString(),
+  };
+  const memoryJson = JSON.stringify(newMemory);
 
-    // Upsert: create universe if doesn't exist, then append memory
-    // Uses JSONB operations to safely append to the specific agent's array
+  try {
+    // First, ensure the user universe exists
     await query(
-      `INSERT INTO user_universes (user_id, agent_memories)
-       VALUES ($1, jsonb_build_object($2, jsonb_build_array($3::jsonb)))
-       ON CONFLICT (user_id) DO UPDATE SET
-         agent_memories = CASE
-           WHEN user_universes.agent_memories ? $2 THEN
-             jsonb_set(
-               user_universes.agent_memories,
-               ARRAY[$2],
-               (
-                 SELECT jsonb_agg(elem)
-                 FROM (
-                   SELECT elem FROM jsonb_array_elements(user_universes.agent_memories->$2) elem
-                   UNION ALL
-                   SELECT $3::jsonb
-                   ORDER BY elem->>'timestamp' DESC
-                   LIMIT 50
-                 ) sub
-               )
-             )
-           ELSE
-             user_universes.agent_memories || jsonb_build_object($2, jsonb_build_array($3::jsonb))
-         END`,
-      [userId, agentId, JSON.stringify(newMemory)]
+      `INSERT INTO user_universes (user_id, agent_memories, trade_history, preferences, personality_overrides)
+       VALUES ($1, '{}'::jsonb, '[]'::jsonb, '{}'::jsonb, '{}'::jsonb)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [userId]
     );
+
+    // Check if this agent already has memories
+    const existing = await query(
+      `SELECT agent_memories->$2 as memories FROM user_universes WHERE user_id = $1`,
+      [userId, agentId]
+    );
+
+    const currentMemories = existing.rows[0]?.memories || [];
+    
+    // Add new memory, keep last 50
+    const updatedMemories = [newMemory, ...currentMemories].slice(0, 50);
+
+    // Update with the new array
+    await query(
+      `UPDATE user_universes 
+       SET agent_memories = jsonb_set(
+         COALESCE(agent_memories, '{}'::jsonb), 
+         $2::text[], 
+         $3::jsonb
+       ),
+       updated_at = NOW()
+       WHERE user_id = $1`,
+      [userId, [agentId], JSON.stringify(updatedMemories)]
+    );
+    
+    console.log(`[UserUniverse] Added memory for ${agentId} -> user ${userId.slice(0,8)} (total: ${updatedMemories.length})`);
   } catch (error: any) {
     console.error('[UserUniverse] Failed to add agent memory:', error.message);
   }
