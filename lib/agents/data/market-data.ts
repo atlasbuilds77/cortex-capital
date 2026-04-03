@@ -189,9 +189,30 @@ export async function getMarketContextForAgents(): Promise<string> {
   const formatQuote = (q: Quote) => 
     `${q.symbol}: $${q.price.toFixed(2)} (${q.changePercent >= 0 ? '+' : ''}${q.changePercent.toFixed(2)}%)`;
 
+  // Get current date/time in ET
+  const now = new Date();
+  const etFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const currentDateTimeET = etFormatter.format(now);
+  
+  // Check if it's a holiday
+  const { getMarketStatus } = require('../auto-trading-cron');
+  const marketStatus = getMarketStatus();
+
   return `
+CURRENT DATE & TIME: ${currentDateTimeET} ET
+TODAY'S DATE: ${marketStatus.date}
+MARKET STATUS: ${marketStatus.open ? 'OPEN' : `CLOSED (${marketStatus.reason})`}
+
 LIVE MARKET DATA (${snapshot.timestamp}):
-Market Status: ${snapshot.marketStatus.toUpperCase()}
 
 Major Indices:
 - ${formatQuote(snapshot.spy)}
@@ -199,6 +220,7 @@ Major Indices:
 - ${formatQuote(snapshot.iwm)}
 
 Use these REAL prices in your analysis. Do NOT guess or use outdated prices.
+Be aware of the current date - if markets are closed for a holiday, note this in your analysis.
 `.trim();
 }
 
