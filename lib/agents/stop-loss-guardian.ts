@@ -15,39 +15,78 @@ import { getQuote } from '../polygon-data';
 import { notifyTradeExecution } from '../notifications/trade-notifier';
 import { loadUserPreferences, getPositionSizeGuidance } from './user-preferences-context';
 
-// Stop loss percentages by risk profile and position type
-// MATCHES preferences page: Conservative 5%, Moderate 7%, Aggressive 10%, Ultra 15%
+/**
+ * STOP LOSS CONFIGURATION
+ * 
+ * Philosophy:
+ * - 0DTE day trades: -35% hard stop (moves fast, entries must be A+)
+ * - Swing options (2-3 weeks): -50% hard stop, need full trade plan
+ * - LEAPs (90+ DTE): WARN ONLY at -40%, no auto-stop (let them recover)
+ * - Shares: WARN ONLY at -25%, no auto-stop (long-term holds)
+ * 
+ * Account size matters:
+ * - Small accounts (<$2k): More lenient on allocation (can't diversify anyway)
+ * - Medium accounts ($2k-$25k): Standard rules
+ * - Large accounts (>$25k): Enforce diversification
+ */
+
 const STOP_LOSS_CONFIG = {
-  conservative: {
-    stock: { stopPct: 5, warnPct: 3 },       // Matches UI: Stop 5%
-    option: { stopPct: 30, warnPct: 20 },    // Options get 6x multiplier
-    leap: { stopPct: 20, warnPct: 15 },      // LEAPs more room than regular options
+  // 0DTE / Same-day options - fast movers, need good entries
+  dayTrade: { 
+    stopPct: 35,      // Hard stop at -35%
+    warnPct: 20,      // Warn at -20%
+    autoStop: true,   // YES auto-execute
   },
-  moderate: {
-    stock: { stopPct: 7, warnPct: 5 },       // Matches UI: Stop 7%
-    option: { stopPct: 42, warnPct: 30 },    // 6x multiplier
-    leap: { stopPct: 28, warnPct: 20 },
+  
+  // Swing options (7-45 DTE) - need trade plan
+  swingOption: { 
+    stopPct: 50,      // Hard stop at -50%
+    warnPct: 30,      // Warn at -30%
+    autoStop: true,   // YES auto-execute
   },
-  aggressive: {
-    stock: { stopPct: 10, warnPct: 7 },      // Matches UI: Stop 10%
-    option: { stopPct: 50, warnPct: 35 },    // Capped at 50%
-    leap: { stopPct: 35, warnPct: 25 },
+  
+  // LEAPs (90+ DTE) - let them breathe
+  leap: { 
+    stopPct: null,    // NO auto-stop
+    warnPct: 40,      // Warn at -40%
+    autoStop: false,  // WARN ONLY - user decides
   },
-  ultra_aggressive: {
-    stock: { stopPct: 15, warnPct: 10 },     // Matches UI: Stop 15%
-    option: { stopPct: 50, warnPct: 35 },    // Standard options
-    leap: { stopPct: 40, warnPct: 30 },      // LEAPs get wide berth
-    dayTrade: { stopPct: 5, warnPct: 3 },    // Tight intraday stops for day trades
+  
+  // Shares - long-term holds
+  stock: { 
+    stopPct: null,    // NO auto-stop
+    warnPct: 25,      // Warn at -25%
+    autoStop: false,  // WARN ONLY - user decides
   },
 };
 
-// How often to check by risk profile (in minutes)
-const CHECK_INTERVALS = {
-  conservative: 240,    // Every 4 hours
-  moderate: 120,        // Every 2 hours
-  aggressive: 60,       // Every hour
-  ultra_aggressive: 15, // Every 15 min for day trades
+// Account size thresholds for allocation flexibility
+const ACCOUNT_SIZE_RULES = {
+  micro: {      // < $500
+    threshold: 500,
+    maxPositionPct: 50,     // Can go 50% in one position
+    maxPositions: 2,
+  },
+  small: {      // $500 - $2,000
+    threshold: 2000,
+    maxPositionPct: 35,     // 35% max per position
+    maxPositions: 3,
+  },
+  medium: {     // $2,000 - $25,000
+    threshold: 25000,
+    maxPositionPct: 20,     // 20% max per position
+    maxPositions: 5,
+  },
+  large: {      // > $25,000
+    threshold: Infinity,
+    maxPositionPct: 10,     // 10% max, enforce diversification
+    maxPositions: 10,
+  },
 };
+
+// Check interval - run every 15 min during market hours
+// (catches 0DTE moves, LEAPs/shares only get warned not stopped)
+const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
 // Track last warning sent to avoid spam
 const lastWarnings: Map<string, number> = new Map();
@@ -60,19 +99,15 @@ interface Position {
   currentPrice: number;
   unrealizedPnlPct: number;
   assetType: 'stock' | 'option';
-  isLeap?: boolean;
-  isDayTrade?: boolean;
   openedAt?: string;
 }
 
 /**
- * Determine if an option is a LEAP (>90 days to expiry)
+ * Determine option DTE category
  */
-function isLeap(symbol: string): boolean {
-  // Option symbols: AAPL240419C00150000
-  // Extract expiry date from symbol
+function getOptionDTE(symbol: string): number {
   const match = symbol.match(/(\d{6})[CP]/);
-  if (!match) return false;
+  if (!match) return 30; // Default to swing
   
   const dateStr = match[1];
   const year = 2000 + parseInt(dateStr.slice(0, 2));
@@ -81,43 +116,65 @@ function isLeap(symbol: string): boolean {
   
   const expiry = new Date(year, month, day);
   const now = new Date();
-  const daysToExpiry = (expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-  
-  return daysToExpiry > 90;
+  return Math.floor((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 /**
- * Determine if position was opened today (day trade)
+ * Get position type for stop loss rules
  */
-function isDayTrade(openedAt?: string): boolean {
-  if (!openedAt) return false;
+function getPositionType(position: Position): 'dayTrade' | 'swingOption' | 'leap' | 'stock' {
+  // Stocks are simple
+  if (position.assetType === 'stock') {
+    return 'stock';
+  }
   
-  const opened = new Date(openedAt);
-  const now = new Date();
+  // Options - categorize by DTE
+  const dte = getOptionDTE(position.symbol);
   
-  return opened.toDateString() === now.toDateString();
+  if (dte <= 1) {
+    return 'dayTrade';  // 0-1 DTE = day trade
+  } else if (dte >= 90) {
+    return 'leap';      // 90+ DTE = LEAP
+  } else {
+    return 'swingOption'; // 2-89 DTE = swing
+  }
 }
 
 /**
  * Get the appropriate stop loss config for a position
  */
-function getStopConfig(
-  position: Position, 
-  riskProfile: string
-): { stopPct: number; warnPct: number } {
-  const config = STOP_LOSS_CONFIG[riskProfile as keyof typeof STOP_LOSS_CONFIG] || STOP_LOSS_CONFIG.moderate;
+function getStopConfig(position: Position): { 
+  stopPct: number | null; 
+  warnPct: number; 
+  autoStop: boolean;
+  positionType: string;
+} {
+  const positionType = getPositionType(position);
+  const config = STOP_LOSS_CONFIG[positionType];
   
-  // Ultra aggressive day trades get tight stops
-  if (riskProfile === 'ultra_aggressive' && position.isDayTrade && 'dayTrade' in config) {
-    return config.dayTrade;
+  return {
+    ...config,
+    positionType,
+  };
+}
+
+/**
+ * Get allocation rules based on account size
+ */
+function getAccountSizeRules(portfolioValue: number): {
+  maxPositionPct: number;
+  maxPositions: number;
+  tier: string;
+} {
+  if (portfolioValue < ACCOUNT_SIZE_RULES.micro.threshold) {
+    return { ...ACCOUNT_SIZE_RULES.micro, tier: 'micro' };
+  } else if (portfolioValue < ACCOUNT_SIZE_RULES.small.threshold) {
+    return { ...ACCOUNT_SIZE_RULES.small, tier: 'small' };
+  } else if (portfolioValue < ACCOUNT_SIZE_RULES.medium.threshold) {
+    return { ...ACCOUNT_SIZE_RULES.medium, tier: 'medium' };
+  } else {
+    return { ...ACCOUNT_SIZE_RULES.large, tier: 'large' };
   }
-  
-  // LEAPs get wider stops
-  if (position.assetType === 'option' && position.isLeap) {
-    return config.leap;
-  }
-  
-  return config[position.assetType];
 }
 
 /**
@@ -169,17 +226,16 @@ async function checkUserStopLosses(userId: string): Promise<{
         avgEntryPrice: pos.avgEntryPrice,
         currentPrice: pos.currentPrice,
         unrealizedPnlPct: pos.unrealizedPnlPct,
-        assetType: pos.symbol.length > 10 ? 'option' : 'stock', // Options have longer symbols
-        isLeap: pos.symbol.length > 10 ? isLeap(pos.symbol) : false,
-        isDayTrade: isDayTrade(pos.openedAt),
+        assetType: pos.symbol.length > 10 ? 'option' : 'stock',
+        openedAt: pos.openedAt,
       };
       
-      const stopConfig = getStopConfig(position, riskProfile);
+      const stopConfig = getStopConfig(position);
       const lossPct = -position.unrealizedPnlPct; // Convert to positive loss
       
-      // Check if stop hit
-      if (lossPct >= stopConfig.stopPct) {
-        console.log(`[StopGuardian] STOP HIT: ${position.symbol} down ${lossPct.toFixed(1)}% (limit: ${stopConfig.stopPct}%)`);
+      // Check if stop hit AND this type auto-stops
+      if (stopConfig.autoStop && stopConfig.stopPct && lossPct >= stopConfig.stopPct) {
+        console.log(`[StopGuardian] STOP HIT: ${position.symbol} (${stopConfig.positionType}) down ${lossPct.toFixed(1)}% (limit: ${stopConfig.stopPct}%)`);
         
         // Execute the stop
         try {
@@ -197,23 +253,28 @@ async function checkUserStopLosses(userId: string): Promise<{
             symbol: position.symbol,
             action: 'STOP LOSS',
             qty: position.qty,
-            reason: `Automatic stop loss executed. Position was down ${lossPct.toFixed(1)}% (limit: ${stopConfig.stopPct}%)`,
+            reason: `Automatic stop loss executed on ${stopConfig.positionType}. Position was down ${lossPct.toFixed(1)}% (limit: ${stopConfig.stopPct}%)`,
           });
           
           // Log to DB
           await query(
             `INSERT INTO trade_logs (user_id, symbol, action, quantity, reason, status, created_at)
              VALUES ($1, $2, 'stop_loss', $3, $4, 'executed', NOW())`,
-            [userId, position.symbol, position.qty, `Stop loss at -${lossPct.toFixed(1)}%`]
+            [userId, position.symbol, position.qty, `${stopConfig.positionType} stop at -${lossPct.toFixed(1)}%`]
           );
           
         } catch (execErr: any) {
           console.error(`[StopGuardian] Failed to execute stop for ${position.symbol}:`, execErr.message);
         }
         
-      // Check if approaching stop (warning)
+      // Check if approaching warning threshold (once per day)
       } else if (lossPct >= stopConfig.warnPct && shouldWarn(userId, position.symbol)) {
-        console.log(`[StopGuardian] WARNING: ${position.symbol} down ${lossPct.toFixed(1)}% (warn at: ${stopConfig.warnPct}%)`);
+        const actionType = stopConfig.autoStop ? 'STOP WARNING' : 'POSITION ALERT';
+        const message = stopConfig.autoStop
+          ? `${stopConfig.positionType} approaching stop. Down ${lossPct.toFixed(1)}% (auto-stop at ${stopConfig.stopPct}%).`
+          : `${stopConfig.positionType} down ${lossPct.toFixed(1)}%. Review position - no auto-stop for this type.`;
+        
+        console.log(`[StopGuardian] ${actionType}: ${position.symbol} (${stopConfig.positionType}) down ${lossPct.toFixed(1)}%`);
         
         results.warnings++;
         markWarned(userId, position.symbol);
@@ -221,9 +282,9 @@ async function checkUserStopLosses(userId: string): Promise<{
         // Send warning notification (once per day max)
         await notifyTradeExecution(userId, {
           symbol: position.symbol,
-          action: 'STOP WARNING',
+          action: actionType,
           qty: position.qty,
-          reason: `Position approaching stop loss. Down ${lossPct.toFixed(1)}% (stop at ${stopConfig.stopPct}%). Review position.`,
+          reason: message,
         });
       }
     }
@@ -279,16 +340,11 @@ export async function runStopLossGuardian(): Promise<{
   return totals;
 }
 
-/**
- * Check interval for a specific risk profile (in ms)
- */
-export function getCheckIntervalMs(riskProfile: string): number {
-  const minutes = CHECK_INTERVALS[riskProfile as keyof typeof CHECK_INTERVALS] || CHECK_INTERVALS.moderate;
-  return minutes * 60 * 1000;
-}
+export { getAccountSizeRules };
 
 export default {
   runStopLossGuardian,
   checkUserStopLosses,
-  getCheckIntervalMs,
+  getAccountSizeRules,
+  ACCOUNT_SIZE_RULES,
 };
