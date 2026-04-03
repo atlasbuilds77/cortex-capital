@@ -58,8 +58,8 @@ function getDeepSeekClient(): OpenAI {
   return new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com' });
 }
 
-function loadSoul(agentId: string): string {
-  return loadAgentSoulMarkdown(agentId);
+function loadSoul(agentId: string, riskProfile?: string): string {
+  return loadAgentSoulMarkdown(agentId, riskProfile, 3000);
 }
 
 /**
@@ -99,15 +99,23 @@ export async function phoneBoothChat(
   // Add user message
   session.messages.push({ role: 'user', content: userMessage });
 
-  // Build system prompt with soul + real data
-  const soul = loadSoul(agentId);
-  
-  // Get user's portfolio and preferences
+  // Get user's portfolio and preferences first (need riskProfile for soul loading)
   let portfolioContext = '';
   let prefsContext = '';
   let marketContext = '';
   let riskProfile: RiskProfile = 'moderate';
   let agentRiskAdjustment = '';
+  
+  // Load preferences FIRST to get risk profile for soul
+  try {
+    const prefs = await loadUserPreferences(userId);
+    if (prefs) {
+      riskProfile = prefs.riskProfile as RiskProfile;
+    }
+  } catch {}
+
+  // Build system prompt with PROFILE-SPECIFIC soul + real data
+  const soul = loadSoul(agentId, riskProfile);
   
   try {
     const portfolio = await brokerService.fetchUserPortfolio(userId);
@@ -119,10 +127,10 @@ export async function phoneBoothChat(
     }
   } catch (e) {}
   
+  // Get risk adjustment and build prefs context (riskProfile already loaded above)
   try {
     const prefs = await loadUserPreferences(userId);
     if (prefs) {
-      riskProfile = prefs.riskProfile as RiskProfile;
       agentRiskAdjustment = getAgentRiskAdjustment(agentId, riskProfile);
       prefsContext = `\nUSER PROFILE: ${prefs.riskProfile} risk, goals: ${prefs.tradingGoals.join(', ') || 'growth'}`;
     }

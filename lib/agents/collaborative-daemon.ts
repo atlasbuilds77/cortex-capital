@@ -221,7 +221,7 @@ class CollaborativeDaemon {
     riskProfile: RiskProfile = 'moderate'
   ): Promise<string> {
     const agentInfo = AGENTS[agent];
-    const soul = this.loadAgentSoul(agent);
+    const soul = this.loadAgentSoul(agent, riskProfile);
     
     // Initialize context variables
     let relationshipContext = '';
@@ -288,8 +288,9 @@ CRITICAL RULES:
     }
   }
 
-  private loadAgentSoul(agent: string): string | null {
-    const soul = loadAgentSoulMarkdown(agent, 2000);
+  private loadAgentSoul(agent: string, riskProfile?: RiskProfile): string | null {
+    // Pass risk profile to load profile-specific soul if available
+    const soul = loadAgentSoulMarkdown(agent, riskProfile, 3000);
     return soul || null;
   }
 
