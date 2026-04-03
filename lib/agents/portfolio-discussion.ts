@@ -79,37 +79,37 @@ export interface Discussion {
   summary?: string;
 }
 
-// Agent roles for portfolio discussions
+// Agent roles for portfolio discussions (no emojis - use avatar paths)
 const PORTFOLIO_AGENTS = {
   ANALYST: {
     name: 'ANALYST',
     role: 'Portfolio Analyst',
     perspective: 'Data-driven analysis of holdings, sector exposure, and performance metrics',
-    avatar: '📊'
+    avatar: '/avatars/analyst.jpg'
   },
   STRATEGIST: {
     name: 'STRATEGIST', 
     role: 'Investment Strategist',
     perspective: 'Long-term allocation strategy, rebalancing needs, and macro outlook',
-    avatar: '🎯'
+    avatar: '/avatars/strategist.jpg'
   },
   RISK: {
     name: 'RISK',
     role: 'Risk Manager',
     perspective: 'Drawdown protection, position sizing, volatility management',
-    avatar: '🛡️'
+    avatar: '/avatars/risk.jpg'
   },
   GROWTH: {
     name: 'GROWTH',
     role: 'Growth Advocate',
     perspective: 'Bullish on opportunities, momentum plays, sector rotation',
-    avatar: '🚀'
+    avatar: '/avatars/growth.jpg'
   },
   VALUE: {
     name: 'VALUE',
     role: 'Value Investor',
     perspective: 'Contrarian views, undervalued assets, dividend focus',
-    avatar: '💎'
+    avatar: '/avatars/value.jpg'
   }
 };
 

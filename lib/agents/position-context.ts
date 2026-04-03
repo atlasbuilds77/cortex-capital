@@ -44,17 +44,17 @@ export async function getOpenPositions(userId: string): Promise<PositionData[]> 
   try {
     const result = await query(`
       SELECT 
-        symbol,
-        side,
-        quantity,
-        entry_price,
-        current_price,
-        stop_loss_price,
-        take_profit_price,
-        unrealized_pnl
+        COALESCE(symbol, ticker) as symbol,
+        COALESCE(position_type, 'long') as side,
+        COALESCE(quantity, shares, 0) as quantity,
+        COALESCE(avg_cost, cost_basis, 0) as entry_price,
+        COALESCE(current_price, 0) as current_price,
+        NULL as stop_loss_price,
+        NULL as take_profit_price,
+        COALESCE(unrealized_pnl, pnl, 0) as unrealized_pnl
       FROM positions 
-      WHERE user_id = $1 AND status = 'open'
-      ORDER BY created_at DESC
+      WHERE user_id = $1
+      ORDER BY updated_at DESC
     `, [userId]);
 
     return result.rows.map((row: any) => {

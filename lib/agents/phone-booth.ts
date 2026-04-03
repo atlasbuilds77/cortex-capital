@@ -16,17 +16,20 @@ import * as brokerService from '../services/broker-service';
 import { getAgentRiskAdjustment, getQuickRiskContext, type RiskProfile } from './risk-profile-modifier';
 import { loadAgentSoul as loadAgentSoulMarkdown } from './soul-loader';
 
+import { AGENTS as AGENT_CONFIG, getAgent } from './agent-config';
+
+// Map agent config to phone booth format (no emojis - use avatar images)
 const AGENTS: Record<string, { name: string; role: string; avatar: string; color: string }> = {
-  ANALYST: { name: 'Analyst', role: 'Market Analyst', avatar: '📊', color: '#3B82F6' },
-  STRATEGIST: { name: 'Strategist', role: 'Chief Strategist', avatar: '🎯', color: '#8B5CF6' },
-  DAY_TRADER: { name: 'Day Trader', role: 'Day Trader', avatar: '⚡', color: '#F59E0B' },
-  MOMENTUM: { name: 'Momentum', role: 'Momentum Specialist', avatar: '🚀', color: '#10B981' },
-  OPTIONS_STRATEGIST: { name: 'Options Strategist', role: 'Options Specialist', avatar: '📐', color: '#EC4899' },
-  RISK: { name: 'Risk', role: 'Risk Manager', avatar: '🛡️', color: '#EF4444' },
-  EXECUTOR: { name: 'Executor', role: 'Trade Executor', avatar: '🎬', color: '#6366F1' },
-  GROWTH: { name: 'Growth', role: 'Growth Advocate', avatar: '📈', color: '#22C55E' },
-  VALUE: { name: 'Value', role: 'Value Investor', avatar: '💎', color: '#0EA5E9' },
-  REPORTER: { name: 'Reporter', role: 'Market Reporter', avatar: '📰', color: '#F97316' },
+  ANALYST: { name: 'Analyst', role: 'Market Analyst', avatar: '/avatars/analyst.jpg', color: '#3B82F6' },
+  STRATEGIST: { name: 'Strategist', role: 'Chief Strategist', avatar: '/avatars/strategist.jpg', color: '#8B5CF6' },
+  DAY_TRADER: { name: 'Day Trader', role: 'Day Trader', avatar: '/avatars/day_trader.jpg', color: '#F59E0B' },
+  MOMENTUM: { name: 'Momentum', role: 'Momentum Specialist', avatar: '/avatars/momentum.jpg', color: '#10B981' },
+  OPTIONS_STRATEGIST: { name: 'Options Strategist', role: 'Options Specialist', avatar: '/avatars/options_strategist.jpg', color: '#EC4899' },
+  RISK: { name: 'Risk', role: 'Risk Manager', avatar: '/avatars/risk.jpg', color: '#EF4444' },
+  EXECUTOR: { name: 'Executor', role: 'Trade Executor', avatar: '/avatars/executor.jpg', color: '#6366F1' },
+  GROWTH: { name: 'Growth', role: 'Growth Advocate', avatar: '/avatars/growth.jpg', color: '#22C55E' },
+  VALUE: { name: 'Value', role: 'Value Investor', avatar: '/avatars/value.jpg', color: '#0EA5E9' },
+  REPORTER: { name: 'Reporter', role: 'Market Reporter', avatar: '/avatars/reporter.jpg', color: '#F97316' },
 };
 
 interface ChatMessage {

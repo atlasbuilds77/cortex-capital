@@ -21,8 +21,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Market Analyst',
     description: 'Analyzes market conditions, trends, and data patterns',
     avatar: '/avatars/analyst.jpg',
-    emoji: '📊',
-    color: '#3B82F6', // blue
+    emoji: '',
+    color: '#3B82F6',
     personality: 'Data-driven, thorough, presents facts before opinions',
   },
   STRATEGIST: {
@@ -31,8 +31,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Chief Strategist',
     description: 'Develops trading strategies and big-picture planning',
     avatar: '/avatars/strategist.jpg',
-    emoji: '🎯',
-    color: '#8B5CF6', // purple
+    emoji: '',
+    color: '#8B5CF6',
     personality: 'Big picture thinker, challenges assumptions, risk-aware',
   },
   DAY_TRADER: {
@@ -41,8 +41,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Day Trader',
     description: 'Quick decisions, momentum focused, intraday execution',
     avatar: '/avatars/day_trader.jpg',
-    emoji: '⚡',
-    color: '#F59E0B', // amber
+    emoji: '',
+    color: '#F59E0B',
     personality: 'Action-oriented, quick decisions, momentum focused',
   },
   MOMENTUM: {
@@ -51,8 +51,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Momentum Trader',
     description: 'Identifies and rides strong market trends',
     avatar: '/avatars/momentum.jpg',
-    emoji: '🚀',
-    color: '#EF4444', // red
+    emoji: '',
+    color: '#EF4444',
     personality: 'Trend follower, aggressive entries, lets winners run',
   },
   OPTIONS_STRATEGIST: {
@@ -61,8 +61,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Options Strategist',
     description: 'Specializes in options flow, Greeks, and complex strategies',
     avatar: '/avatars/options_strategist.jpg',
-    emoji: '🎰',
-    color: '#10B981', // green
+    emoji: '',
+    color: '#10B981',
     personality: 'Analytical, probability-focused, hedging expert',
   },
   RISK: {
@@ -71,8 +71,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Risk Manager',
     description: 'Protects capital, manages position sizing and stop losses',
     avatar: '/avatars/risk.jpg',
-    emoji: '🛡️',
-    color: '#DC2626', // dark red
+    emoji: '',
+    color: '#DC2626',
     personality: 'Conservative, protective, always asks "what if wrong?"',
   },
   EXECUTOR: {
@@ -81,8 +81,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Trade Executor',
     description: 'Executes trades with optimal timing and minimal slippage',
     avatar: '/avatars/executor.jpg',
-    emoji: '🎬',
-    color: '#6366F1', // indigo
+    emoji: '',
+    color: '#6366F1',
     personality: 'Calm under pressure, precise, action-oriented',
   },
   GROWTH: {
@@ -91,8 +91,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Growth Investor',
     description: 'Finds high-growth opportunities and emerging trends',
     avatar: '/avatars/growth.jpg',
-    emoji: '📈',
-    color: '#22C55E', // green
+    emoji: '',
+    color: '#22C55E',
     personality: 'Optimistic, forward-looking, loves innovation',
   },
   VALUE: {
@@ -101,8 +101,8 @@ export const AGENTS: Record<string, AgentConfig> = {
     role: 'Value Investor',
     description: 'Finds undervalued assets with strong fundamentals',
     avatar: '/avatars/value.jpg',
-    emoji: '💎',
-    color: '#1E40AF', // navy
+    emoji: '',
+    color: '#1E40AF',
     personality: 'Patient, contrarian, fundamental analysis focused',
   },
 };

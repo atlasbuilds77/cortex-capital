@@ -230,10 +230,16 @@ function getDefaultMetrics(): PortfolioRealMetrics {
 }
 
 // Quick price lookup for a symbol (latest price + change)
-export async function getQuote(symbol: string): Promise<{ price: number; change: number; changePercent: number; volume: number } | null> {
+export async function getQuote(symbol: string | any): Promise<{ price: number; change: number; changePercent: number; volume: number } | null> {
   try {
+    // Handle case where symbol is an object (e.g., from SnapTrade)
+    const sym = typeof symbol === 'string' ? symbol : (symbol?.symbol || symbol?.ticker || String(symbol));
+    if (!sym || sym === '[object Object]') {
+      console.warn('[Polygon] Invalid symbol passed to getQuote:', symbol);
+      return null;
+    }
     // Get previous close and current price
-    const url = `${BASE_URL}/v2/aggs/ticker/${symbol.toUpperCase()}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
+    const url = `${BASE_URL}/v2/aggs/ticker/${sym.toUpperCase()}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
     const response = await fetch(url)
     const data = await response.json()
     

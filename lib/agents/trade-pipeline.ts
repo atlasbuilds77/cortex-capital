@@ -291,7 +291,7 @@ export async function executeTradeIdea(signal: TradeSignal): Promise<void> {
       timestamp: new Date().toISOString(),
       agent: 'RISK',
       role: 'Risk Manager',
-      avatar: '🛡️',
+      avatar: '/avatars/risk.jpg',
       color: '#EF4444',
       content: `Trade REJECTED: ${signal.symbol} ${signal.direction}. Risk parameters not met.`,
       discussionId: discussion?.id,
