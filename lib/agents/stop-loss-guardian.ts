@@ -16,27 +16,28 @@ import { notifyTradeExecution } from '../notifications/trade-notifier';
 import { loadUserPreferences, getPositionSizeGuidance } from './user-preferences-context';
 
 // Stop loss percentages by risk profile and position type
+// MATCHES preferences page: Conservative 5%, Moderate 7%, Aggressive 10%, Ultra 15%
 const STOP_LOSS_CONFIG = {
   conservative: {
-    stock: { stopPct: 7, warnPct: 5 },      // Long-term holds
-    option: { stopPct: 40, warnPct: 30 },    // Protective, wider stops
-    leap: { stopPct: 25, warnPct: 20 },      // LEAPs get more room
+    stock: { stopPct: 5, warnPct: 3 },       // Matches UI: Stop 5%
+    option: { stopPct: 30, warnPct: 20 },    // Options get 6x multiplier
+    leap: { stopPct: 20, warnPct: 15 },      // LEAPs more room than regular options
   },
   moderate: {
-    stock: { stopPct: 10, warnPct: 7 },
-    option: { stopPct: 50, warnPct: 35 },
-    leap: { stopPct: 30, warnPct: 20 },
+    stock: { stopPct: 7, warnPct: 5 },       // Matches UI: Stop 7%
+    option: { stopPct: 42, warnPct: 30 },    // 6x multiplier
+    leap: { stopPct: 28, warnPct: 20 },
   },
   aggressive: {
-    stock: { stopPct: 12, warnPct: 8 },
-    option: { stopPct: 50, warnPct: 35 },
+    stock: { stopPct: 10, warnPct: 7 },      // Matches UI: Stop 10%
+    option: { stopPct: 50, warnPct: 35 },    // Capped at 50%
     leap: { stopPct: 35, warnPct: 25 },
   },
   ultra_aggressive: {
-    stock: { stopPct: 15, warnPct: 10 },
-    option: { stopPct: 50, warnPct: 35 },    // Day trade options - standard
+    stock: { stopPct: 15, warnPct: 10 },     // Matches UI: Stop 15%
+    option: { stopPct: 50, warnPct: 35 },    // Standard options
     leap: { stopPct: 40, warnPct: 30 },      // LEAPs get wide berth
-    dayTrade: { stopPct: 5, warnPct: 3 },    // Tight intraday stops
+    dayTrade: { stopPct: 5, warnPct: 3 },    // Tight intraday stops for day trades
   },
 };
 
