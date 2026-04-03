@@ -160,6 +160,18 @@ export async function sendTradeNotification(
       html: emailWrapper(content),
     });
 
+    // Log to email_history
+    try {
+      const { query } = await import('../db');
+      await query(
+        `INSERT INTO email_history (user_id, email_type, recipient, subject, sent_at)
+         VALUES ((SELECT id FROM users WHERE email = $1), $2, $1, $3, NOW())`,
+        [email, trade.type || 'trade_notification', subject]
+      );
+    } catch (logErr) {
+      console.warn('[EMAIL] Failed to log to email_history:', logErr);
+    }
+
     console.log(`[EMAIL] Sent ${trade.type} notification to ${email}`);
     return true;
   } catch (error) {
@@ -221,12 +233,26 @@ export async function sendDailyDigest(
       </div>
     `;
 
+    const subject = `Daily Summary: ${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%)`;
+    
     await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: `Daily Summary: ${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%)`,
+      subject,
       html: emailWrapper(content),
     });
+
+    // Log to email_history
+    try {
+      const { query } = await import('../db');
+      await query(
+        `INSERT INTO email_history (user_id, email_type, recipient, subject, sent_at)
+         VALUES ((SELECT id FROM users WHERE email = $1), 'daily_digest', $1, $2, NOW())`,
+        [email, subject]
+      );
+    } catch (logErr) {
+      console.warn('[EMAIL] Failed to log to email_history:', logErr);
+    }
 
     console.log(`[EMAIL] Sent daily digest to ${email}`);
     return true;

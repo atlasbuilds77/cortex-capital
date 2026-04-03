@@ -499,7 +499,8 @@ CRITICAL RULES:
         
         // Track agent relationships based on discussion dynamics
         try {
-          await this.analyzeAndRecordRelationships(discussion, userId);
+          const { recordInteraction } = await import('./relationship-tracker');
+          await this.analyzeAndRecordRelationships(discussion, userId, recordInteraction);
         } catch (relErr) {
           console.error('[CollaborativeDaemon] Failed to record relationships:', relErr);
         }
@@ -513,98 +514,61 @@ CRITICAL RULES:
   
   /**
    * Analyze discussion and record agent relationship changes
-   * Looks for: agreements, disagreements, building on ideas, challenging positions
+   * Uses relationship-tracker for proper interaction logging
    */
-  private async analyzeAndRecordRelationships(discussion: Discussion, userId: string): Promise<void> {
+  private async analyzeAndRecordRelationships(
+    discussion: Discussion, 
+    userId: string,
+    recordInteraction: (userId: string, agentA: string, agentB: string, type: any, context: string) => Promise<void>
+  ): Promise<void> {
     const messages = discussion.messages;
     if (messages.length < 2) return;
     
     // Keywords that indicate relationship dynamics
     const agreementKeywords = ['agree', 'exactly', 'good point', 'building on', 'support', 'concur', 'seconded'];
-    const disagreementKeywords = ['disagree', 'however', 'but i think', 'concerned', 'risk', 'caution', 'warning'];
+    const disagreementKeywords = ['disagree', 'however', 'but i think', 'concerned', 'caution', 'warning'];
     const collaborationKeywords = ['together', 'combining', 'if we', 'our strategy', 'team'];
+    const supportKeywords = ['backing', 'second that', 'validates', 'confirms'];
+    const challengeKeywords = ['push back', 'reconsider', 'alternative', 'counter'];
     
-    const interactions: Array<{agentA: string; agentB: string; type: string; delta: number}> = [];
+    let interactionsRecorded = 0;
     
     for (let i = 1; i < messages.length; i++) {
       const currentMsg = messages[i];
       const prevMsg = messages[i - 1];
-      const currentAgent = currentMsg.agent.toUpperCase().replace(' ', '_');
-      const prevAgent = prevMsg.agent.toUpperCase().replace(' ', '_');
+      const currentAgent = currentMsg.agent.toUpperCase().replace(/\s+/g, '_');
+      const prevAgent = prevMsg.agent.toUpperCase().replace(/\s+/g, '_');
       
       if (currentAgent === prevAgent) continue;
       
       const content = currentMsg.content.toLowerCase();
+      const context = `Discussion: ${discussion.topic} | ${currentMsg.content.slice(0, 100)}`;
       
-      // Check for agreement
+      // Check for different interaction types
       if (agreementKeywords.some(kw => content.includes(kw))) {
-        interactions.push({
-          agentA: currentAgent,
-          agentB: prevAgent,
-          type: 'agreement',
-          delta: 2
-        });
-      }
-      
-      // Check for constructive disagreement
-      if (disagreementKeywords.some(kw => content.includes(kw))) {
-        interactions.push({
-          agentA: currentAgent,
-          agentB: prevAgent,
-          type: 'constructive_challenge',
-          delta: 1 // Constructive challenges slightly improve relationships
-        });
-      }
-      
-      // Check for collaboration signals
-      if (collaborationKeywords.some(kw => content.includes(kw))) {
-        interactions.push({
-          agentA: currentAgent,
-          agentB: prevAgent,
-          type: 'collaboration',
-          delta: 3
-        });
+        await recordInteraction(userId, currentAgent, prevAgent, 'agreement', context);
+        interactionsRecorded++;
+      } else if (supportKeywords.some(kw => content.includes(kw))) {
+        await recordInteraction(userId, currentAgent, prevAgent, 'support', context);
+        interactionsRecorded++;
+      } else if (collaborationKeywords.some(kw => content.includes(kw))) {
+        await recordInteraction(userId, currentAgent, prevAgent, 'collaboration', context);
+        interactionsRecorded++;
+      } else if (challengeKeywords.some(kw => content.includes(kw))) {
+        await recordInteraction(userId, currentAgent, prevAgent, 'challenge', context);
+        interactionsRecorded++;
+      } else if (disagreementKeywords.some(kw => content.includes(kw))) {
+        await recordInteraction(userId, currentAgent, prevAgent, 'disagreement', context);
+        interactionsRecorded++;
+      } else {
+        // Default to handoff (agent responded to another)
+        await recordInteraction(userId, currentAgent, prevAgent, 'handoff', context);
+        interactionsRecorded++;
       }
     }
     
-    // Record to database
-    if (interactions.length > 0) {
-      for (const interaction of interactions) {
-        try {
-          // Update agent_relationships table
-          await query(
-            `INSERT INTO agent_relationships (agent_a, agent_b, score, interactions, user_id, updated_at)
-             VALUES ($1, $2, $3, 1, $4, NOW())
-             ON CONFLICT ON CONSTRAINT agent_relationships_unique 
-             DO UPDATE SET 
-               score = LEAST(100, GREATEST(-100, agent_relationships.score + $3)),
-               interactions = agent_relationships.interactions + 1,
-               updated_at = NOW()`,
-            [interaction.agentA, interaction.agentB, interaction.delta, userId]
-          );
-          
-          // Log the shift
-          await query(
-            `INSERT INTO agent_relationship_shifts (agent_a, agent_b, delta, reason, score_before, score_after, user_id, created_at)
-             VALUES ($1, $2, $3, $4, 
-               COALESCE((SELECT score FROM agent_relationships WHERE agent_a = $1 AND agent_b = $2 AND user_id = $5), 0) - $3,
-               COALESCE((SELECT score FROM agent_relationships WHERE agent_a = $1 AND agent_b = $2 AND user_id = $5), 0),
-               $5, NOW())`,
-            [interaction.agentA, interaction.agentB, interaction.delta, interaction.type, userId]
-          );
-        } catch (dbErr: any) {
-          // Might fail on constraint - try without it
-          if (dbErr.message?.includes('constraint')) {
-            await query(
-              `INSERT INTO agent_relationships (agent_a, agent_b, score, interactions, user_id, updated_at)
-               VALUES ($1, $2, $3, 1, $4, NOW())
-               ON CONFLICT DO NOTHING`,
-              [interaction.agentA, interaction.agentB, interaction.delta, userId]
-            );
-          }
-        }
-      }
-      console.log(`[CollaborativeDaemon] Recorded ${interactions.length} relationship interactions for user ${userId.slice(0,8)}`);
+    if (interactionsRecorded > 0) {
+      console.log(`[CollaborativeDaemon] Recorded ${interactionsRecorded} interactions for user ${userId.slice(0,8)}`);
     }
   }
 
