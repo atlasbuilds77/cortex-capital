@@ -496,12 +496,116 @@ CRITICAL RULES:
         } catch (memErr) {
           console.error('[CollaborativeDaemon] Failed to save agent memories:', memErr);
         }
+        
+        // Track agent relationships based on discussion dynamics
+        try {
+          await this.analyzeAndRecordRelationships(discussion, userId);
+        } catch (relErr) {
+          console.error('[CollaborativeDaemon] Failed to record relationships:', relErr);
+        }
       }
     } catch (err) {
       console.error('[CollaborativeDaemon] Failed to save discussion:', err);
     }
     
     return discussion;
+  }
+  
+  /**
+   * Analyze discussion and record agent relationship changes
+   * Looks for: agreements, disagreements, building on ideas, challenging positions
+   */
+  private async analyzeAndRecordRelationships(discussion: Discussion, userId: string): Promise<void> {
+    const messages = discussion.messages;
+    if (messages.length < 2) return;
+    
+    // Keywords that indicate relationship dynamics
+    const agreementKeywords = ['agree', 'exactly', 'good point', 'building on', 'support', 'concur', 'seconded'];
+    const disagreementKeywords = ['disagree', 'however', 'but i think', 'concerned', 'risk', 'caution', 'warning'];
+    const collaborationKeywords = ['together', 'combining', 'if we', 'our strategy', 'team'];
+    
+    const interactions: Array<{agentA: string; agentB: string; type: string; delta: number}> = [];
+    
+    for (let i = 1; i < messages.length; i++) {
+      const currentMsg = messages[i];
+      const prevMsg = messages[i - 1];
+      const currentAgent = currentMsg.agent.toUpperCase().replace(' ', '_');
+      const prevAgent = prevMsg.agent.toUpperCase().replace(' ', '_');
+      
+      if (currentAgent === prevAgent) continue;
+      
+      const content = currentMsg.content.toLowerCase();
+      
+      // Check for agreement
+      if (agreementKeywords.some(kw => content.includes(kw))) {
+        interactions.push({
+          agentA: currentAgent,
+          agentB: prevAgent,
+          type: 'agreement',
+          delta: 2
+        });
+      }
+      
+      // Check for constructive disagreement
+      if (disagreementKeywords.some(kw => content.includes(kw))) {
+        interactions.push({
+          agentA: currentAgent,
+          agentB: prevAgent,
+          type: 'constructive_challenge',
+          delta: 1 // Constructive challenges slightly improve relationships
+        });
+      }
+      
+      // Check for collaboration signals
+      if (collaborationKeywords.some(kw => content.includes(kw))) {
+        interactions.push({
+          agentA: currentAgent,
+          agentB: prevAgent,
+          type: 'collaboration',
+          delta: 3
+        });
+      }
+    }
+    
+    // Record to database
+    if (interactions.length > 0) {
+      for (const interaction of interactions) {
+        try {
+          // Update agent_relationships table
+          await query(
+            `INSERT INTO agent_relationships (agent_a, agent_b, score, interactions, user_id, updated_at)
+             VALUES ($1, $2, $3, 1, $4, NOW())
+             ON CONFLICT ON CONSTRAINT agent_relationships_unique 
+             DO UPDATE SET 
+               score = LEAST(100, GREATEST(-100, agent_relationships.score + $3)),
+               interactions = agent_relationships.interactions + 1,
+               updated_at = NOW()`,
+            [interaction.agentA, interaction.agentB, interaction.delta, userId]
+          );
+          
+          // Log the shift
+          await query(
+            `INSERT INTO agent_relationship_shifts (agent_a, agent_b, delta, reason, score_before, score_after, user_id, created_at)
+             VALUES ($1, $2, $3, $4, 
+               COALESCE((SELECT score FROM agent_relationships WHERE agent_a = $1 AND agent_b = $2 AND user_id = $5), 0) - $3,
+               COALESCE((SELECT score FROM agent_relationships WHERE agent_a = $1 AND agent_b = $2 AND user_id = $5), 0),
+               $5, NOW())`,
+            [interaction.agentA, interaction.agentB, interaction.delta, interaction.type, userId]
+          );
+        } catch (dbErr: any) {
+          // Might fail on constraint - try without it
+          if (dbErr.message?.includes('constraint')) {
+            await query(
+              `INSERT INTO agent_relationships (agent_a, agent_b, score, interactions, user_id, updated_at)
+               VALUES ($1, $2, $3, 1, $4, NOW())
+               ON CONFLICT DO NOTHING`,
+              [interaction.agentA, interaction.agentB, interaction.delta, userId]
+            );
+          }
+        }
+      }
+      console.log(`[CollaborativeDaemon] Recorded ${interactions.length} relationship interactions for user ${userId.slice(0,8)}`);
+    }
   }
 
   /**

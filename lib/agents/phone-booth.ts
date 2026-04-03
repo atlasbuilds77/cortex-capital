@@ -77,16 +77,23 @@ export async function phoneBoothChat(
     throw new Error(`Unknown agent: ${agentId}`);
   }
 
-  // Get or create session
+  // Get or create session - try DB first, then memory cache
   let session = sessions.get(sessionKey);
   if (!session) {
-    session = {
-      agentId,
-      userId,
-      messages: [],
-      startedAt: new Date().toISOString(),
-    };
-    sessions.set(sessionKey, session);
+    // Try to load from database
+    const dbSession = await loadPhoneBoothSession(userId, agentId);
+    if (dbSession) {
+      session = dbSession;
+      sessions.set(sessionKey, session);
+    } else {
+      session = {
+        agentId,
+        userId,
+        messages: [],
+        startedAt: new Date().toISOString(),
+      };
+      sessions.set(sessionKey, session);
+    }
   }
 
   // Add user message
@@ -179,6 +186,16 @@ No markdown formatting.`;
 
     // Add agent response to session
     session.messages.push({ role: 'assistant', content: reply });
+    
+    // Persist to database for long-term memory
+    await persistPhoneBoothSession(session);
+    
+    // Also save this as an agent memory
+    const { addAgentMemory } = await import('./user-universe-db');
+    await addAgentMemory(userId, agentId, {
+      type: 'phone_booth_chat',
+      content: `User asked: "${userMessage.slice(0, 100)}..." I replied: "${reply.slice(0, 100)}..."`,
+    });
 
     return {
       agent: agentInfo.name,
@@ -195,6 +212,63 @@ No markdown formatting.`;
       color: agentInfo.color,
     };
   }
+}
+
+/**
+ * Persist phone booth session to database
+ */
+async function persistPhoneBoothSession(session: PhoneBoothSession): Promise<void> {
+  try {
+    const { query } = await import('../db');
+    
+    // Check if session exists
+    const existing = await query(
+      `SELECT id FROM phone_booth_sessions WHERE user_id = $1 AND agent_id = $2`,
+      [session.userId, session.agentId]
+    );
+    
+    if (existing.rows.length > 0) {
+      // Update existing
+      await query(
+        `UPDATE phone_booth_sessions SET messages = $3, updated_at = NOW() WHERE user_id = $1 AND agent_id = $2`,
+        [session.userId, session.agentId, JSON.stringify(session.messages)]
+      );
+    } else {
+      // Insert new
+      await query(
+        `INSERT INTO phone_booth_sessions (user_id, agent_id, messages, created_at, updated_at)
+         VALUES ($1, $2, $3, NOW(), NOW())`,
+        [session.userId, session.agentId, JSON.stringify(session.messages)]
+      );
+    }
+  } catch (error: any) {
+    console.error('[PhoneBooth] Failed to persist session:', error.message);
+  }
+}
+
+/**
+ * Load existing phone booth session from database
+ */
+async function loadPhoneBoothSession(userId: string, agentId: string): Promise<PhoneBoothSession | null> {
+  try {
+    const { query } = await import('../db');
+    const result = await query(
+      `SELECT messages, started_at FROM phone_booth_sessions 
+       WHERE user_id = $1 AND agent_id = $2`,
+      [userId, agentId]
+    );
+    if (result.rows.length > 0) {
+      return {
+        userId,
+        agentId,
+        messages: result.rows[0].messages || [],
+        startedAt: result.rows[0].started_at,
+      };
+    }
+  } catch (error: any) {
+    console.error('[PhoneBooth] Failed to load session:', error.message);
+  }
+  return null;
 }
 
 /**
