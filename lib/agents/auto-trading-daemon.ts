@@ -30,6 +30,7 @@ import { notifyTradeExecution, notifyTradeSignal } from '../notifications/trade-
 import { collaborativeDaemon } from './collaborative-daemon';
 import OpenAI from 'openai';
 import { getQuote } from '../polygon-data';
+import { getTopTradeIdeas, TechnicalSignal } from './data/technical-signals';
 import {
   logUserTrade,
   updateUserPreferences as updateUniversePreferences,
@@ -519,11 +520,35 @@ async function generateRecommendations(
     ? `\nALLOWED SYMBOLS (ONLY recommend from this list): ${allowedSymbols.join(', ')}`
     : '';
 
+  // Get technical signals for allowed symbols (or default watchlist)
+  const symbolsToScan = allowedSymbols.length > 0 
+    ? allowedSymbols.slice(0, 20) // Limit to 20 symbols
+    : ['SPY', 'QQQ', 'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AMZN', 'TSLA', 'AMD'];
+  
+  let technicalContext = '';
+  try {
+    const technicalSignals = await getTopTradeIdeas(symbolsToScan, 'buy', 5);
+    if (technicalSignals.length > 0) {
+      technicalContext = `\nTECHNICAL SIGNALS (Price Action Analysis):
+${technicalSignals.map(s => 
+  `${s.symbol}: ${s.signal.toUpperCase()} (${s.strength}% confidence)
+   Patterns: ${s.patterns.join(', ')}
+   Reasons: ${s.reasons.join('; ')}
+   ${s.entry ? `Entry: $${s.entry.toFixed(2)} | Stop: $${s.stop?.toFixed(2)} | Target: $${s.target?.toFixed(2)}` : ''}`
+).join('\n\n')}
+
+PRIORITIZE these technical setups when generating recommendations.`;
+    }
+  } catch (techErr: any) {
+    console.warn('[AutoTrading] Technical signals error:', techErr.message);
+  }
+
   const prompt = `You are a trading AI analyzing a portfolio. Based on the data below, generate specific trade recommendations.
 
 ${marketContext}
 
 ${researchContext}
+${technicalContext}
 
 USER PREFERENCES:
 ${prefsContext}${symbolConstraint}
