@@ -236,7 +236,7 @@ export default function HeliosSettingsPage() {
             <input
               type="range"
               min={1}
-              max={10}
+              max={100}
               step={1}
               value={settings.helios_position_size}
               onChange={(e) => setSettings(s => ({ ...s, helios_position_size: Number(e.target.value) }))}
@@ -247,8 +247,8 @@ export default function HeliosSettingsPage() {
               className="w-full accent-primary"
             />
             <div className="flex justify-between text-xs text-text-secondary">
-              <span>1% (conservative)</span>
-              <span>10% (aggressive)</span>
+              <span>1%</span>
+              <span>100%</span>
             </div>
           </div>
         </div>

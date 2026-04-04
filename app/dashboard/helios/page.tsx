@@ -412,7 +412,7 @@ export default function HeliosDashboardPage() {
               <input
                 type="range"
                 min={1}
-                max={10}
+                max={100}
                 step={1}
                 value={settings.position_size_pct}
                 onChange={(e) => setSettings(s => ({ ...s, position_size_pct: Number(e.target.value) }))}
@@ -422,8 +422,8 @@ export default function HeliosDashboardPage() {
               />
               <div className="flex justify-between text-[10px] text-text-secondary mt-1">
                 <span>1%</span>
-                <span>5%</span>
-                <span>10%</span>
+                <span>50%</span>
+                <span>100%</span>
               </div>
             </div>
           </div>
