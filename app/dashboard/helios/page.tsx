@@ -237,11 +237,68 @@ export default function HeliosDashboardPage() {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
   const [saving, setSaving]     = useState(false)
+  
+  // Role verification state
+  const [hasRole, setHasRole] = useState<boolean | null>(null)
+  const [verifyingRole, setVerifyingRole] = useState(false)
+  const [roleError, setRoleError] = useState<string | null>(null)
 
   // Auth guard
   useEffect(() => {
     if (!authLoading && !isAuthenticated) router.push('/login')
   }, [authLoading, isAuthenticated, router])
+  
+  // One-time role verification when accessing Helios tab
+  useEffect(() => {
+    if (!token || hasRole !== null) return
+    
+    const verifyRole = async () => {
+      setVerifyingRole(true)
+      try {
+        // First check settings - if it works, they have the role
+        const res = await fetch('/api/helios/settings', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        
+        if (res.ok) {
+          const data = await res.json()
+          setHasRole(true)
+          setSettings({
+            auto_execute: data.helios_enabled ?? false,
+            position_size_pct: data.helios_position_size ?? 2,
+            tickers: { SPX: true, QQQ: true, IWM: false },
+          })
+        } else if (res.status === 403) {
+          // No role - try to refresh from Discord
+          const refreshRes = await fetch('/api/helios/refresh-role', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          
+          if (refreshRes.ok) {
+            const data = await refreshRes.json()
+            setHasRole(data.has_helios_role)
+            if (!data.has_helios_role) {
+              setRoleError('You need the Helios Discord role to access this feature.')
+            }
+          } else {
+            setHasRole(false)
+            setRoleError('Could not verify Discord role. Make sure you have the Helios role in Discord.')
+          }
+        } else {
+          setHasRole(false)
+          setRoleError('Access denied.')
+        }
+      } catch (e: any) {
+        setRoleError(e.message)
+        setHasRole(false)
+      } finally {
+        setVerifyingRole(false)
+      }
+    }
+    
+    verifyRole()
+  }, [token, hasRole])
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -309,7 +366,58 @@ export default function HeliosDashboardPage() {
   }
 
   // ── Loading / Error states ──────────────────────────────────────────────────
-  if (authLoading || loading) {
+  if (authLoading || verifyingRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-text-secondary text-sm">Verifying Helios access...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // No Helios role - show gate
+  if (hasRole === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/15 flex items-center justify-center mx-auto mb-6">
+            <Sun className="w-8 h-8 text-amber-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Helios Access Required</h2>
+          <p className="text-text-secondary mb-6">
+            {roleError || 'You need the Helios Discord role to access auto-execution features.'}
+          </p>
+          <div className="space-y-3">
+            <a
+              href="https://discord.gg/zerog"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full px-4 py-3 bg-[#5865F2] text-white rounded-lg hover:bg-[#4752C4] font-semibold transition-colors"
+            >
+              Join Discord & Get Helios Role
+            </a>
+            <button
+              onClick={() => {
+                setHasRole(null)
+                setRoleError(null)
+              }}
+              className="block w-full px-4 py-3 border border-white/10 text-text-secondary rounded-lg hover:border-white/20 hover:text-white transition-colors"
+            >
+              I have the role — Verify Again
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
