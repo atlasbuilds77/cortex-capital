@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const { tier: requestedTier, stripeSessionId } = await request.clone().json().catch(() => ({}));
     
     // Only allow paid tiers if stripeSessionId is provided
-    const validPaidTiers = ['recovery', 'scout', 'operator', 'partner'];
+    const validPaidTiers = ['recovery', 'scout', 'operator'];
     const userTier = (stripeSessionId && validPaidTiers.includes(requestedTier)) 
       ? requestedTier 
       : 'free';

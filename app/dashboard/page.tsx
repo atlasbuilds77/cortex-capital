@@ -29,7 +29,6 @@ const TIER_LABELS: Record<string, { label: string; color: string; badge: string 
   recovery: { label: 'Recovery', color: 'text-blue-400', badge: 'bg-blue-500/20 border-blue-500/30' },
   scout: { label: 'Scout', color: 'text-cyan-400', badge: 'bg-cyan-500/20 border-cyan-500/30' },
   operator: { label: 'Operator', color: 'text-amber-400', badge: 'bg-amber-500/20 border-amber-500/30' },
-  partner: { label: 'Partner', color: 'text-purple-400', badge: 'bg-purple-500/20 border-purple-500/30' },
 }
 
 export default function DashboardPage() {
@@ -112,12 +111,12 @@ export default function DashboardPage() {
   
   // Derive tier capabilities directly from tier
   const tc = {
-    canUsePhoneBooth: ['scout', 'operator', 'partner'].includes(tier),
-    canAutoExecute: ['operator', 'partner'].includes(tier),
-    canViewSignals: ['scout', 'operator', 'partner'].includes(tier),
-    canCustomizeAgents: ['operator', 'partner'].includes(tier),
-    alertFrequency: tier === 'operator' || tier === 'partner' ? 'realtime' : tier === 'scout' ? 'daily' : 'none',
-    maxTradesPerWeek: tier === 'operator' || tier === 'partner' ? -1 : tier === 'scout' ? 10 : 0,
+    canUsePhoneBooth: ['scout', 'operator'].includes(tier),
+    canAutoExecute: ['operator'].includes(tier),
+    canViewSignals: ['scout', 'operator'].includes(tier),
+    canCustomizeAgents: ['operator'].includes(tier),
+    alertFrequency: tier === 'operator' ? 'realtime' : tier === 'scout' ? 'daily' : 'none',
+    maxTradesPerWeek: tier === 'operator' ? -1 : tier === 'scout' ? 10 : 0,
   }
   
   const isDemo = portfolio?.source === 'demo'

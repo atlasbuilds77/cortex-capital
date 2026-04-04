@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { safeEqual } from '@/lib/env';
 
-const VALID_TIERS = ['free', 'recovery', 'scout', 'operator', 'partner'];
+const VALID_TIERS = ['free', 'recovery', 'scout', 'operator'];
 
 export async function POST(request: NextRequest) {
   try {

@@ -13,7 +13,6 @@ const PRICE_TO_TIER: Record<string, string> = {
   'price_1TDqOlQVfeouH9H6DJv5CtWl': 'recovery',
   'price_1TDqOiQVfeouH9H6ucOCqNnK': 'scout',
   'price_1TDqOjQVfeouH9H6SwXQbcX0': 'operator',
-  'price_1TFPuVQVfeouH9H6ZvN4W9oy': 'partner',
 }
 
 function getTierFromPriceId(priceId: string | undefined): string {

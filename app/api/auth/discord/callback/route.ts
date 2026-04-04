@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       }
       
       // SINGULARITY role = upgrade to operator
-      if (hasSingularityRole && existingUser.rows[0].tier !== 'operator' && existingUser.rows[0].tier !== 'partner') {
+      if (hasSingularityRole && existingUser.rows[0].tier !== 'operator') {
         await query(
           'UPDATE users SET tier = $1, updated_at = NOW() WHERE id = $2',
           ['operator', userId]

@@ -61,7 +61,7 @@ const NOTIFICATION_OPTIONS = [
   },
 ]
 
-const TIER_HIERARCHY = { free: 0, recovery: 1, scout: 2, operator: 3, partner: 4 }
+const TIER_HIERARCHY = { free: 0, recovery: 1, scout: 2, operator: 3 }
 
 export default function NotificationsPage() {
   const { user, token } = useAuth()
