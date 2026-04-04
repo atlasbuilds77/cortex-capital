@@ -462,6 +462,162 @@ export default function LandingPage() {
         </div>
       </AnimatedSection>
 
+      {/* Trusted Infrastructure / SnapTrade Section */}
+      <AnimatedSection className="py-24 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-primary text-sm font-medium mb-6">
+              <Shield className="w-4 h-4" />
+              Trusted Infrastructure
+            </div>
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4">
+              Powered by SnapTrade
+            </h2>
+            <p className="text-lg text-text-secondary">
+              Bank-level security&nbsp;•&nbsp;300+ supported brokers&nbsp;•&nbsp;Never stores your credentials
+            </p>
+            <a
+              href="https://snaptrade.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-4 text-primary hover:text-accent transition-colors text-sm font-medium"
+            >
+              Learn about SnapTrade security →
+            </a>
+          </div>
+
+          {/* Broker logos row */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-12">
+            {[
+              { name: 'Schwab', color: 'from-blue-900/40 to-blue-800/20' },
+              { name: 'Fidelity', color: 'from-green-900/40 to-green-800/20' },
+              { name: 'Robinhood', color: 'from-green-900/40 to-emerald-800/20' },
+              { name: 'TD Ameritrade', color: 'from-green-900/40 to-teal-800/20' },
+              { name: 'IBKR', color: 'from-red-900/40 to-red-800/20' },
+              { name: 'Webull', color: 'from-cyan-900/40 to-cyan-800/20' },
+            ].map((broker) => (
+              <motion.div
+                key={broker.name}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                whileHover={{ scale: 1.05 }}
+                className={`bg-gradient-to-br ${broker.color} border border-white/[0.08] rounded-xl p-4 flex items-center justify-center text-center`}
+              >
+                <span className="text-xs font-semibold text-text-secondary">{broker.name}</span>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Trust badges */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { icon: Shield, label: '256-bit Encryption', desc: 'Military-grade AES encryption on all data' },
+              { icon: CheckCircle, label: 'SOC 2 Compliant', desc: 'Audited security controls you can trust' },
+              { icon: Landmark, label: 'Read-Only Option', desc: 'Connect without giving trading permissions' },
+            ].map(({ icon: Icon, label, desc }, idx) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                className="flex items-start gap-4 p-5 rounded-xl bg-surface-elevated border border-white/[0.06]"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-white text-sm">{label}</p>
+                  <p className="text-text-muted text-xs mt-0.5">{desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* Helios Auto-Execution Section */}
+      <AnimatedSection className="py-24 px-6 bg-surface/40">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-full text-yellow-400 text-sm font-medium mb-6">
+                <Zap className="w-4 h-4" />
+                Helios Auto-Execution
+              </div>
+              <h2 className="text-3xl md:text-4xl font-semibold mb-4 leading-tight">
+                Helios Options Signals{' '}
+                <span className="text-primary">→ Auto-Executed</span>
+              </h2>
+              <p className="text-text-secondary mb-8">
+                Get Helios Discord signals automatically executed in your brokerage account — no manual entry, no missed trades.
+              </p>
+
+              <ul className="space-y-4 mb-8">
+                {[
+                  { step: '1', text: 'Join Helios Discord for signals' },
+                  { step: '2', text: 'Connect your broker via SnapTrade' },
+                  { step: '3', text: 'Trades execute automatically when signals fire' },
+                ].map(({ step, text }) => (
+                  <li key={step} className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0 text-primary font-bold text-sm">
+                      {step}
+                    </div>
+                    <span className="text-text-secondary">{text}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => router.push('/dashboard/helios')}
+                className="px-8 py-4 bg-primary text-black font-semibold rounded-xl hover:shadow-xl hover:shadow-primary/30 hover:bg-accent transition-all duration-300"
+              >
+                Access Helios
+              </button>
+              <p className="text-text-muted text-sm mt-4">
+                Free for Helios Discord members&nbsp;•&nbsp;Sign in with Discord to get started
+              </p>
+            </div>
+
+            {/* Helios visual card */}
+            <div className="relative">
+              <div className="bg-surface-elevated border border-white/10 rounded-2xl p-8 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-primary/5 pointer-events-none" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                      <Zap className="w-5 h-5 text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">Helios Signal</p>
+                      <p className="text-xs text-text-secondary">Options · Live</p>
+                    </div>
+                    <div className="ml-auto w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Symbol', value: 'SPY 450C 12/20' },
+                      { label: 'Action', value: 'BUY TO OPEN' },
+                      { label: 'Size', value: '10 contracts' },
+                      { label: 'Status', value: '✓ Auto-executed', highlight: true },
+                    ].map(({ label, value, highlight }) => (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                        <span className="text-text-secondary text-sm">{label}</span>
+                        <span className={`text-sm font-medium ${highlight ? 'text-green-400' : 'text-white'}`}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
+                    <p className="text-green-400 text-sm font-medium">Signal fired → Executed in 0.3s</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AnimatedSection>
+
       {/* Pricing Section */}
       <AnimatedSection id="pricing" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">

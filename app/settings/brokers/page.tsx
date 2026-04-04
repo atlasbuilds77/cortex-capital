@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Link2, Unlink, RefreshCw, CheckCircle, AlertCircle, Wallet, Trash2, ShieldCheck, Eye, Lock } from 'lucide-react'
+import { Link2, Unlink, RefreshCw, CheckCircle, AlertCircle, Wallet, Trash2, ShieldCheck, Eye, Lock, ExternalLink } from 'lucide-react'
 
 interface BrokerConnection {
   id: string
@@ -390,18 +390,52 @@ export default function BrokersPage() {
         </p>
       </motion.div>
 
-      {/* Security Note */}
+      {/* SnapTrade Trust Bar */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: connected ? 0.4 : 0.2 }}
-        className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
+        transition={{ delay: connected ? 0.5 : 0.3 }}
+        className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent overflow-hidden"
       >
-        <h4 className="font-medium text-blue-400 mb-2">🔒 Bank-Level Security</h4>
-        <p className="text-sm text-text-secondary">
-          We use SnapTrade's secure connection portal. Your credentials are never shared with us - 
-          you authenticate directly with your broker. Connections are encrypted and can be revoked at any time.
-        </p>
+        {/* SnapTrade header */}
+        <div className="flex items-center gap-4 px-5 py-4 border-b border-white/[0.06]">
+          <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-white text-sm">Powered by SnapTrade</p>
+            <p className="text-text-muted text-xs">
+              Bank-level broker connectivity infrastructure
+            </p>
+          </div>
+          <a
+            href="https://snaptrade.com/brokers"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:text-accent transition-colors font-medium whitespace-nowrap"
+          >
+            View all 300+ brokers →
+          </a>
+        </div>
+
+        {/* 3 trust badges */}
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/[0.06]">
+          {[
+            { icon: Lock, label: '256-bit Encryption', desc: 'All connections are AES-256 encrypted end-to-end' },
+            { icon: ShieldCheck, label: 'SOC 2 Compliant', desc: 'Independently audited security controls' },
+            { icon: Eye, label: 'Read-Only Option', desc: 'Connect without granting trading permissions' },
+          ].map(({ icon: Icon, label, desc }) => (
+            <div key={label} className="flex items-start gap-3 px-5 py-4">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Icon className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-white text-sm">{label}</p>
+                <p className="text-text-muted text-xs mt-0.5">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </motion.div>
     </div>
   )
