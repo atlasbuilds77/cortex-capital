@@ -109,8 +109,14 @@ export async function GET(request: NextRequest) {
     console.log(`[Discord OAuth] hasHeliosRole for ${discordUser.id}:`, hasHeliosRole);
 
     // Determine tier based on SINGULARITY role
-    const tier = hasSingularityRole ? 'operator' : 'recovery';
-    console.log('Final tier assigned:', tier);
+    // - Singularity = operator (full Cortex access)
+    // - Helios only = free (can only access Helios tab)
+    // - Neither = free (locked out of everything except demo)
+    let tier = 'free';
+    if (hasSingularityRole) {
+      tier = 'operator';
+    }
+    console.log('Final tier assigned:', tier, '| hasSingularity:', hasSingularityRole, '| hasHelios:', hasHeliosRole);
 
     // Check if user exists in DB (by discord_id OR email)
     const existingUser = await query(
