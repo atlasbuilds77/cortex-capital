@@ -132,22 +132,32 @@ export async function POST(request: NextRequest) {
         throw new Error('No contract_symbol provided - required for options execution');
       }
       
+      console.log(`[Helios/exec] User ${u.id} - Starting execution for ${optionSymbol}`);
+      
       // Helios direction is "LONG" or "SHORT" (market bias)
       // The contract symbol contains C (call) or P (put)
       // For Helios signals, we're always BUYING to open the position
-      // - LONG bias + Call = BUY_TO_OPEN (bullish)
-      // - SHORT bias + Put = BUY_TO_OPEN (bearish via puts)
-      // We don't sell-to-open naked options from Helios signals
       const optionAction: 'BUY_TO_OPEN' = 'BUY_TO_OPEN';
 
       // Fetch account
+      console.log(`[Helios/exec] User ${u.id} - Fetching SnapTrade accounts...`);
       const accounts = await listAccounts(u.snaptrade_user_id, u.snaptrade_user_secret);
+      console.log(`[Helios/exec] User ${u.id} - Found ${accounts.length} account(s):`, accounts.map((a: any) => ({ id: a.id, name: a.name })));
+      
       if (!accounts.length) throw new Error('No broker accounts linked');
       const accountId = accounts[0].id;
 
       // Default to 1 contract for now
       // TODO: Calculate based on position_size_pct and account balance
       const quantity = 1;
+
+      console.log(`[Helios/exec] User ${u.id} - Placing option order:`, {
+        accountId,
+        symbol: optionSymbol,
+        action: optionAction,
+        quantity,
+        orderType: 'Market',
+      });
 
       const orderResult = await placeOptionOrder(
         u.snaptrade_user_id,
@@ -164,6 +174,7 @@ export async function POST(request: NextRequest) {
         }
       );
 
+      console.log(`[Helios/exec] User ${u.id} - Order result:`, JSON.stringify(orderResult));
       const brokerOrderId = (orderResult as any)?.brokerage_order_id ?? null;
 
       await query(
