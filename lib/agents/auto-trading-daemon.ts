@@ -28,6 +28,11 @@ import { getMarketContextForAgents } from './data/market-data';
 import { getFullResearchContext } from './data/research-engine';
 import { notifyTradeExecution, notifyTradeSignal } from '../notifications/trade-notifier';
 import { collaborativeDaemon } from './collaborative-daemon';
+import { 
+  checkTradeApproval, 
+  createApproval, 
+  TradeData as ApprovalTradeData 
+} from '../approvals';
 import OpenAI from 'openai';
 import { getQuote } from '../polygon-data';
 import { getTopTradeIdeas, TechnicalSignal } from './data/technical-signals';
@@ -895,7 +900,35 @@ export async function runAutoTradingCycle(): Promise<{
               );
               continue;
             }
-            // Execute the trade
+            // Check if trade requires approval
+            const approvalTradeData: ApprovalTradeData = {
+              symbol: trade.symbol,
+              action: trade.action,
+              quantity: trade.quantity,
+              isOption: trade.isOption || false,
+              optionSymbol: trade.optionSymbol,
+              estimatedPrice: trade.price,
+              estimatedTotal: trade.price ? trade.price * trade.quantity : undefined,
+              confidence: trade.confidence,
+              reason: trade.reason,
+              direction: trade.action === 'buy' ? 'long' : 'short',
+              dte: trade.dte,
+              portfolioPercentage: trade.price && portfolioValue 
+                ? ((trade.price * trade.quantity) / portfolioValue) * 100 
+                : undefined,
+            };
+            
+            const approvalCheck = await checkTradeApproval(user.id, approvalTradeData);
+            
+            if (approvalCheck.requiresApproval) {
+              // Trade requires approval - add to queue instead of executing
+              console.log(`[AutoTrading] Trade requires approval for ${user.email}: ${approvalCheck.reasons.join(', ')}`);
+              await createApproval(user.id, approvalTradeData, approvalCheck.reasons);
+              console.log(`[AutoTrading] Added ${trade.symbol} to approval queue for ${user.email}`);
+              continue;
+            }
+            
+            // No approval needed - execute immediately
             const success = await executeTrade(user.id, trade);
             if (success) {
               results.tradesExecuted++;
