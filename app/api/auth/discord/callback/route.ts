@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import jwt from 'jsonwebtoken';
+import { checkHeliosRole, HELIOS_ROLE_ID } from '@/lib/discord-role';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1429327930005262337';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
@@ -103,6 +104,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Check if user has Helios role (separate from Singularity/tier gating)
+    const hasHeliosRole = await checkHeliosRole(discordUser.id, accessToken);
+    console.log(`[Discord OAuth] hasHeliosRole for ${discordUser.id}:`, hasHeliosRole);
+
     // Determine tier based on SINGULARITY role
     const tier = hasSingularityRole ? 'operator' : 'recovery';
     console.log('Final tier assigned:', tier);
@@ -121,12 +126,18 @@ export async function GET(request: NextRequest) {
       // Update existing user
       userId = existingUser.rows[0].id;
       
-      // Link Discord if not already linked
+      // Link Discord if not already linked; always refresh access token + helios role
+      await query(
+        `UPDATE users
+         SET discord_id = COALESCE(discord_id, $1),
+             discord_username = COALESCE(discord_username, $2),
+             discord_access_token = $3,
+             has_helios_role = $4,
+             updated_at = NOW()
+         WHERE id = $5`,
+        [discordUser.id, discordUser.username, accessToken, hasHeliosRole, userId]
+      );
       if (!existingUser.rows[0].discord_id) {
-        await query(
-          'UPDATE users SET discord_id = $1, discord_username = $2, updated_at = NOW() WHERE id = $3',
-          [discordUser.id, discordUser.username, userId]
-        );
         console.log('Linked Discord to existing user:', userId);
       }
       
@@ -145,13 +156,13 @@ export async function GET(request: NextRequest) {
     } else {
       // Create new user (password_hash set to 'oauth' placeholder for OAuth users)
       const result = await query(
-        `INSERT INTO users (email, password_hash, discord_id, discord_username, tier, risk_profile, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, 'moderate', NOW(), NOW())
+        `INSERT INTO users (email, password_hash, discord_id, discord_username, discord_access_token, has_helios_role, tier, risk_profile, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'moderate', NOW(), NOW())
          RETURNING id`,
-        [discordUser.email || `${discordUser.id}@discord.user`, 'OAUTH_USER_NO_PASSWORD', discordUser.id, discordUser.username, tier]
+        [discordUser.email || `${discordUser.id}@discord.user`, 'OAUTH_USER_NO_PASSWORD', discordUser.id, discordUser.username, accessToken, hasHeliosRole, tier]
       );
       userId = result.rows[0].id;
-      console.log('Created new Discord user:', userId, 'with tier:', tier);
+      console.log('Created new Discord user:', userId, 'with tier:', tier, 'hasHeliosRole:', hasHeliosRole);
     }
 
     // Generate JWT with actual tier (may have been preserved from existing user)
@@ -162,11 +173,12 @@ export async function GET(request: NextRequest) {
         discordId: discordUser.id,
         tier: currentTier,
         hasSingularity: hasSingularityRole,
+        hasHeliosRole,
       },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
-    console.log('Generated JWT with tier:', currentTier);
+    console.log('Generated JWT with tier:', currentTier, 'hasHeliosRole:', hasHeliosRole);
 
     // Check if user needs onboarding (new user created this session OR never completed onboarding)
     const userProfileResult = await query(

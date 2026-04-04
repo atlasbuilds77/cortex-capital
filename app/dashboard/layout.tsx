@@ -10,7 +10,8 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Sun,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/dashboard/office', label: 'Office', icon: Building2 },
   { href: '/dashboard/portfolio', label: 'Portfolio', icon: Briefcase },
   { href: '/dashboard/trades', label: 'Trades', icon: Activity },
+  { href: '/dashboard/helios', label: 'Helios', icon: Sun },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
