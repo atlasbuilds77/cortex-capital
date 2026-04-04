@@ -31,6 +31,13 @@ import { collaborativeDaemon } from './collaborative-daemon';
 import OpenAI from 'openai';
 import { getQuote } from '../polygon-data';
 import { getTopTradeIdeas, TechnicalSignal } from './data/technical-signals';
+import { 
+  PROFILE_TRADING_RULES, 
+  isTradeAllowed, 
+  classifyOptionByDTE,
+  getTradingRulesContext,
+  type RiskProfile 
+} from './profile-trading-rules';
 import {
   logUserTrade,
   updateUserPreferences as updateUniversePreferences,
@@ -553,6 +560,8 @@ ${technicalContext}
 USER PREFERENCES:
 ${prefsContext}${symbolConstraint}
 
+${getTradingRulesContext((prefs.riskProfile || 'moderate') as RiskProfile)}
+
 CURRENT PORTFOLIO:
 Cash: $${portfolio.account.cash.toLocaleString()}
 Portfolio Value: $${portfolio.account.portfolioValue.toLocaleString()}
@@ -761,6 +770,58 @@ export async function runAutoTradingCycle(): Promise<{
         // Hard exclusion gate (non-negotiable), independent of model prompt fidelity.
         recommendations = recommendations.filter((r) => !isSymbolExcluded(r.symbol, prefs));
         console.log(`[AutoTrading] ${user.email}: ${recommendations.length} after exclusions filter`);
+
+        // PROFILE TRADING RULES GATE
+        // Filter out trades that don't match the user's risk profile rules
+        const riskProfile = (prefs.riskProfile || 'moderate') as RiskProfile;
+        const profileRules = PROFILE_TRADING_RULES[riskProfile];
+        
+        recommendations = recommendations.filter((r) => {
+          // Determine trade type
+          let tradeType: 'shares' | 'swing_option' | 'leap' | 'day_trade' = 'shares';
+          
+          if (r.isOption) {
+            // Extract DTE from option symbol if possible
+            const dteMatch = r.optionSymbol?.match(/(\d{6})[CP]/);
+            let dte = 30; // Default assumption
+            
+            if (dteMatch) {
+              const dateStr = dteMatch[1];
+              const year = 2000 + parseInt(dateStr.slice(0, 2));
+              const month = parseInt(dateStr.slice(2, 4)) - 1;
+              const day = parseInt(dateStr.slice(4, 6));
+              const expiry = new Date(year, month, day);
+              dte = Math.floor((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            }
+            
+            tradeType = classifyOptionByDTE(dte);
+            
+            // Check DTE limits
+            if (dte < profileRules.minDTE) {
+              console.log(`[AutoTrading] Blocking ${r.symbol} for ${user.email}: DTE ${dte} below minimum ${profileRules.minDTE} for ${riskProfile}`);
+              return false;
+            }
+          }
+          
+          // Check if trade type is allowed
+          const typeCheck = isTradeAllowed(riskProfile, tradeType);
+          if (!typeCheck.allowed) {
+            console.log(`[AutoTrading] Blocking ${r.symbol} for ${user.email}: ${typeCheck.reason}`);
+            return false;
+          }
+          
+          // Check if shorting is allowed (for sell/short signals)
+          if (r.action === 'sell' && !r.isOption) {
+            const shortCheck = isTradeAllowed(riskProfile, 'short');
+            if (!shortCheck.allowed) {
+              console.log(`[AutoTrading] Blocking short ${r.symbol} for ${user.email}: ${shortCheck.reason}`);
+              return false;
+            }
+          }
+          
+          return true;
+        });
+        console.log(`[AutoTrading] ${user.email}: ${recommendations.length} after profile rules filter (${riskProfile})`);
 
         // Skip if no recommendations
         if (recommendations.length === 0) {
