@@ -38,8 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       // Update in database
       await query(
-        `UPDATE user_preferences 
-         SET approval_settings = $1, updated_at = NOW()
+        `UPDATE user_trading_settings 
+         SET approval_settings = $1
          WHERE user_id = $2`,
         [JSON.stringify(newSettings), user.id]
       );

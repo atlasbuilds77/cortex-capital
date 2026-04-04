@@ -6,7 +6,7 @@
 -- Stores pending trades awaiting user approval
 CREATE TABLE IF NOT EXISTS trade_approvals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   trade_data JSONB NOT NULL,
   reason_required TEXT NOT NULL,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'expired', 'auto_executed', 'failed')),
@@ -21,14 +21,14 @@ CREATE INDEX IF NOT EXISTS idx_trade_approvals_user_id ON trade_approvals(user_i
 CREATE INDEX IF NOT EXISTS idx_trade_approvals_status ON trade_approvals(status);
 CREATE INDEX IF NOT EXISTS idx_trade_approvals_expires ON trade_approvals(expires_at) WHERE status = 'pending';
 
--- Add approval_settings to user_preferences if it doesn't exist
+-- Add approval_settings to user_trading_settings if it doesn't exist
 DO $$ 
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'user_preferences' AND column_name = 'approval_settings'
+    WHERE table_name = 'user_trading_settings' AND column_name = 'approval_settings'
   ) THEN
-    ALTER TABLE user_preferences ADD COLUMN approval_settings JSONB DEFAULT '{
+    ALTER TABLE user_trading_settings ADD COLUMN approval_settings JSONB DEFAULT '{
       "requireOptions": false,
       "requireLargePositions": false,
       "largePositionThresholdPct": 10,

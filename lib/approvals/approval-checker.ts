@@ -20,7 +20,7 @@ interface ApprovalCheckResult {
 export async function getUserApprovalSettings(userId: string): Promise<ApprovalSettings> {
   try {
     const result = await db.query(
-      `SELECT approval_settings FROM user_preferences WHERE user_id = $1`,
+      `SELECT approval_settings FROM user_trading_settings WHERE user_id = $1`,
       [userId]
     );
     
