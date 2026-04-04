@@ -395,12 +395,12 @@ export default function HeliosDashboardPage() {
           </p>
           <div className="space-y-3">
             <a
-              href="https://discord.gg/zerog"
+              href="https://zerogtrading.com/pricing"
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full px-4 py-3 bg-[#5865F2] text-white rounded-lg hover:bg-[#4752C4] font-semibold transition-colors"
             >
-              Join Discord & Get Helios Role
+              Get Helios Access
             </a>
             <button
               onClick={() => {
