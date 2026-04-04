@@ -10,7 +10,7 @@ import { TradeApproval } from './types';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.DASHBOARD_URL || 'https://cortex-capital.onrender.com';
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.DASHBOARD_URL || 'https://cortexcapitalgroup.com';
 const FROM_EMAIL = 'trades@cortexcapital.ai';
 
 /**
