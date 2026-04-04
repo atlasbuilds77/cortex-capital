@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Activity, ArrowRight, Bot, Building2, DollarSign, Lock, ShieldCheck, TrendingDown, TrendingUp, Zap } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { UpgradeOverlay } from '@/components/upgrade-overlay'
 import type { ComponentType, ReactNode } from 'react'
 
 const API_URL = ""; // API is same-origin
@@ -41,11 +42,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       router.push('/login')
-      return
-    }
-    // Redirect free tier users to pricing
-    if (!loading && isAuthenticated && user?.tier === 'free') {
-      router.push('/pricing?upgrade=true')
     }
   }, [isAuthenticated, loading, router, user])
 
@@ -104,6 +100,11 @@ export default function DashboardPage() {
         Loading dashboard...
       </div>
     )
+  }
+
+  // Free tier: show upgrade gate instead of dashboard
+  if (user?.tier === 'free') {
+    return <UpgradeOverlay featureName="The full Cortex dashboard" />
   }
 
   const tier = user?.tier || 'free'

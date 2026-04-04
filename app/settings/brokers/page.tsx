@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Link2, Unlink, RefreshCw, CheckCircle, AlertCircle, Wallet, Trash2 } from 'lucide-react'
+import { Link2, Unlink, RefreshCw, CheckCircle, AlertCircle, Wallet, Trash2, ShieldCheck, Eye, Lock } from 'lucide-react'
 
 interface BrokerConnection {
   id: string

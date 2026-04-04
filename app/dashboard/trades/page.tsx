@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { UpgradeOverlay } from '@/components/upgrade-overlay'
 
 interface Trade {
   id: string
@@ -34,7 +35,7 @@ interface TradeData {
 }
 
 export default function TradesPage() {
-  const { token, loading: authLoading } = useAuth()
+  const { token, loading: authLoading, user } = useAuth()
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -166,6 +167,11 @@ export default function TradesPage() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
+  }
+
+  // Free tier gate
+  if (!authLoading && user?.tier === 'free') {
+    return <UpgradeOverlay featureName="Trade history" />
   }
 
   if (error) {

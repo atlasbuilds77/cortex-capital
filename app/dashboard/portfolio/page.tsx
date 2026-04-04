@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { TrendingUp, TrendingDown, Wallet, BarChart3, ArrowUpRight, ArrowDownRight, Loader2, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/lib/auth'
+import { UpgradeOverlay } from '@/components/upgrade-overlay'
 
 interface Position {
   symbol: string
@@ -28,7 +29,7 @@ type SortKey = 'symbol' | 'quantity' | 'price' | 'cost' | 'value' | 'pnl'
 type SortDir = 'asc' | 'desc'
 
 export default function PortfolioPage() {
-  const { token, loading: authLoading } = useAuth()
+  const { token, loading: authLoading, user } = useAuth()
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null)
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('value')
@@ -147,6 +148,11 @@ export default function PortfolioPage() {
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
+  }
+
+  // Free tier gate
+  if (!authLoading && user?.tier === 'free') {
+    return <UpgradeOverlay featureName="Portfolio analytics" />
   }
 
   if (error || !portfolio) {
