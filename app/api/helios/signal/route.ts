@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { placeOrder, listAccounts } from '@/lib/integrations/snaptrade';
+import { placeOptionOrder, listAccounts } from '@/lib/integrations/snaptrade';
 
 /**
  * POST /api/helios/signal
@@ -125,28 +125,42 @@ export async function POST(request: NextRequest) {
     executionIds.push(execId);
 
     try {
-      // Determine broker action & symbol
-      const action = direction === 'short' ? 'SELL' : 'BUY';
-      const symbol = body.contract_symbol ?? ticker.toUpperCase();
+      // Helios sends options signals - need to use option order format
+      const optionSymbol = body.contract_symbol;
+      
+      if (!optionSymbol) {
+        throw new Error('No contract_symbol provided - required for options execution');
+      }
+      
+      // Helios direction is "LONG" or "SHORT" (market bias)
+      // The contract symbol contains C (call) or P (put)
+      // For Helios signals, we're always BUYING to open the position
+      // - LONG bias + Call = BUY_TO_OPEN (bullish)
+      // - SHORT bias + Put = BUY_TO_OPEN (bearish via puts)
+      // We don't sell-to-open naked options from Helios signals
+      const optionAction: 'BUY_TO_OPEN' = 'BUY_TO_OPEN';
 
       // Fetch account
       const accounts = await listAccounts(u.snaptrade_user_id, u.snaptrade_user_secret);
       if (!accounts.length) throw new Error('No broker accounts linked');
       const accountId = accounts[0].id;
 
-      // Calculate quantity (1 lot = 100 shares for options; simple 1-contract default)
+      // Default to 1 contract for now
+      // TODO: Calculate based on position_size_pct and account balance
       const quantity = 1;
 
-      const orderResult = await placeOrder(
+      const orderResult = await placeOptionOrder(
         u.snaptrade_user_id,
         u.snaptrade_user_secret,
         accountId,
         {
-          symbol,
-          action,
           orderType: 'Market',
-          quantity,
           timeInForce: 'Day',
+          legs: [{
+            symbol: optionSymbol,
+            action: optionAction,
+            quantity,
+          }],
         }
       );
 
