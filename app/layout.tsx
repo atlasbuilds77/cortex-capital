@@ -11,6 +11,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://cortexcapitalgroup.com'),
   title: 'Portfolio Health Score | Cortex Capital - Free AI Portfolio Analysis',
   description: 'Get your free portfolio health score. See your risk-adjusted returns, diversification score, and personalized recommendations. Like Credit Karma for your investments.',
   keywords: ['portfolio analyzer', 'investment health score', 'AI trading', 'portfolio analysis', 'stock portfolio score', 'investment risk analysis', 'portfolio diversification'],
