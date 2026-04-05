@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
   try {
     const insert = await query(
       `INSERT INTO helios_signals
-         (signal_id, ticker, direction, contract_symbol, strike, expiry, entry_price, raw_payload)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (signal_id, id, ticker, direction, contract_symbol, strike, expiry, entry_price, raw_payload, status)
+       VALUES ($1, $1, $2, $3, $4, $5, $6, $7, $8, 'pending')
        ON CONFLICT (signal_id) DO UPDATE
          SET status = helios_signals.status   -- no-op, just return existing
        RETURNING id`,
