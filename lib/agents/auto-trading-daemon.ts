@@ -947,7 +947,8 @@ export async function runAutoTradingCycle(): Promise<{
         }
 
       } catch (userError: any) {
-        results.errors.push(`${user.email}: ${userError.message}`);
+        console.error(`[AutoTrading] Error for ${user.email}:`, userError);
+        results.errors.push(`${user.email}: ${userError.message} | Stack: ${userError.stack?.split('\n').slice(0,3).join(' <- ')}`);
       }
     }
 
