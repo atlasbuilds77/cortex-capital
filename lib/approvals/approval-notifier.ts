@@ -8,7 +8,15 @@ import { Resend } from 'resend';
 import { db } from '../db';
 import { TradeApproval } from './types';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init to avoid crash when RESEND_API_KEY missing at import time
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY required for notifications');
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.DASHBOARD_URL || 'https://cortexcapitalgroup.com';
 const FROM_EMAIL = 'trades@cortexcapital.ai';
@@ -137,7 +145,7 @@ export async function sendApprovalEmail(userId: string, approval: TradeApproval)
   `;
   
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject,
@@ -210,7 +218,7 @@ export async function sendExecutionEmail(
   `;
   
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject,
@@ -255,7 +263,7 @@ export async function sendRejectionEmail(userId: string, approval: TradeApproval
   `;
   
   try {
-    await resend.emails.send({ from: FROM_EMAIL, to: email, subject, html });
+    await getResend().emails.send({ from: FROM_EMAIL, to: email, subject, html });
   } catch (error: any) {
     console.error(`[ApprovalNotifier] Failed to send rejection email:`, error.message);
   }

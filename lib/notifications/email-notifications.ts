@@ -9,10 +9,21 @@
 
 import { Resend } from 'resend';
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY || 're_Jg7Dp4iV_38FvagfWzy2WLY1AiAuAkZcG';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const FROM_EMAIL = 'Cortex Capital <alerts@cortexcapitalgroup.com>';
 
-const resend = new Resend(RESEND_API_KEY);
+// Lazy init
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    if (!RESEND_API_KEY) {
+      console.warn('[EmailNotifications] RESEND_API_KEY not set, email disabled');
+      throw new Error('RESEND_API_KEY required');
+    }
+    _resend = new Resend(RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 // Color palette
 const COLORS = {
@@ -153,7 +164,7 @@ export async function sendTradeNotification(
       </div>
     `;
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject,
@@ -235,7 +246,7 @@ export async function sendDailyDigest(
 
     const subject = `Daily Summary: ${changeSign}$${Math.abs(data.dayChange).toLocaleString()} (${changeSign}${data.dayChangePercent.toFixed(2)}%)`;
     
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject,
@@ -298,7 +309,7 @@ export async function sendWelcomeEmail(
       </div>
     `;
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: `Welcome to Cortex Capital`,

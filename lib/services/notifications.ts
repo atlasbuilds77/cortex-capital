@@ -6,7 +6,15 @@
 import { Resend } from 'resend';
 import { query } from '@/lib/db';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY required');
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const FROM_EMAIL = 'Cortex Capital <notifications@cortexcapitalgroup.com>';
 
@@ -80,7 +88,7 @@ export async function sendNotification(payload: NotificationPayload): Promise<{ 
     }
     
     // Send via Resend
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: toEmail,
       subject: payload.subject,

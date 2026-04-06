@@ -12,22 +12,32 @@ const { Pool } = pg;
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const DATABASE_URL = process.env.DATABASE_URL || '';
 
-if (!RESEND_API_KEY) {
-  throw new Error('RESEND_API_KEY is required');
-}
+// Lazy initialization to avoid crashing on import when env vars missing
+let _pool: pg.Pool | null = null;
+let _resend: Resend | null = null;
 
-if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL is required');
-}
-
-const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false'
+function getPool(): pg.Pool {
+  if (!_pool) {
+    if (!DATABASE_URL) throw new Error('DATABASE_URL is required');
+    _pool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== 'false' }
+    });
   }
-});
+  return _pool;
+}
 
-const resend = new Resend(RESEND_API_KEY);
+function getResend(): Resend {
+  if (!_resend) {
+    if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY is required');
+    _resend = new Resend(RESEND_API_KEY);
+  }
+  return _resend;
+}
+
+// Aliases for backwards compat (code that references pool/resend directly)
+const pool = { query: (text: string, params?: any[]) => getPool().query(text, params) };
+const resend = { emails: { send: (opts: any) => getResend().emails.send(opts) } };
 
 /**
  * Send draft email to Orion for review
