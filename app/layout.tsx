@@ -12,12 +12,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://cortexcapitalgroup.com'),
-  title: 'Portfolio Health Score | Cortex Capital - Free AI Portfolio Analysis',
-  description: 'Get your free portfolio health score. See your risk-adjusted returns, diversification score, and personalized recommendations. Like Credit Karma for your investments.',
-  keywords: ['portfolio analyzer', 'investment health score', 'AI trading', 'portfolio analysis', 'stock portfolio score', 'investment risk analysis', 'portfolio diversification'],
+  title: 'Cortex Capital | Coming Soon',
+  description: 'AI-powered trading agents, automated execution, and portfolio intelligence. The future of personal investing is almost here.',
+  keywords: ['AI trading', 'automated trading', 'hedge fund', 'portfolio management', 'trading agents', 'Cortex Capital'],
   openGraph: {
-    title: 'What\'s Your Portfolio Health Score?',
-    description: 'Free AI-powered portfolio analysis. Get your score in 2 minutes.',
+    title: 'Cortex Capital | Coming Soon',
+    description: 'AI-powered trading agents, automated execution, and portfolio intelligence. Coming soon.',
     type: 'website',
     url: 'https://cortexcapitalgroup.com',
     images: [
@@ -25,14 +25,14 @@ export const metadata: Metadata = {
         url: '/og-health-score.png',
         width: 1200,
         height: 630,
-        alt: 'Cortex Portfolio Health Score',
+        alt: 'Cortex Capital - Coming Soon',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'What\'s Your Portfolio Health Score?',
-    description: 'Free AI-powered portfolio analysis. Get your score in 2 minutes.',
+    title: 'Cortex Capital | Coming Soon',
+    description: 'AI-powered trading agents, automated execution, and portfolio intelligence. Coming soon.',
   },
   robots: {
     index: true,
