@@ -731,9 +731,12 @@ export async function runAutoTradingCycle(): Promise<{
     for (const user of users) {
       try {
         results.usersProcessed++;
+        console.log(`[AutoTrading] Processing user: ${user.email}`);
         
         // Fetch portfolio
+        console.log(`[AutoTrading] Fetching portfolio for ${user.email}...`);
         const portfolio = await brokerService.fetchUserPortfolio(user.id);
+        console.log(`[AutoTrading] Portfolio fetched for ${user.email}: ${portfolio ? 'OK' : 'NULL'}`);
         if (!portfolio) {
           if (!user.auto_execute_enabled) {
             console.log(`[AutoTrading] ${user.email}: no portfolio data, skipping recommendation-only cycle`);
@@ -746,7 +749,9 @@ export async function runAutoTradingCycle(): Promise<{
         const meetsExecutionMinimum = portfolioValue >= MIN_AUTO_EXECUTION_PORTFOLIO_VALUE;
 
         // Load preferences
+        console.log(`[AutoTrading] Loading preferences for ${user.email}...`);
         const prefs = await loadUserPreferences(user.id);
+        console.log(`[AutoTrading] Preferences loaded for ${user.email}: ${prefs ? 'OK' : 'NULL'}`);
         if (!prefs) {
           results.errors.push(`${user.email}: No preferences`);
           continue;
@@ -760,7 +765,9 @@ export async function runAutoTradingCycle(): Promise<{
         await syncUniversePreferenceMirror(user.id, prefs);
 
         // Generate recommendations
+        console.log(`[AutoTrading] Generating recommendations for ${user.email}...`);
         let recommendations = await generateRecommendations(user.id, portfolio, prefs);
+        console.log(`[AutoTrading] Recommendations generated for ${user.email}: ${recommendations.length}`);
         console.log(`[AutoTrading] ${user.email}: ${recommendations.length} raw recommendations`);
 
         // Filter by allowed symbols (if user has set any)
