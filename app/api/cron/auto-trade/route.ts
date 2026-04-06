@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   
-  // Check market hours
-  if (!isMarketOpen()) {
+  // Check market hours (bypass with ?force=true for testing)
+  const forceRun = url.searchParams.get('force') === 'true';
+  if (!forceRun && !isMarketOpen()) {
     return NextResponse.json({ 
       success: true, 
       skipped: true,
