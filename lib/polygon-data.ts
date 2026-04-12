@@ -283,3 +283,12 @@ export async function getIntradayBars(symbol: string, minutes: number = 60): Pro
     return []
   }
 }
+
+// Backwards-compatible helper used by technical-signals.
+// Returns most recent N daily bars (default 90).
+export async function getDailyBars(symbol: string, days: number = 90): Promise<DailyBar[]> {
+  const bars = await fetchStockHistory(symbol)
+  if (!bars.length) return []
+  const size = Math.max(1, Math.floor(days))
+  return bars.slice(-size)
+}

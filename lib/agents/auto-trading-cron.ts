@@ -71,18 +71,37 @@ const MARKET_HOLIDAYS_2027 = [
 
 const ALL_HOLIDAYS = [...MARKET_HOLIDAYS_2026, ...MARKET_HOLIDAYS_2027];
 
-/**
- * Check if today is a market holiday
- */
-function isMarketHoliday(): boolean {
-  const now = new Date();
-  const etDate = new Intl.DateTimeFormat('en-CA', {
+function getEtParts(date = new Date()): {
+  date: string;
+  weekday: string;
+  hour: number;
+  minute: number;
+} {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(now);
-  
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value || '';
+
+  return {
+    date: `${pick('year')}-${pick('month')}-${pick('day')}`,
+    weekday: pick('weekday'),
+    hour: Number(pick('hour') || 0),
+    minute: Number(pick('minute') || 0),
+  };
+}
+
+/**
+ * Check if today is a market holiday
+ */
+function isMarketHoliday(etDate: string): boolean {
   return ALL_HOLIDAYS.includes(etDate);
 }
 
@@ -90,28 +109,20 @@ function isMarketHoliday(): boolean {
  * Get current market status with reason
  */
 export function getMarketStatus(): { open: boolean; reason: string; date: string } {
-  const now = new Date();
-  const etDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-  
-  const day = now.getUTCDay();
-  
-  if (day === 0) return { open: false, reason: 'Sunday', date: etDate };
-  if (day === 6) return { open: false, reason: 'Saturday', date: etDate };
-  if (isMarketHoliday()) return { open: false, reason: `Holiday (${etDate})`, date: etDate };
-  
-  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-  const marketOpenUtcMinutes = 13 * 60 + 30;  // 9:30 AM ET
-  const marketCloseUtcMinutes = 20 * 60;       // 4:00 PM ET
-  
-  if (utcMinutes < marketOpenUtcMinutes) return { open: false, reason: 'Pre-market', date: etDate };
-  if (utcMinutes >= marketCloseUtcMinutes) return { open: false, reason: 'After-hours', date: etDate };
-  
-  return { open: true, reason: 'Market open', date: etDate };
+  const et = getEtParts(new Date());
+
+  if (et.weekday === 'Sun') return { open: false, reason: 'Sunday', date: et.date };
+  if (et.weekday === 'Sat') return { open: false, reason: 'Saturday', date: et.date };
+  if (isMarketHoliday(et.date)) return { open: false, reason: `Holiday (${et.date})`, date: et.date };
+
+  const etMinutes = et.hour * 60 + et.minute;
+  const marketOpenEtMinutes = 9 * 60 + 30; // 9:30 AM ET
+  const marketCloseEtMinutes = 16 * 60;    // 4:00 PM ET
+
+  if (etMinutes < marketOpenEtMinutes) return { open: false, reason: 'Pre-market', date: et.date };
+  if (etMinutes >= marketCloseEtMinutes) return { open: false, reason: 'After-hours', date: et.date };
+
+  return { open: true, reason: 'Market open', date: et.date };
 }
 
 /**

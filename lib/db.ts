@@ -31,3 +31,8 @@ export async function query(text: string, params?: any[]) {
   console.log('executed query', { text, duration, rows: res.rowCount });
   return res;
 }
+
+// Backwards-compatible alias used across older modules.
+export const db = {
+  query,
+};

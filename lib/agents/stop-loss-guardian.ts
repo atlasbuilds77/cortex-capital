@@ -239,20 +239,26 @@ async function checkUserStopLosses(userId: string): Promise<{
         
         // Execute the stop
         try {
-          await brokerService.executeUserTrade(userId, {
+          const execution = await brokerService.executeUserTrade(userId, {
+            symbol: position.symbol,
+            side: 'sell',
+            qty: position.qty,
+            type: 'market',
+          });
+
+          if (!execution.success) {
+            throw new Error(execution.error || 'Stop-loss execution failed');
+          }
+
+          results.stops++;
+
+          // Notify user (this is important, not spam)
+          await notifyTradeExecution({
+            userId,
             symbol: position.symbol,
             action: 'sell',
-            qty: position.qty,
-            reason: `Stop loss triggered at -${lossPct.toFixed(1)}%`,
-          });
-          
-          results.stops++;
-          
-          // Notify user (this is important, not spam)
-          await notifyTradeExecution(userId, {
-            symbol: position.symbol,
-            action: 'STOP LOSS',
-            qty: position.qty,
+            quantity: position.qty,
+            price: execution.avgPrice || position.currentPrice,
             reason: `Automatic stop loss executed on ${stopConfig.positionType}. Position was down ${lossPct.toFixed(1)}% (limit: ${stopConfig.stopPct}%)`,
           });
           

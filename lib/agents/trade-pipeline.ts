@@ -381,13 +381,19 @@ export async function morningRoutine(): Promise<void> {
   
   // 1. Morning briefing
   await collaborativeDaemon.morningBriefing();
+
+  const credentials = getAlpacaCredentials();
+  if (!credentials) {
+    console.warn('[PIPELINE] Skipping morning position review, Alpaca credentials missing');
+    return;
+  }
   
   // 2. Check existing positions
   try {
     const res = await fetch(`${ALPACA_BASE}/positions`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
       },
     });
     const positions = await res.json();
@@ -413,13 +419,19 @@ export async function morningRoutine(): Promise<void> {
  */
 export async function endOfDayRoutine(): Promise<void> {
   console.log('\n🌙 END OF DAY ROUTINE\n');
+
+  const credentials = getAlpacaCredentials();
+  if (!credentials) {
+    console.warn('[PIPELINE] Skipping EOD routine, Alpaca credentials missing');
+    return;
+  }
   
   // Get today's P&L
   try {
     const res = await fetch(`${ALPACA_BASE}/account`, {
       headers: {
-        'APCA-API-KEY-ID': ALPACA_KEY,
-        'APCA-API-SECRET-KEY': ALPACA_SECRET,
+        'APCA-API-KEY-ID': credentials.apiKey,
+        'APCA-API-SECRET-KEY': credentials.apiSecret,
       },
     });
     const account = await res.json();
@@ -427,7 +439,8 @@ export async function endOfDayRoutine(): Promise<void> {
     
     // Trigger EOD discussion
     const topic = `End of Day Recap. Portfolio: $${parseFloat(account.equity).toFixed(0)}. Today P&L: ${todayPnL >= 0 ? '+' : ''}$${todayPnL.toFixed(0)} (${((todayPnL / parseFloat(account.last_equity)) * 100).toFixed(2)}%).`;
-    
+    void topic;
+
     await collaborativeDaemon.morningBriefing(); // Reuse briefing format for EOD
   } catch (error: any) {
     console.error('EOD routine failed:', error.message);
