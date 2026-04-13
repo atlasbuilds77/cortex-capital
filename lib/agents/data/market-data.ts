@@ -34,6 +34,71 @@ interface MarketSnapshot {
 const quoteCache = new Map<string, { quote: Quote; expires: number }>();
 const CACHE_TTL = 5000; // 5 seconds - fresh data for trading decisions
 
+// Keep this local to avoid circular import with auto-trading-cron.ts
+const MARKET_HOLIDAYS_2026 = new Set([
+  '2026-01-01',
+  '2026-01-19',
+  '2026-02-16',
+  '2026-04-03',
+  '2026-05-25',
+  '2026-06-19',
+  '2026-07-03',
+  '2026-09-07',
+  '2026-11-26',
+  '2026-12-25',
+]);
+
+function getEtParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    weekday: 'short',
+  }).formatToParts(date);
+
+  const pick = (type: string) => parts.find((p) => p.type === type)?.value || '';
+  const year = Number(pick('year'));
+  const month = Number(pick('month'));
+  const day = Number(pick('day'));
+  const hour = Number(pick('hour'));
+  const minute = Number(pick('minute'));
+  const second = Number(pick('second'));
+  const weekdayShort = pick('weekday');
+
+  return { year, month, day, hour, minute, second, weekdayShort };
+}
+
+function getMarketStatusForContext(now = new Date()): { open: boolean; reason: string; date: string } {
+  const et = getEtParts(now);
+  const dateStr = `${et.year}-${String(et.month).padStart(2, '0')}-${String(et.day).padStart(2, '0')}`;
+
+  if (MARKET_HOLIDAYS_2026.has(dateStr)) {
+    return { open: false, reason: 'US market holiday', date: dateStr };
+  }
+
+  if (et.weekdayShort === 'Sat' || et.weekdayShort === 'Sun') {
+    return { open: false, reason: 'Weekend', date: dateStr };
+  }
+
+  const totalMinutes = et.hour * 60 + et.minute;
+  const openMinutes = 9 * 60 + 30;
+  const closeMinutes = 16 * 60;
+
+  if (totalMinutes < openMinutes) {
+    return { open: false, reason: 'Pre-market', date: dateStr };
+  }
+  if (totalMinutes >= closeMinutes) {
+    return { open: false, reason: 'After-hours', date: dateStr };
+  }
+
+  return { open: true, reason: 'Open', date: dateStr };
+}
+
 /**
  * Get LIVE quote for a single symbol using Polygon
  * Uses snapshot API for real-time data (free tier)
@@ -203,9 +268,8 @@ export async function getMarketContextForAgents(): Promise<string> {
   });
   const currentDateTimeET = etFormatter.format(now);
   
-  // Check if it's a holiday
-  const { getMarketStatus } = require('../auto-trading-cron');
-  const marketStatus = getMarketStatus();
+  // Local market status check (avoids circular import into auto-trading-cron)
+  const marketStatus = getMarketStatusForContext();
 
   return `
 CURRENT DATE & TIME: ${currentDateTimeET} ET
